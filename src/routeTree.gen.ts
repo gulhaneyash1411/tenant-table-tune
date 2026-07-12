@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TTableIdRouteImport } from './routes/t.$tableId'
 import { Route as AdminAuthRouteImport } from './routes/admin.auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -61,6 +62,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TTableIdRoute = TTableIdRouteImport.update({
+  id: '/t/$tableId',
+  path: '/t/$tableId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAuthRoute = AdminAuthRouteImport.update({
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/t/$tableId': typeof TTableIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/billing': typeof AuthenticatedAdminBillingRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/t/$tableId': typeof TTableIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/billing': typeof AuthenticatedAdminBillingRoute
@@ -344,6 +352,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/t/$tableId': typeof TTableIdRoute
   '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/_authenticated/admin/billing': typeof AuthenticatedAdminBillingRoute
@@ -386,6 +395,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/admin/auth'
+    | '/t/$tableId'
     | '/admin/announcements'
     | '/admin/audit'
     | '/admin/billing'
@@ -424,6 +434,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin/auth'
+    | '/t/$tableId'
     | '/admin/announcements'
     | '/admin/audit'
     | '/admin/billing'
@@ -465,6 +476,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/admin/auth'
+    | '/t/$tableId'
     | '/_authenticated/admin/announcements'
     | '/_authenticated/admin/audit'
     | '/_authenticated/admin/billing'
@@ -505,6 +517,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   AdminAuthRoute: typeof AdminAuthRoute
+  TTableIdRoute: typeof TTableIdRoute
   ApiPublicBootstrapRoute: typeof ApiPublicBootstrapRoute
 }
 
@@ -529,6 +542,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/t/$tableId': {
+      id: '/t/$tableId'
+      path: '/t/$tableId'
+      fullPath: '/t/$tableId'
+      preLoaderRoute: typeof TTableIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/auth': {
@@ -886,6 +906,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   AdminAuthRoute: AdminAuthRoute,
+  TTableIdRoute: TTableIdRoute,
   ApiPublicBootstrapRoute: ApiPublicBootstrapRoute,
 }
 export const routeTree = rootRouteImport
