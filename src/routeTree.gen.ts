@@ -9,9 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StatusRouteImport } from './routes/status'
+import { Route as ReviewRouteImport } from './routes/review'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TakeawayTenantIdRouteImport } from './routes/takeaway.$tenantId'
 import { Route as TTableIdRouteImport } from './routes/t.$tableId'
 import { Route as AdminAuthRouteImport } from './routes/admin.auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
@@ -50,6 +53,16 @@ import { Route as AuthenticatedAdminBillingRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
 import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_authenticated/admin.announcements'
 
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -62,6 +75,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TakeawayTenantIdRoute = TakeawayTenantIdRouteImport.update({
+  id: '/takeaway/$tenantId',
+  path: '/takeaway/$tenantId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TTableIdRoute = TTableIdRouteImport.update({
@@ -267,10 +285,13 @@ const AuthenticatedAdminAnnouncementsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/review': typeof ReviewRoute
+  '/status': typeof StatusRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
   '/t/$tableId': typeof TTableIdRoute
+  '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/billing': typeof AuthenticatedAdminBillingRoute
@@ -308,8 +329,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/review': typeof ReviewRoute
+  '/status': typeof StatusRoute
   '/admin/auth': typeof AdminAuthRoute
   '/t/$tableId': typeof TTableIdRoute
+  '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/billing': typeof AuthenticatedAdminBillingRoute
@@ -349,10 +373,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/review': typeof ReviewRoute
+  '/status': typeof StatusRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
   '/t/$tableId': typeof TTableIdRoute
+  '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/_authenticated/admin/billing': typeof AuthenticatedAdminBillingRoute
@@ -392,10 +419,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/review'
+    | '/status'
     | '/admin'
     | '/app'
     | '/admin/auth'
     | '/t/$tableId'
+    | '/takeaway/$tenantId'
     | '/admin/announcements'
     | '/admin/audit'
     | '/admin/billing'
@@ -433,8 +463,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/review'
+    | '/status'
     | '/admin/auth'
     | '/t/$tableId'
+    | '/takeaway/$tenantId'
     | '/admin/announcements'
     | '/admin/audit'
     | '/admin/billing'
@@ -473,10 +506,13 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/review'
+    | '/status'
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/admin/auth'
     | '/t/$tableId'
+    | '/takeaway/$tenantId'
     | '/_authenticated/admin/announcements'
     | '/_authenticated/admin/audit'
     | '/_authenticated/admin/billing'
@@ -516,13 +552,30 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ReviewRoute: typeof ReviewRoute
+  StatusRoute: typeof StatusRoute
   AdminAuthRoute: typeof AdminAuthRoute
   TTableIdRoute: typeof TTableIdRoute
+  TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
   ApiPublicBootstrapRoute: typeof ApiPublicBootstrapRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -542,6 +595,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/takeaway/$tenantId': {
+      id: '/takeaway/$tenantId'
+      path: '/takeaway/$tenantId'
+      fullPath: '/takeaway/$tenantId'
+      preLoaderRoute: typeof TakeawayTenantIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/t/$tableId': {
@@ -905,10 +965,23 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ReviewRoute: ReviewRoute,
+  StatusRoute: StatusRoute,
   AdminAuthRoute: AdminAuthRoute,
   TTableIdRoute: TTableIdRoute,
+  TakeawayTenantIdRoute: TakeawayTenantIdRoute,
   ApiPublicBootstrapRoute: ApiPublicBootstrapRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
