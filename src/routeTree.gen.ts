@@ -18,11 +18,27 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
 import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
+import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_authenticated/app.subscription'
+import { Route as AuthenticatedAppStaffRouteImport } from './routes/_authenticated/app.staff'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
 import { Route as AuthenticatedAppReviewsRouteImport } from './routes/_authenticated/app.reviews'
+import { Route as AuthenticatedAppPrintersRouteImport } from './routes/_authenticated/app.printers'
+import { Route as AuthenticatedAppPosRouteImport } from './routes/_authenticated/app.pos'
+import { Route as AuthenticatedAppPluginsRouteImport } from './routes/_authenticated/app.plugins'
 import { Route as AuthenticatedAppOrdersRouteImport } from './routes/_authenticated/app.orders'
+import { Route as AuthenticatedAppOfflineRouteImport } from './routes/_authenticated/app.offline'
 import { Route as AuthenticatedAppMenuRouteImport } from './routes/_authenticated/app.menu'
+import { Route as AuthenticatedAppMarketingRouteImport } from './routes/_authenticated/app.marketing'
+import { Route as AuthenticatedAppLoyaltyRouteImport } from './routes/_authenticated/app.loyalty'
+import { Route as AuthenticatedAppKdsRouteImport } from './routes/_authenticated/app.kds'
+import { Route as AuthenticatedAppInventoryRouteImport } from './routes/_authenticated/app.inventory'
+import { Route as AuthenticatedAppFranchiseRouteImport } from './routes/_authenticated/app.franchise'
 import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
+import { Route as AuthenticatedAppCrmRouteImport } from './routes/_authenticated/app.crm'
+import { Route as AuthenticatedAppBillingRouteImport } from './routes/_authenticated/app.billing'
+import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
+import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
+import { Route as AuthenticatedAppAiRouteImport } from './routes/_authenticated/app.ai'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -68,6 +84,17 @@ const AuthenticatedAppTablesRoute = AuthenticatedAppTablesRouteImport.update({
   path: '/tables',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppSubscriptionRoute =
+  AuthenticatedAppSubscriptionRouteImport.update({
+    id: '/subscription',
+    path: '/subscription',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppStaffRoute = AuthenticatedAppStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppSettingsRoute =
   AuthenticatedAppSettingsRouteImport.update({
     id: '/settings',
@@ -79,9 +106,30 @@ const AuthenticatedAppReviewsRoute = AuthenticatedAppReviewsRouteImport.update({
   path: '/reviews',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppPrintersRoute =
+  AuthenticatedAppPrintersRouteImport.update({
+    id: '/printers',
+    path: '/printers',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppPosRoute = AuthenticatedAppPosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppPluginsRoute = AuthenticatedAppPluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppOrdersRoute = AuthenticatedAppOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppOfflineRoute = AuthenticatedAppOfflineRouteImport.update({
+  id: '/offline',
+  path: '/offline',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
 const AuthenticatedAppMenuRoute = AuthenticatedAppMenuRouteImport.update({
@@ -89,12 +137,66 @@ const AuthenticatedAppMenuRoute = AuthenticatedAppMenuRouteImport.update({
   path: '/menu',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppMarketingRoute =
+  AuthenticatedAppMarketingRouteImport.update({
+    id: '/marketing',
+    path: '/marketing',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppLoyaltyRoute = AuthenticatedAppLoyaltyRouteImport.update({
+  id: '/loyalty',
+  path: '/loyalty',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppKdsRoute = AuthenticatedAppKdsRouteImport.update({
+  id: '/kds',
+  path: '/kds',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppInventoryRoute =
+  AuthenticatedAppInventoryRouteImport.update({
+    id: '/inventory',
+    path: '/inventory',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppFranchiseRoute =
+  AuthenticatedAppFranchiseRouteImport.update({
+    id: '/franchise',
+    path: '/franchise',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppCustomersRoute =
   AuthenticatedAppCustomersRouteImport.update({
     id: '/customers',
     path: '/customers',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppCrmRoute = AuthenticatedAppCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppBillingRoute = AuthenticatedAppBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppApiRoute = AuthenticatedAppApiRouteImport.update({
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppAnalyticsRoute =
+  AuthenticatedAppAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppAiRoute = AuthenticatedAppAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,11 +204,27 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/app/ai': typeof AuthenticatedAppAiRoute
+  '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/app/api': typeof AuthenticatedAppApiRoute
+  '/app/billing': typeof AuthenticatedAppBillingRoute
+  '/app/crm': typeof AuthenticatedAppCrmRoute
   '/app/customers': typeof AuthenticatedAppCustomersRoute
+  '/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/app/inventory': typeof AuthenticatedAppInventoryRoute
+  '/app/kds': typeof AuthenticatedAppKdsRoute
+  '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
+  '/app/marketing': typeof AuthenticatedAppMarketingRoute
   '/app/menu': typeof AuthenticatedAppMenuRoute
+  '/app/offline': typeof AuthenticatedAppOfflineRoute
   '/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/app/plugins': typeof AuthenticatedAppPluginsRoute
+  '/app/pos': typeof AuthenticatedAppPosRoute
+  '/app/printers': typeof AuthenticatedAppPrintersRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/staff': typeof AuthenticatedAppStaffRoute
+  '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/app/': typeof AuthenticatedAppIndexRoute
@@ -116,11 +234,27 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/app/ai': typeof AuthenticatedAppAiRoute
+  '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/app/api': typeof AuthenticatedAppApiRoute
+  '/app/billing': typeof AuthenticatedAppBillingRoute
+  '/app/crm': typeof AuthenticatedAppCrmRoute
   '/app/customers': typeof AuthenticatedAppCustomersRoute
+  '/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/app/inventory': typeof AuthenticatedAppInventoryRoute
+  '/app/kds': typeof AuthenticatedAppKdsRoute
+  '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
+  '/app/marketing': typeof AuthenticatedAppMarketingRoute
   '/app/menu': typeof AuthenticatedAppMenuRoute
+  '/app/offline': typeof AuthenticatedAppOfflineRoute
   '/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/app/plugins': typeof AuthenticatedAppPluginsRoute
+  '/app/pos': typeof AuthenticatedAppPosRoute
+  '/app/printers': typeof AuthenticatedAppPrintersRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/staff': typeof AuthenticatedAppStaffRoute
+  '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/app': typeof AuthenticatedAppIndexRoute
@@ -133,11 +267,27 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/_authenticated/app/ai': typeof AuthenticatedAppAiRoute
+  '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/_authenticated/app/api': typeof AuthenticatedAppApiRoute
+  '/_authenticated/app/billing': typeof AuthenticatedAppBillingRoute
+  '/_authenticated/app/crm': typeof AuthenticatedAppCrmRoute
   '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRoute
+  '/_authenticated/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/_authenticated/app/inventory': typeof AuthenticatedAppInventoryRoute
+  '/_authenticated/app/kds': typeof AuthenticatedAppKdsRoute
+  '/_authenticated/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
+  '/_authenticated/app/marketing': typeof AuthenticatedAppMarketingRoute
   '/_authenticated/app/menu': typeof AuthenticatedAppMenuRoute
+  '/_authenticated/app/offline': typeof AuthenticatedAppOfflineRoute
   '/_authenticated/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/_authenticated/app/plugins': typeof AuthenticatedAppPluginsRoute
+  '/_authenticated/app/pos': typeof AuthenticatedAppPosRoute
+  '/_authenticated/app/printers': typeof AuthenticatedAppPrintersRoute
   '/_authenticated/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/_authenticated/app/staff': typeof AuthenticatedAppStaffRoute
+  '/_authenticated/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
@@ -150,11 +300,27 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/admin/auth'
+    | '/app/ai'
+    | '/app/analytics'
+    | '/app/api'
+    | '/app/billing'
+    | '/app/crm'
     | '/app/customers'
+    | '/app/franchise'
+    | '/app/inventory'
+    | '/app/kds'
+    | '/app/loyalty'
+    | '/app/marketing'
     | '/app/menu'
+    | '/app/offline'
     | '/app/orders'
+    | '/app/plugins'
+    | '/app/pos'
+    | '/app/printers'
     | '/app/reviews'
     | '/app/settings'
+    | '/app/staff'
+    | '/app/subscription'
     | '/app/tables'
     | '/api/public/bootstrap'
     | '/app/'
@@ -164,11 +330,27 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/admin/auth'
+    | '/app/ai'
+    | '/app/analytics'
+    | '/app/api'
+    | '/app/billing'
+    | '/app/crm'
     | '/app/customers'
+    | '/app/franchise'
+    | '/app/inventory'
+    | '/app/kds'
+    | '/app/loyalty'
+    | '/app/marketing'
     | '/app/menu'
+    | '/app/offline'
     | '/app/orders'
+    | '/app/plugins'
+    | '/app/pos'
+    | '/app/printers'
     | '/app/reviews'
     | '/app/settings'
+    | '/app/staff'
+    | '/app/subscription'
     | '/app/tables'
     | '/api/public/bootstrap'
     | '/app'
@@ -180,11 +362,27 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/admin/auth'
+    | '/_authenticated/app/ai'
+    | '/_authenticated/app/analytics'
+    | '/_authenticated/app/api'
+    | '/_authenticated/app/billing'
+    | '/_authenticated/app/crm'
     | '/_authenticated/app/customers'
+    | '/_authenticated/app/franchise'
+    | '/_authenticated/app/inventory'
+    | '/_authenticated/app/kds'
+    | '/_authenticated/app/loyalty'
+    | '/_authenticated/app/marketing'
     | '/_authenticated/app/menu'
+    | '/_authenticated/app/offline'
     | '/_authenticated/app/orders'
+    | '/_authenticated/app/plugins'
+    | '/_authenticated/app/pos'
+    | '/_authenticated/app/printers'
     | '/_authenticated/app/reviews'
     | '/_authenticated/app/settings'
+    | '/_authenticated/app/staff'
+    | '/_authenticated/app/subscription'
     | '/_authenticated/app/tables'
     | '/api/public/bootstrap'
     | '/_authenticated/app/'
@@ -263,6 +461,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppTablesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/subscription': {
+      id: '/_authenticated/app/subscription'
+      path: '/subscription'
+      fullPath: '/app/subscription'
+      preLoaderRoute: typeof AuthenticatedAppSubscriptionRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/staff': {
+      id: '/_authenticated/app/staff'
+      path: '/staff'
+      fullPath: '/app/staff'
+      preLoaderRoute: typeof AuthenticatedAppStaffRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/settings': {
       id: '/_authenticated/app/settings'
       path: '/settings'
@@ -277,11 +489,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppReviewsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/printers': {
+      id: '/_authenticated/app/printers'
+      path: '/printers'
+      fullPath: '/app/printers'
+      preLoaderRoute: typeof AuthenticatedAppPrintersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/pos': {
+      id: '/_authenticated/app/pos'
+      path: '/pos'
+      fullPath: '/app/pos'
+      preLoaderRoute: typeof AuthenticatedAppPosRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/plugins': {
+      id: '/_authenticated/app/plugins'
+      path: '/plugins'
+      fullPath: '/app/plugins'
+      preLoaderRoute: typeof AuthenticatedAppPluginsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/orders': {
       id: '/_authenticated/app/orders'
       path: '/orders'
       fullPath: '/app/orders'
       preLoaderRoute: typeof AuthenticatedAppOrdersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/offline': {
+      id: '/_authenticated/app/offline'
+      path: '/offline'
+      fullPath: '/app/offline'
+      preLoaderRoute: typeof AuthenticatedAppOfflineRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/menu': {
@@ -291,6 +531,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMenuRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/marketing': {
+      id: '/_authenticated/app/marketing'
+      path: '/marketing'
+      fullPath: '/app/marketing'
+      preLoaderRoute: typeof AuthenticatedAppMarketingRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/loyalty': {
+      id: '/_authenticated/app/loyalty'
+      path: '/loyalty'
+      fullPath: '/app/loyalty'
+      preLoaderRoute: typeof AuthenticatedAppLoyaltyRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/kds': {
+      id: '/_authenticated/app/kds'
+      path: '/kds'
+      fullPath: '/app/kds'
+      preLoaderRoute: typeof AuthenticatedAppKdsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/inventory': {
+      id: '/_authenticated/app/inventory'
+      path: '/inventory'
+      fullPath: '/app/inventory'
+      preLoaderRoute: typeof AuthenticatedAppInventoryRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/franchise': {
+      id: '/_authenticated/app/franchise'
+      path: '/franchise'
+      fullPath: '/app/franchise'
+      preLoaderRoute: typeof AuthenticatedAppFranchiseRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/customers': {
       id: '/_authenticated/app/customers'
       path: '/customers'
@@ -298,25 +573,92 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCustomersRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/crm': {
+      id: '/_authenticated/app/crm'
+      path: '/crm'
+      fullPath: '/app/crm'
+      preLoaderRoute: typeof AuthenticatedAppCrmRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/billing': {
+      id: '/_authenticated/app/billing'
+      path: '/billing'
+      fullPath: '/app/billing'
+      preLoaderRoute: typeof AuthenticatedAppBillingRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/api': {
+      id: '/_authenticated/app/api'
+      path: '/api'
+      fullPath: '/app/api'
+      preLoaderRoute: typeof AuthenticatedAppApiRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/analytics': {
+      id: '/_authenticated/app/analytics'
+      path: '/analytics'
+      fullPath: '/app/analytics'
+      preLoaderRoute: typeof AuthenticatedAppAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/ai': {
+      id: '/_authenticated/app/ai'
+      path: '/ai'
+      fullPath: '/app/ai'
+      preLoaderRoute: typeof AuthenticatedAppAiRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAiRoute: typeof AuthenticatedAppAiRoute
+  AuthenticatedAppAnalyticsRoute: typeof AuthenticatedAppAnalyticsRoute
+  AuthenticatedAppApiRoute: typeof AuthenticatedAppApiRoute
+  AuthenticatedAppBillingRoute: typeof AuthenticatedAppBillingRoute
+  AuthenticatedAppCrmRoute: typeof AuthenticatedAppCrmRoute
   AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRoute
+  AuthenticatedAppFranchiseRoute: typeof AuthenticatedAppFranchiseRoute
+  AuthenticatedAppInventoryRoute: typeof AuthenticatedAppInventoryRoute
+  AuthenticatedAppKdsRoute: typeof AuthenticatedAppKdsRoute
+  AuthenticatedAppLoyaltyRoute: typeof AuthenticatedAppLoyaltyRoute
+  AuthenticatedAppMarketingRoute: typeof AuthenticatedAppMarketingRoute
   AuthenticatedAppMenuRoute: typeof AuthenticatedAppMenuRoute
+  AuthenticatedAppOfflineRoute: typeof AuthenticatedAppOfflineRoute
   AuthenticatedAppOrdersRoute: typeof AuthenticatedAppOrdersRoute
+  AuthenticatedAppPluginsRoute: typeof AuthenticatedAppPluginsRoute
+  AuthenticatedAppPosRoute: typeof AuthenticatedAppPosRoute
+  AuthenticatedAppPrintersRoute: typeof AuthenticatedAppPrintersRoute
   AuthenticatedAppReviewsRoute: typeof AuthenticatedAppReviewsRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
+  AuthenticatedAppStaffRoute: typeof AuthenticatedAppStaffRoute
+  AuthenticatedAppSubscriptionRoute: typeof AuthenticatedAppSubscriptionRoute
   AuthenticatedAppTablesRoute: typeof AuthenticatedAppTablesRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAiRoute: AuthenticatedAppAiRoute,
+  AuthenticatedAppAnalyticsRoute: AuthenticatedAppAnalyticsRoute,
+  AuthenticatedAppApiRoute: AuthenticatedAppApiRoute,
+  AuthenticatedAppBillingRoute: AuthenticatedAppBillingRoute,
+  AuthenticatedAppCrmRoute: AuthenticatedAppCrmRoute,
   AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRoute,
+  AuthenticatedAppFranchiseRoute: AuthenticatedAppFranchiseRoute,
+  AuthenticatedAppInventoryRoute: AuthenticatedAppInventoryRoute,
+  AuthenticatedAppKdsRoute: AuthenticatedAppKdsRoute,
+  AuthenticatedAppLoyaltyRoute: AuthenticatedAppLoyaltyRoute,
+  AuthenticatedAppMarketingRoute: AuthenticatedAppMarketingRoute,
   AuthenticatedAppMenuRoute: AuthenticatedAppMenuRoute,
+  AuthenticatedAppOfflineRoute: AuthenticatedAppOfflineRoute,
   AuthenticatedAppOrdersRoute: AuthenticatedAppOrdersRoute,
+  AuthenticatedAppPluginsRoute: AuthenticatedAppPluginsRoute,
+  AuthenticatedAppPosRoute: AuthenticatedAppPosRoute,
+  AuthenticatedAppPrintersRoute: AuthenticatedAppPrintersRoute,
   AuthenticatedAppReviewsRoute: AuthenticatedAppReviewsRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
+  AuthenticatedAppStaffRoute: AuthenticatedAppStaffRoute,
+  AuthenticatedAppSubscriptionRoute: AuthenticatedAppSubscriptionRoute,
   AuthenticatedAppTablesRoute: AuthenticatedAppTablesRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
