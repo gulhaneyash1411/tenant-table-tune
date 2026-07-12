@@ -40,7 +40,14 @@ import { Route as AuthenticatedAppBillingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
 import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
 import { Route as AuthenticatedAppAiRouteImport } from './routes/_authenticated/app.ai'
+import { Route as AuthenticatedAdminTicketsRouteImport } from './routes/_authenticated/admin.tickets'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminRestaurantsRouteImport } from './routes/_authenticated/admin.restaurants'
+import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
+import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
+import { Route as AuthenticatedAdminBillingRouteImport } from './routes/_authenticated/admin.billing'
+import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
+import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_authenticated/admin.announcements'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -204,10 +211,50 @@ const AuthenticatedAppAiRoute = AuthenticatedAppAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAdminTicketsRoute =
+  AuthenticatedAdminTicketsRouteImport.update({
+    id: '/tickets',
+    path: '/tickets',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminRestaurantsRoute =
   AuthenticatedAdminRestaurantsRouteImport.update({
     id: '/restaurants',
     path: '/restaurants',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminReportsRoute =
+  AuthenticatedAdminReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminBillingRoute =
+  AuthenticatedAdminBillingRouteImport.update({
+    id: '/billing',
+    path: '/billing',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminAnnouncementsRoute =
+  AuthenticatedAdminAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 
@@ -217,7 +264,14 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/billing': typeof AuthenticatedAdminBillingRoute
+  '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/tickets': typeof AuthenticatedAdminTicketsRoute
   '/app/ai': typeof AuthenticatedAppAiRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/api': typeof AuthenticatedAppApiRoute
@@ -248,7 +302,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/billing': typeof AuthenticatedAdminBillingRoute
+  '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/tickets': typeof AuthenticatedAdminTicketsRoute
   '/app/ai': typeof AuthenticatedAppAiRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/api': typeof AuthenticatedAppApiRoute
@@ -283,7 +344,14 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/_authenticated/admin/billing': typeof AuthenticatedAdminBillingRoute
+  '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_authenticated/admin/tickets': typeof AuthenticatedAdminTicketsRoute
   '/_authenticated/app/ai': typeof AuthenticatedAppAiRoute
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/_authenticated/app/api': typeof AuthenticatedAppApiRoute
@@ -318,7 +386,14 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/admin/auth'
+    | '/admin/announcements'
+    | '/admin/audit'
+    | '/admin/billing'
+    | '/admin/plans'
+    | '/admin/reports'
     | '/admin/restaurants'
+    | '/admin/settings'
+    | '/admin/tickets'
     | '/app/ai'
     | '/app/analytics'
     | '/app/api'
@@ -349,7 +424,14 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin/auth'
+    | '/admin/announcements'
+    | '/admin/audit'
+    | '/admin/billing'
+    | '/admin/plans'
+    | '/admin/reports'
     | '/admin/restaurants'
+    | '/admin/settings'
+    | '/admin/tickets'
     | '/app/ai'
     | '/app/analytics'
     | '/app/api'
@@ -383,7 +465,14 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/admin/auth'
+    | '/_authenticated/admin/announcements'
+    | '/_authenticated/admin/audit'
+    | '/_authenticated/admin/billing'
+    | '/_authenticated/admin/plans'
+    | '/_authenticated/admin/reports'
     | '/_authenticated/admin/restaurants'
+    | '/_authenticated/admin/settings'
+    | '/_authenticated/admin/tickets'
     | '/_authenticated/app/ai'
     | '/_authenticated/app/analytics'
     | '/_authenticated/app/api'
@@ -638,6 +727,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAiRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/admin/tickets': {
+      id: '/_authenticated/admin/tickets'
+      path: '/tickets'
+      fullPath: '/admin/tickets'
+      preLoaderRoute: typeof AuthenticatedAdminTicketsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/restaurants': {
       id: '/_authenticated/admin/restaurants'
       path: '/restaurants'
@@ -645,16 +748,65 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRestaurantsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/reports': {
+      id: '/_authenticated/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/plans': {
+      id: '/_authenticated/admin/plans'
+      path: '/plans'
+      fullPath: '/admin/plans'
+      preLoaderRoute: typeof AuthenticatedAdminPlansRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/billing': {
+      id: '/_authenticated/admin/billing'
+      path: '/billing'
+      fullPath: '/admin/billing'
+      preLoaderRoute: typeof AuthenticatedAdminBillingRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/audit': {
+      id: '/_authenticated/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/announcements': {
+      id: '/_authenticated/admin/announcements'
+      path: '/announcements'
+      fullPath: '/admin/announcements'
+      preLoaderRoute: typeof AuthenticatedAdminAnnouncementsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAnnouncementsRoute: typeof AuthenticatedAdminAnnouncementsRoute
+  AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
+  AuthenticatedAdminBillingRoute: typeof AuthenticatedAdminBillingRoute
+  AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
+  AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
   AuthenticatedAdminRestaurantsRoute: typeof AuthenticatedAdminRestaurantsRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
+  AuthenticatedAdminTicketsRoute: typeof AuthenticatedAdminTicketsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAnnouncementsRoute: AuthenticatedAdminAnnouncementsRoute,
+  AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
+  AuthenticatedAdminBillingRoute: AuthenticatedAdminBillingRoute,
+  AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
+  AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
   AuthenticatedAdminRestaurantsRoute: AuthenticatedAdminRestaurantsRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+  AuthenticatedAdminTicketsRoute: AuthenticatedAdminTicketsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
 }
 
