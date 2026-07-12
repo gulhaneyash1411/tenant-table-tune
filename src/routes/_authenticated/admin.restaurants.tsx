@@ -25,7 +25,7 @@ function Restaurants() {
   }
   useEffect(() => { load(); }, []);
 
-  async function setStatus(t: any, status: string) {
+  async function setStatus(t: any, status: "approved"|"pending"|"rejected"|"suspended") {
     const { error } = await supabase.from("tenants").update({ status }).eq("id", t.id);
     if (error) return toast.error(error.message);
     toast.success(`Marked ${status}`); load();
