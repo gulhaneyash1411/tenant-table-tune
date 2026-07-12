@@ -20,6 +20,7 @@ import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/boot
 import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
 import { Route as AuthenticatedAppOrdersRouteImport } from './routes/_authenticated/app.orders'
 import { Route as AuthenticatedAppMenuRouteImport } from './routes/_authenticated/app.menu'
+import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -75,6 +76,12 @@ const AuthenticatedAppMenuRoute = AuthenticatedAppMenuRouteImport.update({
   path: '/menu',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppCustomersRoute =
+  AuthenticatedAppCustomersRouteImport.update({
+    id: '/customers',
+    path: '/customers',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRoute
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/app/customers': typeof AuthenticatedAppCustomersRoute
   '/app/menu': typeof AuthenticatedAppMenuRoute
   '/app/orders': typeof AuthenticatedAppOrdersRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
@@ -93,6 +101,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/app/customers': typeof AuthenticatedAppCustomersRoute
   '/app/menu': typeof AuthenticatedAppMenuRoute
   '/app/orders': typeof AuthenticatedAppOrdersRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
@@ -107,6 +116,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRoute
   '/_authenticated/app/menu': typeof AuthenticatedAppMenuRoute
   '/_authenticated/app/orders': typeof AuthenticatedAppOrdersRoute
   '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/admin/auth'
+    | '/app/customers'
     | '/app/menu'
     | '/app/orders'
     | '/app/tables'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin'
     | '/admin/auth'
+    | '/app/customers'
     | '/app/menu'
     | '/app/orders'
     | '/app/tables'
@@ -145,6 +157,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/admin/auth'
+    | '/_authenticated/app/customers'
     | '/_authenticated/app/menu'
     | '/_authenticated/app/orders'
     | '/_authenticated/app/tables'
@@ -239,10 +252,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMenuRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/customers': {
+      id: '/_authenticated/app/customers'
+      path: '/customers'
+      fullPath: '/app/customers'
+      preLoaderRoute: typeof AuthenticatedAppCustomersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRoute
   AuthenticatedAppMenuRoute: typeof AuthenticatedAppMenuRoute
   AuthenticatedAppOrdersRoute: typeof AuthenticatedAppOrdersRoute
   AuthenticatedAppTablesRoute: typeof AuthenticatedAppTablesRoute
@@ -250,6 +271,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRoute,
   AuthenticatedAppMenuRoute: AuthenticatedAppMenuRoute,
   AuthenticatedAppOrdersRoute: AuthenticatedAppOrdersRoute,
   AuthenticatedAppTablesRoute: AuthenticatedAppTablesRoute,
