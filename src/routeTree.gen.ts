@@ -16,6 +16,7 @@ import { Route as AdminAuthRouteImport } from './routes/admin.auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
 import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
 import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_authenticated/app.subscription'
@@ -73,6 +74,11 @@ const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const ApiPublicBootstrapRoute = ApiPublicBootstrapRouteImport.update({
   id: '/api/public/bootstrap',
@@ -201,7 +207,7 @@ const AuthenticatedAppAiRoute = AuthenticatedAppAiRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/admin': typeof AuthenticatedAdminRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
   '/app/ai': typeof AuthenticatedAppAiRoute
@@ -227,12 +233,12 @@ export interface FileRoutesByFullPath {
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/admin': typeof AuthenticatedAdminRoute
   '/admin/auth': typeof AdminAuthRoute
   '/app/ai': typeof AuthenticatedAppAiRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
@@ -257,6 +263,7 @@ export interface FileRoutesByTo {
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesById {
@@ -264,7 +271,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
   '/_authenticated/app/ai': typeof AuthenticatedAppAiRoute
@@ -290,6 +297,7 @@ export interface FileRoutesById {
   '/_authenticated/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRouteTypes {
@@ -323,12 +331,12 @@ export interface FileRouteTypes {
     | '/app/subscription'
     | '/app/tables'
     | '/api/public/bootstrap'
+    | '/admin/'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
-    | '/admin'
     | '/admin/auth'
     | '/app/ai'
     | '/app/analytics'
@@ -353,6 +361,7 @@ export interface FileRouteTypes {
     | '/app/subscription'
     | '/app/tables'
     | '/api/public/bootstrap'
+    | '/admin'
     | '/app'
   id:
     | '__root__'
@@ -385,6 +394,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/subscription'
     | '/_authenticated/app/tables'
     | '/api/public/bootstrap'
+    | '/_authenticated/admin/'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
 }
@@ -446,6 +456,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
       parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/api/public/bootstrap': {
       id: '/api/public/bootstrap'
@@ -611,6 +628,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAiRoute: typeof AuthenticatedAppAiRoute
   AuthenticatedAppAnalyticsRoute: typeof AuthenticatedAppAnalyticsRoute
@@ -667,12 +695,12 @@ const AuthenticatedAppRouteWithChildren =
   AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
 }
 
