@@ -17,6 +17,7 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
+import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
 import { Route as AuthenticatedAppOrdersRouteImport } from './routes/_authenticated/app.orders'
 import { Route as AuthenticatedAppMenuRouteImport } from './routes/_authenticated/app.menu'
 
@@ -59,6 +60,11 @@ const ApiPublicBootstrapRoute = ApiPublicBootstrapRouteImport.update({
   path: '/api/public/bootstrap',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppTablesRoute = AuthenticatedAppTablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppOrdersRoute = AuthenticatedAppOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/admin/auth': typeof AdminAuthRoute
   '/app/menu': typeof AuthenticatedAppMenuRoute
   '/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/admin/auth': typeof AdminAuthRoute
   '/app/menu': typeof AuthenticatedAppMenuRoute
   '/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/admin/auth': typeof AdminAuthRoute
   '/_authenticated/app/menu': typeof AuthenticatedAppMenuRoute
   '/_authenticated/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/admin/auth'
     | '/app/menu'
     | '/app/orders'
+    | '/app/tables'
     | '/api/public/bootstrap'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
     | '/admin/auth'
     | '/app/menu'
     | '/app/orders'
+    | '/app/tables'
     | '/api/public/bootstrap'
     | '/app'
   id:
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/admin/auth'
     | '/_authenticated/app/menu'
     | '/_authenticated/app/orders'
+    | '/_authenticated/app/tables'
     | '/api/public/bootstrap'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
@@ -206,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBootstrapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/app/tables': {
+      id: '/_authenticated/app/tables'
+      path: '/tables'
+      fullPath: '/app/tables'
+      preLoaderRoute: typeof AuthenticatedAppTablesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/orders': {
       id: '/_authenticated/app/orders'
       path: '/orders'
@@ -226,12 +245,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppMenuRoute: typeof AuthenticatedAppMenuRoute
   AuthenticatedAppOrdersRoute: typeof AuthenticatedAppOrdersRoute
+  AuthenticatedAppTablesRoute: typeof AuthenticatedAppTablesRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppMenuRoute: AuthenticatedAppMenuRoute,
   AuthenticatedAppOrdersRoute: AuthenticatedAppOrdersRoute,
+  AuthenticatedAppTablesRoute: AuthenticatedAppTablesRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 
