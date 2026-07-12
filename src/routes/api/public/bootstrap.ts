@@ -9,7 +9,7 @@ export const Route = createFileRoute("/api/public/bootstrap")({
   },
 });
 
-async function runBootstrap() {
+async function runBootstrap(): Promise<Response> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const results: any = { steps: [] };
 
@@ -25,7 +25,7 @@ async function runBootstrap() {
       email: superEmail, password: superPass, email_confirm: true,
       user_metadata: { full_name: "Platform Owner" },
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) return json({ ok: false, error: error.message }, 500);
     superId = data.user.id;
     results.steps.push("super_created");
   }
@@ -42,7 +42,7 @@ async function runBootstrap() {
       email: ownerEmail, password: ownerPass, email_confirm: true,
       user_metadata: { full_name: "Isabella Rossi", phone: "+91 90000 00001" },
     });
-    if (error) return { ok: false, error: error.message };
+    if (error) return json({ ok: false, error: error.message }, 500);
     ownerId = data.user.id;
     results.steps.push("owner_created");
   }
@@ -61,7 +61,7 @@ async function runBootstrap() {
       expected_orders_per_day: 120, status: "approved",
       brand_color: "#0ea5e9",
     }).select().single();
-    if (error) return { ok: false, error: error.message };
+    if (error) return json({ ok: false, error: error.message }, 500);
     tenant = data;
     results.steps.push("tenant_created");
   }
@@ -90,7 +90,7 @@ async function runBootstrap() {
   // 6. Menu categories + items
   const { count: catCount } = await supabaseAdmin.from("menu_categories").select("id", { count: "exact", head: true }).eq("tenant_id", tenant!.id);
   if ((catCount ?? 0) === 0) {
-    const catSeed = [
+    const catSeed: { name: string; items: [string, number, boolean][] }[] = [
       { name: "Starters", items: [
         ["Bruschetta al Pomodoro", 240, true],
         ["Arancini", 320, true],
@@ -152,5 +152,9 @@ async function runBootstrap() {
   results.superAdmin = { email: superEmail, password: superPass };
   results.owner = { email: ownerEmail, password: ownerPass };
   results.tenant = { id: tenant!.id, name: tenant!.name };
-  return new Response(JSON.stringify({ ok: true, ...results }, null, 2), { headers: { "content-type": "application/json" } });
+  return json({ ok: true, ...results });
+}
+
+function json(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload, null, 2), { status, headers: { "content-type": "application/json" } });
 }
