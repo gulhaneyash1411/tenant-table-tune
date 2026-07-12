@@ -9,38 +9,587 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StatusRouteImport } from './routes/status'
+import { Route as ReviewRouteImport } from './routes/review'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TakeawayTenantIdRouteImport } from './routes/takeaway.$tenantId'
+import { Route as TTableIdRouteImport } from './routes/t.$tableId'
+import { Route as AdminAuthRouteImport } from './routes/admin.auth'
+import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
+import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
+import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_authenticated/app.subscription'
+import { Route as AuthenticatedAppStaffRouteImport } from './routes/_authenticated/app.staff'
+import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
+import { Route as AuthenticatedAppReviewsRouteImport } from './routes/_authenticated/app.reviews'
+import { Route as AuthenticatedAppPrintersRouteImport } from './routes/_authenticated/app.printers'
+import { Route as AuthenticatedAppPosRouteImport } from './routes/_authenticated/app.pos'
+import { Route as AuthenticatedAppPluginsRouteImport } from './routes/_authenticated/app.plugins'
+import { Route as AuthenticatedAppOrdersRouteImport } from './routes/_authenticated/app.orders'
+import { Route as AuthenticatedAppOfflineRouteImport } from './routes/_authenticated/app.offline'
+import { Route as AuthenticatedAppMenuRouteImport } from './routes/_authenticated/app.menu'
+import { Route as AuthenticatedAppMarketingRouteImport } from './routes/_authenticated/app.marketing'
+import { Route as AuthenticatedAppLoyaltyRouteImport } from './routes/_authenticated/app.loyalty'
+import { Route as AuthenticatedAppKdsRouteImport } from './routes/_authenticated/app.kds'
+import { Route as AuthenticatedAppInventoryRouteImport } from './routes/_authenticated/app.inventory'
+import { Route as AuthenticatedAppFranchiseRouteImport } from './routes/_authenticated/app.franchise'
+import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
+import { Route as AuthenticatedAppCrmRouteImport } from './routes/_authenticated/app.crm'
+import { Route as AuthenticatedAppBillingRouteImport } from './routes/_authenticated/app.billing'
+import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
+import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
+import { Route as AuthenticatedAppAiRouteImport } from './routes/_authenticated/app.ai'
+import { Route as AuthenticatedAdminTicketsRouteImport } from './routes/_authenticated/admin.tickets'
+import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
+import { Route as AuthenticatedAdminRestaurantsRouteImport } from './routes/_authenticated/admin.restaurants'
+import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
+import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
+import { Route as AuthenticatedAdminBillingRouteImport } from './routes/_authenticated/admin.billing'
+import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
+import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_authenticated/admin.announcements'
 
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TakeawayTenantIdRoute = TakeawayTenantIdRouteImport.update({
+  id: '/takeaway/$tenantId',
+  path: '/takeaway/$tenantId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TTableIdRoute = TTableIdRouteImport.update({
+  id: '/t/$tableId',
+  path: '/t/$tableId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuthRoute = AdminAuthRouteImport.update({
+  id: '/admin/auth',
+  path: '/admin/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAppIndexRoute = AuthenticatedAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const ApiPublicBootstrapRoute = ApiPublicBootstrapRouteImport.update({
+  id: '/api/public/bootstrap',
+  path: '/api/public/bootstrap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAppTablesRoute = AuthenticatedAppTablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppSubscriptionRoute =
+  AuthenticatedAppSubscriptionRouteImport.update({
+    id: '/subscription',
+    path: '/subscription',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppStaffRoute = AuthenticatedAppStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppSettingsRoute =
+  AuthenticatedAppSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppReviewsRoute = AuthenticatedAppReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppPrintersRoute =
+  AuthenticatedAppPrintersRouteImport.update({
+    id: '/printers',
+    path: '/printers',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppPosRoute = AuthenticatedAppPosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppPluginsRoute = AuthenticatedAppPluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppOrdersRoute = AuthenticatedAppOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppOfflineRoute = AuthenticatedAppOfflineRouteImport.update({
+  id: '/offline',
+  path: '/offline',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppMenuRoute = AuthenticatedAppMenuRouteImport.update({
+  id: '/menu',
+  path: '/menu',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppMarketingRoute =
+  AuthenticatedAppMarketingRouteImport.update({
+    id: '/marketing',
+    path: '/marketing',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppLoyaltyRoute = AuthenticatedAppLoyaltyRouteImport.update({
+  id: '/loyalty',
+  path: '/loyalty',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppKdsRoute = AuthenticatedAppKdsRouteImport.update({
+  id: '/kds',
+  path: '/kds',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppInventoryRoute =
+  AuthenticatedAppInventoryRouteImport.update({
+    id: '/inventory',
+    path: '/inventory',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppFranchiseRoute =
+  AuthenticatedAppFranchiseRouteImport.update({
+    id: '/franchise',
+    path: '/franchise',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppCustomersRoute =
+  AuthenticatedAppCustomersRouteImport.update({
+    id: '/customers',
+    path: '/customers',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppCrmRoute = AuthenticatedAppCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppBillingRoute = AuthenticatedAppBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppApiRoute = AuthenticatedAppApiRouteImport.update({
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppAnalyticsRoute =
+  AuthenticatedAppAnalyticsRouteImport.update({
+    id: '/analytics',
+    path: '/analytics',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppAiRoute = AuthenticatedAppAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAdminTicketsRoute =
+  AuthenticatedAdminTicketsRouteImport.update({
+    id: '/tickets',
+    path: '/tickets',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminSettingsRoute =
+  AuthenticatedAdminSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminRestaurantsRoute =
+  AuthenticatedAdminRestaurantsRouteImport.update({
+    id: '/restaurants',
+    path: '/restaurants',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminReportsRoute =
+  AuthenticatedAdminReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminBillingRoute =
+  AuthenticatedAdminBillingRouteImport.update({
+    id: '/billing',
+    path: '/billing',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminAnnouncementsRoute =
+  AuthenticatedAdminAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/review': typeof ReviewRoute
+  '/status': typeof StatusRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/app': typeof AuthenticatedAppRouteWithChildren
+  '/admin/auth': typeof AdminAuthRoute
+  '/t/$tableId': typeof TTableIdRoute
+  '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
+  '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/billing': typeof AuthenticatedAdminBillingRoute
+  '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/tickets': typeof AuthenticatedAdminTicketsRoute
+  '/app/ai': typeof AuthenticatedAppAiRoute
+  '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/app/api': typeof AuthenticatedAppApiRoute
+  '/app/billing': typeof AuthenticatedAppBillingRoute
+  '/app/crm': typeof AuthenticatedAppCrmRoute
+  '/app/customers': typeof AuthenticatedAppCustomersRoute
+  '/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/app/inventory': typeof AuthenticatedAppInventoryRoute
+  '/app/kds': typeof AuthenticatedAppKdsRoute
+  '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
+  '/app/marketing': typeof AuthenticatedAppMarketingRoute
+  '/app/menu': typeof AuthenticatedAppMenuRoute
+  '/app/offline': typeof AuthenticatedAppOfflineRoute
+  '/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/app/plugins': typeof AuthenticatedAppPluginsRoute
+  '/app/pos': typeof AuthenticatedAppPosRoute
+  '/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/app/reviews': typeof AuthenticatedAppReviewsRoute
+  '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/staff': typeof AuthenticatedAppStaffRoute
+  '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
+  '/app/tables': typeof AuthenticatedAppTablesRoute
+  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/review': typeof ReviewRoute
+  '/status': typeof StatusRoute
+  '/admin/auth': typeof AdminAuthRoute
+  '/t/$tableId': typeof TTableIdRoute
+  '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
+  '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/billing': typeof AuthenticatedAdminBillingRoute
+  '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/tickets': typeof AuthenticatedAdminTicketsRoute
+  '/app/ai': typeof AuthenticatedAppAiRoute
+  '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/app/api': typeof AuthenticatedAppApiRoute
+  '/app/billing': typeof AuthenticatedAppBillingRoute
+  '/app/crm': typeof AuthenticatedAppCrmRoute
+  '/app/customers': typeof AuthenticatedAppCustomersRoute
+  '/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/app/inventory': typeof AuthenticatedAppInventoryRoute
+  '/app/kds': typeof AuthenticatedAppKdsRoute
+  '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
+  '/app/marketing': typeof AuthenticatedAppMarketingRoute
+  '/app/menu': typeof AuthenticatedAppMenuRoute
+  '/app/offline': typeof AuthenticatedAppOfflineRoute
+  '/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/app/plugins': typeof AuthenticatedAppPluginsRoute
+  '/app/pos': typeof AuthenticatedAppPosRoute
+  '/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/app/reviews': typeof AuthenticatedAppReviewsRoute
+  '/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/app/staff': typeof AuthenticatedAppStaffRoute
+  '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
+  '/app/tables': typeof AuthenticatedAppTablesRoute
+  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/app': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/review': typeof ReviewRoute
+  '/status': typeof StatusRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/admin/auth': typeof AdminAuthRoute
+  '/t/$tableId': typeof TTableIdRoute
+  '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
+  '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
+  '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/_authenticated/admin/billing': typeof AuthenticatedAdminBillingRoute
+  '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/_authenticated/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_authenticated/admin/tickets': typeof AuthenticatedAdminTicketsRoute
+  '/_authenticated/app/ai': typeof AuthenticatedAppAiRoute
+  '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
+  '/_authenticated/app/api': typeof AuthenticatedAppApiRoute
+  '/_authenticated/app/billing': typeof AuthenticatedAppBillingRoute
+  '/_authenticated/app/crm': typeof AuthenticatedAppCrmRoute
+  '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRoute
+  '/_authenticated/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/_authenticated/app/inventory': typeof AuthenticatedAppInventoryRoute
+  '/_authenticated/app/kds': typeof AuthenticatedAppKdsRoute
+  '/_authenticated/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
+  '/_authenticated/app/marketing': typeof AuthenticatedAppMarketingRoute
+  '/_authenticated/app/menu': typeof AuthenticatedAppMenuRoute
+  '/_authenticated/app/offline': typeof AuthenticatedAppOfflineRoute
+  '/_authenticated/app/orders': typeof AuthenticatedAppOrdersRoute
+  '/_authenticated/app/plugins': typeof AuthenticatedAppPluginsRoute
+  '/_authenticated/app/pos': typeof AuthenticatedAppPosRoute
+  '/_authenticated/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/_authenticated/app/reviews': typeof AuthenticatedAppReviewsRoute
+  '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
+  '/_authenticated/app/staff': typeof AuthenticatedAppStaffRoute
+  '/_authenticated/app/subscription': typeof AuthenticatedAppSubscriptionRoute
+  '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
+  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/review'
+    | '/status'
+    | '/admin'
+    | '/app'
+    | '/admin/auth'
+    | '/t/$tableId'
+    | '/takeaway/$tenantId'
+    | '/admin/announcements'
+    | '/admin/audit'
+    | '/admin/billing'
+    | '/admin/plans'
+    | '/admin/reports'
+    | '/admin/restaurants'
+    | '/admin/settings'
+    | '/admin/tickets'
+    | '/app/ai'
+    | '/app/analytics'
+    | '/app/api'
+    | '/app/billing'
+    | '/app/crm'
+    | '/app/customers'
+    | '/app/franchise'
+    | '/app/inventory'
+    | '/app/kds'
+    | '/app/loyalty'
+    | '/app/marketing'
+    | '/app/menu'
+    | '/app/offline'
+    | '/app/orders'
+    | '/app/plugins'
+    | '/app/pos'
+    | '/app/printers'
+    | '/app/reviews'
+    | '/app/settings'
+    | '/app/staff'
+    | '/app/subscription'
+    | '/app/tables'
+    | '/api/public/bootstrap'
+    | '/admin/'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/review'
+    | '/status'
+    | '/admin/auth'
+    | '/t/$tableId'
+    | '/takeaway/$tenantId'
+    | '/admin/announcements'
+    | '/admin/audit'
+    | '/admin/billing'
+    | '/admin/plans'
+    | '/admin/reports'
+    | '/admin/restaurants'
+    | '/admin/settings'
+    | '/admin/tickets'
+    | '/app/ai'
+    | '/app/analytics'
+    | '/app/api'
+    | '/app/billing'
+    | '/app/crm'
+    | '/app/customers'
+    | '/app/franchise'
+    | '/app/inventory'
+    | '/app/kds'
+    | '/app/loyalty'
+    | '/app/marketing'
+    | '/app/menu'
+    | '/app/offline'
+    | '/app/orders'
+    | '/app/plugins'
+    | '/app/pos'
+    | '/app/printers'
+    | '/app/reviews'
+    | '/app/settings'
+    | '/app/staff'
+    | '/app/subscription'
+    | '/app/tables'
+    | '/api/public/bootstrap'
+    | '/admin'
+    | '/app'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/review'
+    | '/status'
+    | '/_authenticated/admin'
+    | '/_authenticated/app'
+    | '/admin/auth'
+    | '/t/$tableId'
+    | '/takeaway/$tenantId'
+    | '/_authenticated/admin/announcements'
+    | '/_authenticated/admin/audit'
+    | '/_authenticated/admin/billing'
+    | '/_authenticated/admin/plans'
+    | '/_authenticated/admin/reports'
+    | '/_authenticated/admin/restaurants'
+    | '/_authenticated/admin/settings'
+    | '/_authenticated/admin/tickets'
+    | '/_authenticated/app/ai'
+    | '/_authenticated/app/analytics'
+    | '/_authenticated/app/api'
+    | '/_authenticated/app/billing'
+    | '/_authenticated/app/crm'
+    | '/_authenticated/app/customers'
+    | '/_authenticated/app/franchise'
+    | '/_authenticated/app/inventory'
+    | '/_authenticated/app/kds'
+    | '/_authenticated/app/loyalty'
+    | '/_authenticated/app/marketing'
+    | '/_authenticated/app/menu'
+    | '/_authenticated/app/offline'
+    | '/_authenticated/app/orders'
+    | '/_authenticated/app/plugins'
+    | '/_authenticated/app/pos'
+    | '/_authenticated/app/printers'
+    | '/_authenticated/app/reviews'
+    | '/_authenticated/app/settings'
+    | '/_authenticated/app/staff'
+    | '/_authenticated/app/subscription'
+    | '/_authenticated/app/tables'
+    | '/api/public/bootstrap'
+    | '/_authenticated/admin/'
+    | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ReviewRoute: typeof ReviewRoute
+  StatusRoute: typeof StatusRoute
+  AdminAuthRoute: typeof AdminAuthRoute
+  TTableIdRoute: typeof TTableIdRoute
+  TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
+  ApiPublicBootstrapRoute: typeof ApiPublicBootstrapRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +597,380 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/takeaway/$tenantId': {
+      id: '/takeaway/$tenantId'
+      path: '/takeaway/$tenantId'
+      fullPath: '/takeaway/$tenantId'
+      preLoaderRoute: typeof TakeawayTenantIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/t/$tableId': {
+      id: '/t/$tableId'
+      path: '/t/$tableId'
+      fullPath: '/t/$tableId'
+      preLoaderRoute: typeof TTableIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/auth': {
+      id: '/admin/auth'
+      path: '/admin/auth'
+      fullPath: '/admin/auth'
+      preLoaderRoute: typeof AdminAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app': {
+      id: '/_authenticated/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/app/': {
+      id: '/_authenticated/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AuthenticatedAppIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/api/public/bootstrap': {
+      id: '/api/public/bootstrap'
+      path: '/api/public/bootstrap'
+      fullPath: '/api/public/bootstrap'
+      preLoaderRoute: typeof ApiPublicBootstrapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app/tables': {
+      id: '/_authenticated/app/tables'
+      path: '/tables'
+      fullPath: '/app/tables'
+      preLoaderRoute: typeof AuthenticatedAppTablesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/subscription': {
+      id: '/_authenticated/app/subscription'
+      path: '/subscription'
+      fullPath: '/app/subscription'
+      preLoaderRoute: typeof AuthenticatedAppSubscriptionRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/staff': {
+      id: '/_authenticated/app/staff'
+      path: '/staff'
+      fullPath: '/app/staff'
+      preLoaderRoute: typeof AuthenticatedAppStaffRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/settings': {
+      id: '/_authenticated/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/reviews': {
+      id: '/_authenticated/app/reviews'
+      path: '/reviews'
+      fullPath: '/app/reviews'
+      preLoaderRoute: typeof AuthenticatedAppReviewsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/printers': {
+      id: '/_authenticated/app/printers'
+      path: '/printers'
+      fullPath: '/app/printers'
+      preLoaderRoute: typeof AuthenticatedAppPrintersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/pos': {
+      id: '/_authenticated/app/pos'
+      path: '/pos'
+      fullPath: '/app/pos'
+      preLoaderRoute: typeof AuthenticatedAppPosRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/plugins': {
+      id: '/_authenticated/app/plugins'
+      path: '/plugins'
+      fullPath: '/app/plugins'
+      preLoaderRoute: typeof AuthenticatedAppPluginsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/orders': {
+      id: '/_authenticated/app/orders'
+      path: '/orders'
+      fullPath: '/app/orders'
+      preLoaderRoute: typeof AuthenticatedAppOrdersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/offline': {
+      id: '/_authenticated/app/offline'
+      path: '/offline'
+      fullPath: '/app/offline'
+      preLoaderRoute: typeof AuthenticatedAppOfflineRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/menu': {
+      id: '/_authenticated/app/menu'
+      path: '/menu'
+      fullPath: '/app/menu'
+      preLoaderRoute: typeof AuthenticatedAppMenuRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/marketing': {
+      id: '/_authenticated/app/marketing'
+      path: '/marketing'
+      fullPath: '/app/marketing'
+      preLoaderRoute: typeof AuthenticatedAppMarketingRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/loyalty': {
+      id: '/_authenticated/app/loyalty'
+      path: '/loyalty'
+      fullPath: '/app/loyalty'
+      preLoaderRoute: typeof AuthenticatedAppLoyaltyRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/kds': {
+      id: '/_authenticated/app/kds'
+      path: '/kds'
+      fullPath: '/app/kds'
+      preLoaderRoute: typeof AuthenticatedAppKdsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/inventory': {
+      id: '/_authenticated/app/inventory'
+      path: '/inventory'
+      fullPath: '/app/inventory'
+      preLoaderRoute: typeof AuthenticatedAppInventoryRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/franchise': {
+      id: '/_authenticated/app/franchise'
+      path: '/franchise'
+      fullPath: '/app/franchise'
+      preLoaderRoute: typeof AuthenticatedAppFranchiseRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/customers': {
+      id: '/_authenticated/app/customers'
+      path: '/customers'
+      fullPath: '/app/customers'
+      preLoaderRoute: typeof AuthenticatedAppCustomersRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/crm': {
+      id: '/_authenticated/app/crm'
+      path: '/crm'
+      fullPath: '/app/crm'
+      preLoaderRoute: typeof AuthenticatedAppCrmRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/billing': {
+      id: '/_authenticated/app/billing'
+      path: '/billing'
+      fullPath: '/app/billing'
+      preLoaderRoute: typeof AuthenticatedAppBillingRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/api': {
+      id: '/_authenticated/app/api'
+      path: '/api'
+      fullPath: '/app/api'
+      preLoaderRoute: typeof AuthenticatedAppApiRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/analytics': {
+      id: '/_authenticated/app/analytics'
+      path: '/analytics'
+      fullPath: '/app/analytics'
+      preLoaderRoute: typeof AuthenticatedAppAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/ai': {
+      id: '/_authenticated/app/ai'
+      path: '/ai'
+      fullPath: '/app/ai'
+      preLoaderRoute: typeof AuthenticatedAppAiRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/admin/tickets': {
+      id: '/_authenticated/admin/tickets'
+      path: '/tickets'
+      fullPath: '/admin/tickets'
+      preLoaderRoute: typeof AuthenticatedAdminTicketsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/settings': {
+      id: '/_authenticated/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AuthenticatedAdminSettingsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/restaurants': {
+      id: '/_authenticated/admin/restaurants'
+      path: '/restaurants'
+      fullPath: '/admin/restaurants'
+      preLoaderRoute: typeof AuthenticatedAdminRestaurantsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/reports': {
+      id: '/_authenticated/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/plans': {
+      id: '/_authenticated/admin/plans'
+      path: '/plans'
+      fullPath: '/admin/plans'
+      preLoaderRoute: typeof AuthenticatedAdminPlansRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/billing': {
+      id: '/_authenticated/admin/billing'
+      path: '/billing'
+      fullPath: '/admin/billing'
+      preLoaderRoute: typeof AuthenticatedAdminBillingRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/audit': {
+      id: '/_authenticated/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/announcements': {
+      id: '/_authenticated/admin/announcements'
+      path: '/announcements'
+      fullPath: '/admin/announcements'
+      preLoaderRoute: typeof AuthenticatedAdminAnnouncementsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminAnnouncementsRoute: typeof AuthenticatedAdminAnnouncementsRoute
+  AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
+  AuthenticatedAdminBillingRoute: typeof AuthenticatedAdminBillingRoute
+  AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
+  AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
+  AuthenticatedAdminRestaurantsRoute: typeof AuthenticatedAdminRestaurantsRoute
+  AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
+  AuthenticatedAdminTicketsRoute: typeof AuthenticatedAdminTicketsRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminAnnouncementsRoute: AuthenticatedAdminAnnouncementsRoute,
+  AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
+  AuthenticatedAdminBillingRoute: AuthenticatedAdminBillingRoute,
+  AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
+  AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
+  AuthenticatedAdminRestaurantsRoute: AuthenticatedAdminRestaurantsRoute,
+  AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+  AuthenticatedAdminTicketsRoute: AuthenticatedAdminTicketsRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
+interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAiRoute: typeof AuthenticatedAppAiRoute
+  AuthenticatedAppAnalyticsRoute: typeof AuthenticatedAppAnalyticsRoute
+  AuthenticatedAppApiRoute: typeof AuthenticatedAppApiRoute
+  AuthenticatedAppBillingRoute: typeof AuthenticatedAppBillingRoute
+  AuthenticatedAppCrmRoute: typeof AuthenticatedAppCrmRoute
+  AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRoute
+  AuthenticatedAppFranchiseRoute: typeof AuthenticatedAppFranchiseRoute
+  AuthenticatedAppInventoryRoute: typeof AuthenticatedAppInventoryRoute
+  AuthenticatedAppKdsRoute: typeof AuthenticatedAppKdsRoute
+  AuthenticatedAppLoyaltyRoute: typeof AuthenticatedAppLoyaltyRoute
+  AuthenticatedAppMarketingRoute: typeof AuthenticatedAppMarketingRoute
+  AuthenticatedAppMenuRoute: typeof AuthenticatedAppMenuRoute
+  AuthenticatedAppOfflineRoute: typeof AuthenticatedAppOfflineRoute
+  AuthenticatedAppOrdersRoute: typeof AuthenticatedAppOrdersRoute
+  AuthenticatedAppPluginsRoute: typeof AuthenticatedAppPluginsRoute
+  AuthenticatedAppPosRoute: typeof AuthenticatedAppPosRoute
+  AuthenticatedAppPrintersRoute: typeof AuthenticatedAppPrintersRoute
+  AuthenticatedAppReviewsRoute: typeof AuthenticatedAppReviewsRoute
+  AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
+  AuthenticatedAppStaffRoute: typeof AuthenticatedAppStaffRoute
+  AuthenticatedAppSubscriptionRoute: typeof AuthenticatedAppSubscriptionRoute
+  AuthenticatedAppTablesRoute: typeof AuthenticatedAppTablesRoute
+  AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
+}
+
+const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAiRoute: AuthenticatedAppAiRoute,
+  AuthenticatedAppAnalyticsRoute: AuthenticatedAppAnalyticsRoute,
+  AuthenticatedAppApiRoute: AuthenticatedAppApiRoute,
+  AuthenticatedAppBillingRoute: AuthenticatedAppBillingRoute,
+  AuthenticatedAppCrmRoute: AuthenticatedAppCrmRoute,
+  AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRoute,
+  AuthenticatedAppFranchiseRoute: AuthenticatedAppFranchiseRoute,
+  AuthenticatedAppInventoryRoute: AuthenticatedAppInventoryRoute,
+  AuthenticatedAppKdsRoute: AuthenticatedAppKdsRoute,
+  AuthenticatedAppLoyaltyRoute: AuthenticatedAppLoyaltyRoute,
+  AuthenticatedAppMarketingRoute: AuthenticatedAppMarketingRoute,
+  AuthenticatedAppMenuRoute: AuthenticatedAppMenuRoute,
+  AuthenticatedAppOfflineRoute: AuthenticatedAppOfflineRoute,
+  AuthenticatedAppOrdersRoute: AuthenticatedAppOrdersRoute,
+  AuthenticatedAppPluginsRoute: AuthenticatedAppPluginsRoute,
+  AuthenticatedAppPosRoute: AuthenticatedAppPosRoute,
+  AuthenticatedAppPrintersRoute: AuthenticatedAppPrintersRoute,
+  AuthenticatedAppReviewsRoute: AuthenticatedAppReviewsRoute,
+  AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
+  AuthenticatedAppStaffRoute: AuthenticatedAppStaffRoute,
+  AuthenticatedAppSubscriptionRoute: AuthenticatedAppSubscriptionRoute,
+  AuthenticatedAppTablesRoute: AuthenticatedAppTablesRoute,
+  AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
+}
+
+const AuthenticatedAppRouteWithChildren =
+  AuthenticatedAppRoute._addFileChildren(AuthenticatedAppRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ReviewRoute: ReviewRoute,
+  StatusRoute: StatusRoute,
+  AdminAuthRoute: AdminAuthRoute,
+  TTableIdRoute: TTableIdRoute,
+  TakeawayTenantIdRoute: TakeawayTenantIdRoute,
+  ApiPublicBootstrapRoute: ApiPublicBootstrapRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
