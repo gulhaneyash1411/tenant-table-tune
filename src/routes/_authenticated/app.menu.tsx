@@ -5,8 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { money } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/app/menu")({ component: Menu });
@@ -44,6 +46,11 @@ function Menu() {
   }
   async function delItem(id: string) { await supabase.from("menu_items").delete().eq("id", id); load(); }
   async function delCat(id: string) { await supabase.from("menu_categories").delete().eq("id", id); load(); }
+  async function updateItem(id: string, patch: any) {
+    const { error } = await supabase.from("menu_items").update(patch).eq("id", id);
+    if (error) return toast.error(error.message);
+    load();
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -60,15 +67,46 @@ function Menu() {
           </div>
           <div className="divide-y">
             {(items[c.id] || []).map(i => (
-              <div key={i.id} className="py-2 flex items-center justify-between text-sm">
-                <div>{i.name}</div>
-                <div className="flex items-center gap-3"><span>{money(i.price)}</span><Button size="sm" variant="ghost" onClick={()=>delItem(i.id)}><Trash2 className="h-3 w-3"/></Button></div>
-              </div>
+              <ItemRow key={i.id} item={i} onDelete={()=>delItem(i.id)} onUpdate={(p)=>updateItem(i.id,p)} />
             ))}
           </div>
           <AddItem onAdd={(n,p)=>addItem(c.id,n,p)} />
         </Card>
       ))}
+    </div>
+  );
+}
+
+function ItemRow({ item, onDelete, onUpdate }: { item: any; onDelete: ()=>void; onUpdate: (p:any)=>void }) {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ name: item.name, description: item.description || "", price: item.price, image_url: item.image_url || "" });
+  return (
+    <div className="py-3 space-y-2">
+      <div className="flex items-center gap-3">
+        {item.image_url ? <img src={item.image_url} alt={item.name} className="h-12 w-12 rounded object-cover"/> : <div className="h-12 w-12 rounded bg-muted"/>}
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm truncate">{item.name}</div>
+          {item.description && <div className="text-xs text-muted-foreground truncate">{item.description}</div>}
+        </div>
+        <span className="text-sm">{money(item.price)}</span>
+        <div className="flex items-center gap-1 text-xs"><span className="text-muted-foreground">Available</span>
+          <Switch checked={!!item.is_available} onCheckedChange={(v)=>onUpdate({ is_available: v })} />
+        </div>
+        <Button size="sm" variant="ghost" onClick={()=>setOpen(!open)}><Pencil className="h-3 w-3"/></Button>
+        <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-3 w-3"/></Button>
+      </div>
+      {open && (
+        <div className="grid gap-2 md:grid-cols-2 pt-2 border-t">
+          <div><Label className="text-xs">Name</Label><Input value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></div>
+          <div><Label className="text-xs">Price</Label><Input type="number" value={f.price} onChange={e=>setF({...f,price:Number(e.target.value)})}/></div>
+          <div className="md:col-span-2"><Label className="text-xs">Image URL</Label><Input value={f.image_url} placeholder="https://…" onChange={e=>setF({...f,image_url:e.target.value})}/></div>
+          <div className="md:col-span-2"><Label className="text-xs">Description</Label><Textarea rows={2} value={f.description} onChange={e=>setF({...f,description:e.target.value})}/></div>
+          <div className="md:col-span-2 flex justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={()=>setOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={()=>{ onUpdate(f); setOpen(false); }}>Save</Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

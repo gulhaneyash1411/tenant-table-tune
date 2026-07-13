@@ -15,13 +15,21 @@ export const Route = createFileRoute("/_authenticated/admin/restaurants")({ comp
 
 function Restaurants() {
   const [rows, setRows] = useState<any[]>([]);
+  const [subs, setSubs] = useState<Record<string, any>>({});
+  const [plans, setPlans] = useState<Record<string, any>>({});
   const [q, setQ] = useState("");
   const [notifTarget, setNotifTarget] = useState<any | null>(null);
   const [notifTitle, setNotifTitle] = useState(""); const [notifBody, setNotifBody] = useState("");
 
   async function load() {
-    const { data } = await supabase.from("tenants").select("*").order("created_at", { ascending: false });
-    setRows(data || []);
+    const [{ data: t }, { data: s }, { data: p }] = await Promise.all([
+      supabase.from("tenants").select("*").order("created_at", { ascending: false }),
+      supabase.from("subscriptions").select("*"),
+      supabase.from("subscription_plans").select("*"),
+    ]);
+    setRows(t || []);
+    const sMap: Record<string, any> = {}; (s || []).forEach((x: any) => { sMap[x.tenant_id] = x; }); setSubs(sMap);
+    const pMap: Record<string, any> = {}; (p || []).forEach((x: any) => { pMap[x.id] = x; }); setPlans(pMap);
   }
   useEffect(() => { load(); }, []);
 
@@ -42,7 +50,7 @@ function Restaurants() {
     setNotifTarget(null); setNotifTitle(""); setNotifBody("");
   }
 
-  const filtered = rows.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase()) || r.owner_email?.toLowerCase().includes(q.toLowerCase()));
+  const filtered = rows.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase()) || r.owner_email?.toLowerCase().includes(q.toLowerCase()) || r.owner_phone?.includes(q));
 
   return (
     <div className="space-y-4">
@@ -50,25 +58,33 @@ function Restaurants() {
       <Card>
         <Table>
           <TableHeader><TableRow>
-            <TableHead>Name</TableHead><TableHead>Owner</TableHead><TableHead>City</TableHead><TableHead>GST</TableHead><TableHead>Registered</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
+            <TableHead>Name</TableHead><TableHead>Owner</TableHead><TableHead>Phone</TableHead><TableHead>City</TableHead>
+            <TableHead>Plan</TableHead><TableHead>Expires</TableHead>
+            <TableHead>Registered</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
           </TableRow></TableHeader>
           <TableBody>
-            {filtered.map(r => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.name}</TableCell>
-                <TableCell><div className="text-sm">{r.owner_name}</div><div className="text-xs text-muted-foreground">{r.owner_email}</div></TableCell>
-                <TableCell>{r.city}</TableCell>
-                <TableCell className="text-xs">{r.gst_number || "—"}</TableCell>
-                <TableCell>{format(new Date(r.created_at), "PP")}</TableCell>
-                <TableCell><span className={`text-xs px-2 py-0.5 rounded ${r.status==="approved"?"bg-success/15 text-success":r.status==="pending"?"bg-warning/15 text-warning":r.status==="suspended"?"bg-destructive/15 text-destructive":"bg-muted"}`}>{r.status}</span></TableCell>
-                <TableCell><div className="flex gap-1 flex-wrap">
-                  {r.status==="pending" && <><Button size="sm" onClick={()=>setStatus(r,"approved")}>Approve</Button><Button size="sm" variant="outline" onClick={()=>setStatus(r,"rejected")}>Reject</Button></>}
-                  {r.status==="approved" && <Button size="sm" variant="outline" onClick={()=>setStatus(r,"suspended")}>Suspend</Button>}
-                  {(r.status==="suspended"||r.status==="rejected") && <Button size="sm" onClick={()=>setStatus(r,"approved")}>Activate</Button>}
-                  <Button size="sm" variant="ghost" onClick={()=>setNotifTarget(r)}>Notify</Button>
-                </div></TableCell>
-              </TableRow>
-            ))}
+            {filtered.map(r => {
+              const sub = subs[r.id];
+              const plan = sub ? plans[sub.plan_id] : null;
+              return (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  <TableCell><div className="text-sm">{r.owner_name}</div><div className="text-xs text-muted-foreground">{r.owner_email}</div></TableCell>
+                  <TableCell className="text-sm">{r.owner_phone || "—"}</TableCell>
+                  <TableCell>{r.city || "—"}</TableCell>
+                  <TableCell>{plan ? <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">{plan.name}</span> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
+                  <TableCell className="text-xs">{sub ? format(new Date(sub.current_period_end), "PP") : "—"}</TableCell>
+                  <TableCell className="text-xs">{format(new Date(r.created_at), "PP")}</TableCell>
+                  <TableCell><span className={`text-xs px-2 py-0.5 rounded ${r.status==="approved"?"bg-success/15 text-success":r.status==="pending"?"bg-warning/15 text-warning":r.status==="suspended"?"bg-destructive/15 text-destructive":"bg-muted"}`}>{r.status}</span></TableCell>
+                  <TableCell><div className="flex gap-1 flex-wrap">
+                    {r.status==="pending" && <><Button size="sm" onClick={()=>setStatus(r,"approved")}>Approve</Button><Button size="sm" variant="outline" onClick={()=>setStatus(r,"rejected")}>Reject</Button></>}
+                    {r.status==="approved" && <Button size="sm" variant="outline" onClick={()=>setStatus(r,"suspended")}>Suspend</Button>}
+                    {(r.status==="suspended"||r.status==="rejected") && <Button size="sm" onClick={()=>setStatus(r,"approved")}>Activate</Button>}
+                    <Button size="sm" variant="ghost" onClick={()=>setNotifTarget(r)}>Notify</Button>
+                  </div></TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </Card>

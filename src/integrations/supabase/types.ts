@@ -727,6 +727,7 @@ export type Database = {
           brand_color: string | null
           business_type: string | null
           city: string | null
+          closing_time: string | null
           country: string | null
           created_at: string
           currency: string | null
@@ -736,12 +737,14 @@ export type Database = {
           logo_url: string | null
           name: string
           number_of_tables: number | null
+          opening_time: string | null
           owner_email: string | null
           owner_id: string | null
           owner_name: string | null
           owner_phone: string | null
           pincode: string | null
           settings: Json
+          slogan: string | null
           slug: string
           state: string | null
           status: Database["public"]["Enums"]["tenant_status"]
@@ -753,6 +756,7 @@ export type Database = {
           brand_color?: string | null
           business_type?: string | null
           city?: string | null
+          closing_time?: string | null
           country?: string | null
           created_at?: string
           currency?: string | null
@@ -762,12 +766,14 @@ export type Database = {
           logo_url?: string | null
           name: string
           number_of_tables?: number | null
+          opening_time?: string | null
           owner_email?: string | null
           owner_id?: string | null
           owner_name?: string | null
           owner_phone?: string | null
           pincode?: string | null
           settings?: Json
+          slogan?: string | null
           slug: string
           state?: string | null
           status?: Database["public"]["Enums"]["tenant_status"]
@@ -779,6 +785,7 @@ export type Database = {
           brand_color?: string | null
           business_type?: string | null
           city?: string | null
+          closing_time?: string | null
           country?: string | null
           created_at?: string
           currency?: string | null
@@ -788,12 +795,14 @@ export type Database = {
           logo_url?: string | null
           name?: string
           number_of_tables?: number | null
+          opening_time?: string | null
           owner_email?: string | null
           owner_id?: string | null
           owner_name?: string | null
           owner_phone?: string | null
           pincode?: string | null
           settings?: Json
+          slogan?: string | null
           slug?: string
           state?: string | null
           status?: Database["public"]["Enums"]["tenant_status"]

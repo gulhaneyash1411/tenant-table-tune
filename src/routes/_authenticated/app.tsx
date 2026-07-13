@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Receipt, Package, Gift, Bot, Store, Puzzle, Webhook, Contact, Megaphone, Cpu, Rocket, Printer, Wifi, LogOut } from "lucide-react";
+import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Receipt, Cpu, Rocket, LogOut, TrendingUp } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 
@@ -11,31 +11,19 @@ export const Route = createFileRoute("/_authenticated/app")({ component: AppLayo
 const MAIN = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/app/orders", label: "Live orders", icon: ListOrdered },
+  { to: "/app/kds", label: "Kitchen Display", icon: Cpu },
   { to: "/app/menu", label: "Menu", icon: Utensils },
   { to: "/app/tables", label: "Tables & QR", icon: QrCode },
   { to: "/app/customers", label: "Customers", icon: Users },
   { to: "/app/reviews", label: "Reviews", icon: Star },
   { to: "/app/staff", label: "Staff", icon: UsersRound },
+  { to: "/app/revenue", label: "Revenue", icon: TrendingUp },
   { to: "/app/analytics", label: "Analytics", icon: LineChart },
 ];
 const BILLING = [
   { to: "/app/subscription", label: "Subscription", icon: CreditCard },
   { to: "/app/billing", label: "Billing", icon: Receipt },
   { to: "/app/settings", label: "Settings", icon: Settings },
-];
-const COMING = [
-  { to: "/app/inventory", label: "Inventory", icon: Package },
-  { to: "/app/loyalty", label: "Loyalty", icon: Gift },
-  { to: "/app/marketing", label: "Marketing", icon: Megaphone },
-  { to: "/app/crm", label: "CRM", icon: Contact },
-  { to: "/app/kds", label: "Kitchen Display", icon: Cpu },
-  { to: "/app/pos", label: "POS", icon: Store },
-  { to: "/app/printers", label: "Printers", icon: Printer },
-  { to: "/app/franchise", label: "Franchise", icon: Rocket },
-  { to: "/app/plugins", label: "Plugins", icon: Puzzle },
-  { to: "/app/api", label: "API access", icon: Webhook },
-  { to: "/app/offline", label: "Offline mode", icon: Wifi },
-  { to: "/app/ai", label: "AI insights", icon: Bot },
 ];
 
 function AppLayout() {
@@ -70,7 +58,6 @@ function AppLayout() {
             </div>
             <NavGroup label="Operations" items={MAIN} />
             <NavGroup label="Billing" items={BILLING} />
-            <NavGroup label="Coming soon" items={COMING} />
           </SidebarContent>
         </Sidebar>
         <div className="flex-1 flex flex-col min-w-0">
