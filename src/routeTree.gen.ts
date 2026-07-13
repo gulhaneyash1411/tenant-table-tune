@@ -27,6 +27,7 @@ import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_auth
 import { Route as AuthenticatedAppStaffRouteImport } from './routes/_authenticated/app.staff'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
 import { Route as AuthenticatedAppReviewsRouteImport } from './routes/_authenticated/app.reviews'
+import { Route as AuthenticatedAppRevenueRouteImport } from './routes/_authenticated/app.revenue'
 import { Route as AuthenticatedAppPrintersRouteImport } from './routes/_authenticated/app.printers'
 import { Route as AuthenticatedAppPosRouteImport } from './routes/_authenticated/app.pos'
 import { Route as AuthenticatedAppPluginsRouteImport } from './routes/_authenticated/app.plugins'
@@ -142,6 +143,11 @@ const AuthenticatedAppSettingsRoute =
 const AuthenticatedAppReviewsRoute = AuthenticatedAppReviewsRouteImport.update({
   id: '/reviews',
   path: '/reviews',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppRevenueRoute = AuthenticatedAppRevenueRouteImport.update({
+  id: '/revenue',
+  path: '/revenue',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
 const AuthenticatedAppPrintersRoute =
@@ -317,6 +323,7 @@ export interface FileRoutesByFullPath {
   '/app/plugins': typeof AuthenticatedAppPluginsRoute
   '/app/pos': typeof AuthenticatedAppPosRoute
   '/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/app/revenue': typeof AuthenticatedAppRevenueRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
   '/app/staff': typeof AuthenticatedAppStaffRoute
@@ -359,6 +366,7 @@ export interface FileRoutesByTo {
   '/app/plugins': typeof AuthenticatedAppPluginsRoute
   '/app/pos': typeof AuthenticatedAppPosRoute
   '/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/app/revenue': typeof AuthenticatedAppRevenueRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
   '/app/staff': typeof AuthenticatedAppStaffRoute
@@ -405,6 +413,7 @@ export interface FileRoutesById {
   '/_authenticated/app/plugins': typeof AuthenticatedAppPluginsRoute
   '/_authenticated/app/pos': typeof AuthenticatedAppPosRoute
   '/_authenticated/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/_authenticated/app/revenue': typeof AuthenticatedAppRevenueRoute
   '/_authenticated/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
   '/_authenticated/app/staff': typeof AuthenticatedAppStaffRoute
@@ -451,6 +460,7 @@ export interface FileRouteTypes {
     | '/app/plugins'
     | '/app/pos'
     | '/app/printers'
+    | '/app/revenue'
     | '/app/reviews'
     | '/app/settings'
     | '/app/staff'
@@ -493,6 +503,7 @@ export interface FileRouteTypes {
     | '/app/plugins'
     | '/app/pos'
     | '/app/printers'
+    | '/app/revenue'
     | '/app/reviews'
     | '/app/settings'
     | '/app/staff'
@@ -538,6 +549,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/plugins'
     | '/_authenticated/app/pos'
     | '/_authenticated/app/printers'
+    | '/_authenticated/app/revenue'
     | '/_authenticated/app/reviews'
     | '/_authenticated/app/settings'
     | '/_authenticated/app/staff'
@@ -686,6 +698,13 @@ declare module '@tanstack/react-router' {
       path: '/reviews'
       fullPath: '/app/reviews'
       preLoaderRoute: typeof AuthenticatedAppReviewsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/app/revenue': {
+      id: '/_authenticated/app/revenue'
+      path: '/revenue'
+      fullPath: '/app/revenue'
+      preLoaderRoute: typeof AuthenticatedAppRevenueRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/printers': {
@@ -911,6 +930,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppPluginsRoute: typeof AuthenticatedAppPluginsRoute
   AuthenticatedAppPosRoute: typeof AuthenticatedAppPosRoute
   AuthenticatedAppPrintersRoute: typeof AuthenticatedAppPrintersRoute
+  AuthenticatedAppRevenueRoute: typeof AuthenticatedAppRevenueRoute
   AuthenticatedAppReviewsRoute: typeof AuthenticatedAppReviewsRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
   AuthenticatedAppStaffRoute: typeof AuthenticatedAppStaffRoute
@@ -937,6 +957,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppPluginsRoute: AuthenticatedAppPluginsRoute,
   AuthenticatedAppPosRoute: AuthenticatedAppPosRoute,
   AuthenticatedAppPrintersRoute: AuthenticatedAppPrintersRoute,
+  AuthenticatedAppRevenueRoute: AuthenticatedAppRevenueRoute,
   AuthenticatedAppReviewsRoute: AuthenticatedAppReviewsRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
   AuthenticatedAppStaffRoute: AuthenticatedAppStaffRoute,
