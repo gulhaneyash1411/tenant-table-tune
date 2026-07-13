@@ -27,6 +27,7 @@ function SettingsPage() {
       address: t.address, city: t.city, state: t.state, pincode: t.pincode,
       gst_number: t.gst_number, business_type: t.business_type, brand_color: t.brand_color,
       currency: t.currency, timezone: t.timezone, settings: t.settings || {},
+      slogan: t.slogan, opening_time: t.opening_time, closing_time: t.closing_time, logo_url: t.logo_url,
     }).eq("id", t.id);
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -45,7 +46,12 @@ function SettingsPage() {
           <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} />
           <Field label="Owner phone" v={t.owner_phone||""} on={v=>set("owner_phone",v)} />
           <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
+          <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
+          <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
+          <Field label="Opening time" v={t.opening_time||""} on={v=>set("opening_time",v)} />
+          <Field label="Closing time" v={t.closing_time||""} on={v=>set("closing_time",v)} />
         </div>
+        {t.logo_url && <img src={t.logo_url} alt="logo" className="h-16 w-16 rounded object-cover border"/>}
       </Card>
       <Card className="p-5 space-y-4">
         <div className="font-medium">Address</div>
