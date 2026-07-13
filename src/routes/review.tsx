@@ -16,6 +16,7 @@ function ReviewPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!t) return toast.error("Missing tenant");
+    if (!name.trim()) return toast.error("Name is required to submit feedback");
     const { error } = await supabase.from("reviews").insert({ tenant_id: t, customer_name: name, customer_phone: phone, rating, comment });
     if (error) return toast.error(error.message);
     setDone(true);
@@ -27,7 +28,7 @@ function ReviewPage() {
         <h1 className="text-xl font-semibold">Rate your visit</h1>
         <form onSubmit={submit} className="space-y-3">
           <div className="flex gap-1">{[1,2,3,4,5].map(n => <button type="button" key={n} onClick={()=>setRating(n)}><Star className={`h-8 w-8 ${n<=rating?"fill-warning text-warning":"text-muted-foreground"}`}/></button>)}</div>
-          <Input placeholder="Name" value={name} onChange={e=>setName(e.target.value)} />
+          <Input placeholder="Your name *" value={name} onChange={e=>setName(e.target.value)} required />
           <Input placeholder="Phone" value={phone} onChange={e=>setPhone(e.target.value)} />
           <Textarea placeholder="Comments (optional)" value={comment} onChange={e=>setComment(e.target.value)} />
           <Button className="w-full">Submit review</Button>
