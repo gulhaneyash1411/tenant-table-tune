@@ -31,7 +31,7 @@ function Announcements() {
     const { data: tenants, error } = await q;
     if (error) return toast.error(error.message);
     const rows = (tenants || []).filter(t => t.owner_id).map(t => ({
-      recipient_id: t.owner_id, tenant_id: t.id, title, body, kind: "announcement", channel: "dashboard",
+      recipient_id: t.owner_id as string, tenant_id: t.id, title, body, kind: "announcement", channel: "dashboard" as const,
     }));
     if (rows.length === 0) return toast.error("No recipients");
     const { error: err } = await supabase.from("notifications").insert(rows);
