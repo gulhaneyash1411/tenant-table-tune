@@ -2,9 +2,10 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Receipt, Cpu, Rocket, LogOut, TrendingUp } from "lucide-react";
+import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Receipt, Cpu, Rocket, TrendingUp } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export const Route = createFileRoute("/_authenticated/app")({ component: AppLayout });
 
@@ -52,9 +53,18 @@ function AppLayout() {
       <div className="min-h-screen flex w-full bg-background">
         <Sidebar collapsible="icon">
           <SidebarContent>
-            <div className="px-4 py-4 border-b">
-              <div className="font-semibold truncate">{tenant?.name}</div>
-              <div className="text-xs text-muted-foreground truncate">{tenant?.city}</div>
+            <div className="px-4 py-4 border-b flex items-center gap-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+              {tenant?.logo_url ? (
+                <img src={tenant.logo_url} alt={tenant.name} className="h-8 w-8 rounded object-cover shrink-0" />
+              ) : (
+                <div className="h-8 w-8 rounded bg-primary/10 text-primary grid place-items-center text-sm font-semibold shrink-0">
+                  {(tenant?.name || "R").slice(0,1)}
+                </div>
+              )}
+              <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+                <div className="font-semibold truncate text-sm">{tenant?.name}</div>
+                <div className="text-xs text-muted-foreground truncate">{tenant?.city}</div>
+              </div>
             </div>
             <NavGroup label="Operations" items={MAIN} />
             <NavGroup label="Billing" items={BILLING} />
@@ -65,7 +75,7 @@ function AppLayout() {
             <div className="flex items-center gap-2"><SidebarTrigger /></div>
             <div className="flex items-center gap-1">
               <NotificationBell />
-              <Button variant="ghost" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/auth" }); }}><LogOut className="h-4 w-4 mr-1"/>Sign out</Button>
+              <SignOutButton />
             </div>
           </header>
           <main className="flex-1 p-6 overflow-auto"><Outlet /></main>

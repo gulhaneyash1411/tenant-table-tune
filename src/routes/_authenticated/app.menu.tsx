@@ -89,6 +89,9 @@ function ItemRow({ item, onDelete, onUpdate }: { item: any; onDelete: ()=>void; 
           {item.description && <div className="text-xs text-muted-foreground truncate">{item.description}</div>}
         </div>
         <span className="text-sm">{money(item.price)}</span>
+        <div className="flex items-center gap-1 text-xs"><span className="text-muted-foreground">Must try</span>
+          <Switch checked={!!item.is_must_try} onCheckedChange={(v)=>onUpdate({ is_must_try: v })} />
+        </div>
         <div className="flex items-center gap-1 text-xs"><span className="text-muted-foreground">Available</span>
           <Switch checked={!!item.is_available} onCheckedChange={(v)=>onUpdate({ is_available: v })} />
         </div>
