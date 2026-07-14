@@ -2,9 +2,10 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, LogOut } from "lucide-react";
+import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
-import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/sign-out-button";
+import { useEffect as useE2, useState as useS2 } from "react";
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminLayout });
 
@@ -19,6 +20,23 @@ const NAV = [
   { to: "/admin/reports", label: "Reports", icon: FileText },
   { to: "/admin/settings", label: "Platform settings", icon: Settings },
 ];
+
+function AdminBrand() {
+  const [logo, setLogo] = useS2<string | null>(null);
+  useE2(() => { (async () => {
+    const { data } = await supabase.from("platform_settings").select("*").eq("key","brand_logo_url").maybeSingle();
+    setLogo((data?.value as any)?.url || null);
+  })(); }, []);
+  return (
+    <div className="px-4 py-4 border-b flex items-center gap-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+      {logo ? <img src={logo} alt="PlateOS" className="h-8 w-8 rounded object-cover shrink-0"/> : <div className="h-8 w-8 rounded bg-primary/10 text-primary grid place-items-center text-sm font-semibold shrink-0">P</div>}
+      <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+        <div className="font-semibold text-sm">PlateOS</div>
+        <div className="text-xs text-muted-foreground">Super admin console</div>
+      </div>
+    </div>
+  );
+}
 
 function AdminLayout() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
@@ -39,10 +57,7 @@ function AdminLayout() {
       <div className="min-h-screen flex w-full bg-background">
         <Sidebar collapsible="icon">
           <SidebarContent>
-            <div className="px-4 py-4 border-b">
-              <div className="font-semibold">PlateOS</div>
-              <div className="text-xs text-muted-foreground">Super admin console</div>
-            </div>
+            <AdminBrand />
             <SidebarGroup>
               <SidebarGroupLabel>Platform</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -67,7 +82,7 @@ function AdminLayout() {
             <SidebarTrigger />
             <div className="flex items-center gap-1">
               <NotificationBell />
-              <Button variant="ghost" size="sm" onClick={async () => { await supabase.auth.signOut(); navigate({ to: "/admin/auth" }); }}><LogOut className="h-4 w-4 mr-1"/>Sign out</Button>
+              <SignOutButton redirectTo="/admin/auth" />
             </div>
           </header>
           <main className="flex-1 p-6 overflow-auto"><Outlet /></main>
