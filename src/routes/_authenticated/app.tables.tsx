@@ -32,6 +32,12 @@ function TablesPage() {
     if (error) return toast.error(error.message);
     setLabel(""); load();
   }
+  async function removeTable(id: string) {
+    const { error } = await supabase.from("restaurant_tables").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Table QR deleted");
+    load();
+  }
 
   return (
     <div className="space-y-6">
@@ -49,7 +55,7 @@ function TablesPage() {
       </Card>
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
         {tables.map(t => (
-          <QRCard key={t.id} url={`${origin}/t/${t.id}`} title={t.label} subtitle={`${t.seats} seats`} />
+          <QRCard key={t.id} url={`${origin}/t/${t.id}`} title={t.label} subtitle={`${t.seats} seats`} onDelete={()=>removeTable(t.id)} />
         ))}
       </div>
     </div>

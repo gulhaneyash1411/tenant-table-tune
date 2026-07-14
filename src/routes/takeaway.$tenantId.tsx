@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
-import { Minus, Plus, ShoppingCart, Loader2 } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock } from "lucide-react";
+import { CustomerLoader } from "@/components/customer-loader";
 
 export const Route = createFileRoute("/takeaway/$tenantId")({ component: TakeawayOrder });
 
@@ -22,6 +23,8 @@ function TakeawayOrder() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [activeCat, setActiveCat] = useState<string>("all");
 
   useEffect(() => { (async () => {
     setLoading(true);
@@ -54,8 +57,7 @@ function TakeawayOrder() {
       order_type: "takeaway", status: "new", payment_status: "unpaid",
       subtotal, tax, total,
     }).select().single();
-    setPlacing(false);
-    if (error || !order) return toast.error(error?.message || "Failed to place order");
+    if (error || !order) { setPlacing(false); return toast.error(error?.message || "Failed to place order"); }
     await supabase.from("order_items").insert(cartItems.map(i => ({
       order_id: order.id, tenant_id: tenant.id, menu_item_id: i.id, name: i.name, price: i.price, quantity: cart[i.id],
     })));
@@ -63,46 +65,98 @@ function TakeawayOrder() {
     window.location.href = `/status?phone=${encodeURIComponent(phone)}`;
   }
 
-  if (loading) return <div className="min-h-screen grid place-items-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/></div>;
+  if (loading) return <CustomerLoader tenant={tenant} label="Loading menu…" />;
+  if (placing) return <CustomerLoader tenant={tenant} label="Placing your order…" />;
   if (!tenant) return <div className="min-h-screen grid place-items-center text-muted-foreground">Restaurant not found</div>;
 
+  const q = search.trim().toLowerCase();
+  const visibleItems = items.filter(i => (activeCat === "all" || i.category_id === activeCat) && (!q || i.name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q)));
+  const mustTry = items.filter(i => i.is_must_try);
+
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <header className="p-4 border-b sticky top-0 bg-background z-10">
-        {tenant.logo_url && <img src={tenant.logo_url} alt="" className="h-10 w-10 rounded object-cover inline-block mr-2 align-middle"/>}
-        <span className="font-semibold align-middle">{tenant.name}</span>
-        <div className="text-xs text-muted-foreground">Takeaway · {tenant.slogan || tenant.city}</div>
-      </header>
-      <main className="p-4 space-y-6 max-w-md mx-auto">
-        {cats.map(c => (
-          <section key={c.id}>
-            <h2 className="font-medium mb-2">{c.name}</h2>
-            <div className="space-y-2">
-              {items.filter(i => i.category_id === c.id).map(i => (
-                <Card key={i.id} className="p-3 flex gap-3 items-center">
-                  {i.image_url && <img src={i.image_url} alt="" className="h-14 w-14 rounded object-cover"/>}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{i.name}</div>
-                    {i.description && <div className="text-xs text-muted-foreground line-clamp-1">{i.description}</div>}
-                    <div className="text-xs mt-0.5">{money(i.price)}</div>
-                  </div>
-                  {cart[i.id] ? (
-                    <div className="flex items-center gap-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={()=>setCart({...cart,[i.id]:Math.max(0,cart[i.id]-1)})}><Minus className="h-3 w-3"/></Button>
-                      <span className="w-6 text-center text-sm font-medium">{cart[i.id]}</span>
-                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={()=>setCart({...cart,[i.id]:cart[i.id]+1})}><Plus className="h-3 w-3"/></Button>
+    <div className="min-h-screen bg-muted/30 pb-28">
+      <div className="h-32 bg-gradient-to-br from-primary/80 via-primary/60 to-primary/40" />
+      <div className="max-w-md mx-auto px-4 -mt-14">
+        <Card className="p-4 flex gap-3 items-center shadow-lg">
+          {tenant.logo_url ? <img src={tenant.logo_url} alt="" className="h-16 w-16 rounded-xl object-cover"/> : <div className="h-16 w-16 rounded-xl bg-primary/10 text-primary grid place-items-center text-xl font-semibold">{tenant.name.slice(0,1)}</div>}
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold truncate">{tenant.name}</div>
+            {tenant.slogan && <div className="text-xs text-muted-foreground italic truncate">"{tenant.slogan}"</div>}
+            <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground">
+              <span>Takeaway</span>
+              {(tenant.opening_time || tenant.closing_time) && <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3"/>{tenant.opening_time || ""}–{tenant.closing_time || ""}</span>}
+            </div>
+          </div>
+        </Card>
+      </div>
+      <div className="max-w-md mx-auto px-4 mt-4 space-y-4">
+        <div className="relative">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/>
+          <Input placeholder="Search for dishes" className="pl-9 bg-background" value={search} onChange={e=>setSearch(e.target.value)} />
+        </div>
+        {mustTry.length > 0 && !q && activeCat === "all" && (
+          <section>
+            <div className="flex items-center gap-2 mb-2"><Sparkles className="h-4 w-4 text-amber-500"/><h2 className="font-semibold text-sm">Must try</h2></div>
+            <div className="flex gap-3 overflow-x-auto -mx-4 px-4 pb-2 snap-x">
+              {mustTry.map(i => (
+                <Card key={i.id} className="min-w-[160px] snap-start overflow-hidden">
+                  {i.image_url ? <img src={i.image_url} alt={i.name} className="h-24 w-full object-cover"/> : <div className="h-24 w-full bg-muted"/>}
+                  <div className="p-2">
+                    <div className="text-sm font-medium truncate">{i.name}</div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs">{money(i.price)}</span>
+                      <Button size="sm" variant="secondary" className="h-6 px-2 text-xs" onClick={()=>setCart({...cart,[i.id]:(cart[i.id]||0)+1})}>Add</Button>
                     </div>
-                  ) : <Button size="sm" onClick={()=>setCart({...cart,[i.id]:1})}>Add</Button>}
+                  </div>
                 </Card>
               ))}
             </div>
           </section>
-        ))}
-        {items.length === 0 && <div className="text-center text-muted-foreground py-12 text-sm">Menu is currently empty.</div>}
-      </main>
+        )}
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
+          <button onClick={()=>setActiveCat("all")} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border ${activeCat==="all"?"bg-primary text-primary-foreground border-primary":"bg-background"}`}>All</button>
+          {cats.map(c => <button key={c.id} onClick={()=>setActiveCat(c.id)} className={`text-xs px-3 py-1.5 rounded-full whitespace-nowrap border ${activeCat===c.id?"bg-primary text-primary-foreground border-primary":"bg-background"}`}>{c.name}</button>)}
+        </div>
+        {(activeCat === "all" ? cats : cats.filter(c => c.id === activeCat)).map(c => {
+          const list = visibleItems.filter(i => i.category_id === c.id);
+          if (list.length === 0) return null;
+          return (
+            <section key={c.id}>
+              <h2 className="font-semibold text-sm mb-2 text-muted-foreground uppercase tracking-wide">{c.name}</h2>
+              <div className="space-y-2">
+                {list.map(i => (
+                  <Card key={i.id} className="p-3 flex gap-3 items-center">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className="font-medium text-sm truncate">{i.name}</div>
+                        {i.is_must_try && <Sparkles className="h-3 w-3 text-amber-500 shrink-0"/>}
+                      </div>
+                      {i.description && <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{i.description}</div>}
+                      <div className="text-sm font-semibold mt-1">{money(i.price)}</div>
+                    </div>
+                    <div className="relative">
+                      {i.image_url ? <img src={i.image_url} alt="" className="h-20 w-20 rounded-lg object-cover"/> : <div className="h-20 w-20 rounded-lg bg-muted"/>}
+                      {cart[i.id] ? (
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-background border rounded-full shadow px-1">
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={()=>setCart({...cart,[i.id]:Math.max(0,cart[i.id]-1)})}><Minus className="h-3 w-3"/></Button>
+                          <span className="w-4 text-center text-xs font-semibold text-primary">{cart[i.id]}</span>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={()=>setCart({...cart,[i.id]:cart[i.id]+1})}><Plus className="h-3 w-3"/></Button>
+                        </div>
+                      ) : (
+                        <button onClick={()=>setCart({...cart,[i.id]:1})} className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-background text-primary border border-primary/40 rounded-full px-3 py-0.5 text-xs font-semibold shadow">ADD</button>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+        {visibleItems.length === 0 && <div className="text-center text-muted-foreground py-12 text-sm">No dishes found.</div>}
+      </div>
       {cartItems.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 p-3 bg-background border-t">
-          <div className="max-w-md mx-auto"><Button className="w-full" onClick={()=>setShowCart(true)}><ShoppingCart className="h-4 w-4 mr-2"/>View cart · {money(total)}</Button></div>
+        <div className="fixed bottom-0 inset-x-0 p-3 bg-background/95 backdrop-blur border-t">
+          <div className="max-w-md mx-auto"><Button className="w-full h-12" onClick={()=>setShowCart(true)}><ShoppingCart className="h-4 w-4 mr-2"/>{cartItems.reduce((a,b)=>a+cart[b.id],0)} item · View cart · {money(total)}</Button></div>
         </div>
       )}
       {showCart && (
