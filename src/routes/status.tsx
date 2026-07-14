@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
 import { format } from "date-fns";
-import { Download } from "lucide-react";
+import { Download, Plus } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 export const Route = createFileRoute("/status")({ component: StatusPage });
 
@@ -32,38 +33,51 @@ function StatusPage() {
     setSelected(o);
     const [{ data: oi }, { data: ten }] = await Promise.all([
       supabase.from("order_items").select("*").eq("order_id", o.id),
-      supabase.from("tenants").select("name,address,city,gst_number,slogan").eq("id", o.tenant_id).maybeSingle(),
+      supabase.from("tenants").select("id,name,address,city,gst_number,slogan").eq("id", o.tenant_id).maybeSingle(),
     ]);
     setItems(oi || []); setTenant(ten);
   }
 
   function downloadInvoice() {
     if (!selected) return;
-    const win = window.open("", "_blank", "width=720,height=900");
-    if (!win) return;
-    const rows = items.map(i => `<tr><td>${i.name}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${money(Number(i.price))}</td><td style="text-align:right">${money(Number(i.price) * i.quantity)}</td></tr>`).join("");
-    win.document.write(`<html><head><title>Invoice #${selected.order_number}</title>
-      <style>body{font-family:system-ui,sans-serif;padding:32px;color:#111}h1{margin:0}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{padding:8px;border-bottom:1px solid #eee;font-size:14px}th{text-align:left;background:#f7f7f7}.tot{font-weight:600}.muted{color:#666;font-size:12px}.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;background:${selected.payment_status==='paid'?'#dcfce7':'#fef3c7'};color:${selected.payment_status==='paid'?'#166534':'#92400e'}}</style>
-      </head><body>
-      <h1>${tenant?.name || "Invoice"}</h1>
-      <div class="muted">${tenant?.slogan || ""}</div>
-      <div class="muted">${[tenant?.address, tenant?.city].filter(Boolean).join(", ")}</div>
-      ${tenant?.gst_number ? `<div class="muted">GST: ${tenant.gst_number}</div>` : ""}
-      <hr style="margin:16px 0"/>
-      <div style="display:flex;justify-content:space-between">
-        <div><b>Invoice #${selected.order_number}</b><br/><span class="muted">${format(new Date(selected.created_at),"PPpp")}</span></div>
-        <div style="text-align:right"><span class="badge">${selected.payment_status.toUpperCase()}</span><br/><span class="muted">${selected.customer_name} · ${selected.customer_phone}</span></div>
-      </div>
-      <table><thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-      <table style="margin-top:12px">
-        <tr><td>Subtotal</td><td style="text-align:right">${money(Number(selected.subtotal))}</td></tr>
-        <tr><td>Tax</td><td style="text-align:right">${money(Number(selected.tax))}</td></tr>
-        <tr class="tot"><td>Total</td><td style="text-align:right">${money(Number(selected.total))}</td></tr>
-      </table>
-      <p class="muted" style="margin-top:24px">Thank you for dining with us.</p>
-      <script>window.onload=()=>window.print();</script>
-      </body></html>`);
-    win.document.close();
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    let y = 48;
+    doc.setFont("helvetica", "bold").setFontSize(18).text(tenant?.name || "Invoice", 48, y); y += 18;
+    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
+    if (tenant?.slogan) { doc.text(tenant.slogan, 48, y); y += 14; }
+    const addr = [tenant?.address, tenant?.city].filter(Boolean).join(", ");
+    if (addr) { doc.text(addr, 48, y); y += 14; }
+    if (tenant?.gst_number) { doc.text(`GST: ${tenant.gst_number}`, 48, y); y += 14; }
+    y += 8; doc.setDrawColor(230).line(48, y, 547, y); y += 20;
+    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(12).text(`Invoice #${selected.order_number}`, 48, y);
+    doc.setFont("helvetica","normal").setFontSize(10).setTextColor(120).text(format(new Date(selected.created_at), "PPpp"), 48, y + 14);
+    doc.setTextColor(0).text(`${selected.customer_name} \u00b7 ${selected.customer_phone}`, 547, y, { align: "right" });
+    doc.setFontSize(9).setTextColor(selected.payment_status === "paid" ? 22 : 150, selected.payment_status === "paid" ? 101 : 100, 52).text(selected.payment_status.toUpperCase(), 547, y + 14, { align: "right" });
+    y += 40;
+    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10);
+    doc.text("Item", 48, y); doc.text("Qty", 340, y, { align: "right" }); doc.text("Price", 430, y, { align: "right" }); doc.text("Amount", 547, y, { align: "right" });
+    y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
+    doc.setFont("helvetica","normal");
+    items.forEach(i => {
+      doc.text(String(i.name).slice(0, 50), 48, y);
+      doc.text(String(i.quantity), 340, y, { align: "right" });
+      doc.text(money(Number(i.price)), 430, y, { align: "right" });
+      doc.text(money(Number(i.price) * i.quantity), 547, y, { align: "right" });
+      y += 16;
+    });
+    y += 8; doc.setDrawColor(230).line(340, y, 547, y); y += 16;
+    doc.text("Subtotal", 430, y, { align: "right" }); doc.text(money(Number(selected.subtotal)), 547, y, { align: "right" }); y += 14;
+    doc.text("Tax", 430, y, { align: "right" }); doc.text(money(Number(selected.tax)), 547, y, { align: "right" }); y += 16;
+    doc.setFont("helvetica","bold").text("Total", 430, y, { align: "right" }); doc.text(money(Number(selected.total)), 547, y, { align: "right" });
+    y += 40; doc.setFont("helvetica","italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
+    doc.save(`Invoice-${selected.order_number}.pdf`);
+  }
+
+  function keepOrdering() {
+    if (!selected) return;
+    if (selected.order_type === "takeaway") window.location.href = `/takeaway/${selected.tenant_id}`;
+    else if (selected.table_id) window.location.href = `/t/${selected.table_id}`;
+    else window.location.href = `/takeaway/${selected.tenant_id}`;
   }
 
   return (
@@ -109,7 +123,10 @@ function StatusPage() {
                 <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>{money(Number(selected.tax))}</span></div>
                 <div className="flex justify-between font-semibold"><span>Total</span><span>{money(Number(selected.total))}</span></div>
               </div>
-              <Button onClick={downloadInvoice} className="w-full"><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={keepOrdering}><Plus className="h-4 w-4 mr-2"/>Keep ordering</Button>
+                <Button onClick={downloadInvoice}><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
+              </div>
             </div>
           )}
         </DialogContent>
