@@ -1,0 +1,1 @@
+ALTER TABLE public.menu_items ADD COLUMN IF NOT EXISTS is_must_try boolean NOT NULL DEFAULT false;

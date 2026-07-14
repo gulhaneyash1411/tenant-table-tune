@@ -208,6 +208,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_available: boolean | null
+          is_must_try: boolean
           is_veg: boolean | null
           name: string
           price: number
@@ -221,6 +222,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          is_must_try?: boolean
           is_veg?: boolean | null
           name: string
           price?: number
@@ -234,6 +236,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          is_must_try?: boolean
           is_veg?: boolean | null
           name?: string
           price?: number
