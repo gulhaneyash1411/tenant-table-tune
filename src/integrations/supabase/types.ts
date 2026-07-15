@@ -108,6 +108,97 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          id: string
+          incurred_on: string
+          notes: string | null
+          tenant_id: string
+          title: string
+        }
+        Insert: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          incurred_on?: string
+          notes?: string | null
+          tenant_id: string
+          title: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          incurred_on?: string
+          notes?: string | null
+          tenant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          cost_price: number | null
+          created_at: string
+          id: string
+          low_stock_at: number | null
+          name: string
+          notes: string | null
+          sku: string | null
+          stock_qty: number
+          tenant_id: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          cost_price?: number | null
+          created_at?: string
+          id?: string
+          low_stock_at?: number | null
+          name: string
+          notes?: string | null
+          sku?: string | null
+          stock_qty?: number
+          tenant_id: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cost_price?: number | null
+          created_at?: string
+          id?: string
+          low_stock_at?: number | null
+          name?: string
+          notes?: string | null
+          sku?: string | null
+          stock_qty?: number
+          tenant_id?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -253,6 +344,63 @@ export type Database = {
           },
           {
             foreignKeyName: "menu_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mock_payments: {
+        Row: {
+          amount: number
+          card_last4: string | null
+          created_at: string
+          currency: string | null
+          cycle: string
+          gateway_ref: string
+          id: string
+          method: string | null
+          plan_id: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          amount?: number
+          card_last4?: string | null
+          created_at?: string
+          currency?: string | null
+          cycle?: string
+          gateway_ref?: string
+          id?: string
+          method?: string | null
+          plan_id?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          card_last4?: string | null
+          created_at?: string
+          currency?: string | null
+          cycle?: string
+          gateway_ref?: string
+          id?: string
+          method?: string | null
+          plan_id?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mock_payments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -568,6 +716,104 @@ export type Database = {
           },
           {
             foreignKeyName: "reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salary_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          paid_on: string
+          staff_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_on?: string
+          staff_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_on?: string
+          staff_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_payments_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_members: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          join_date: string | null
+          monthly_salary: number | null
+          name: string
+          notes: string | null
+          phone: string | null
+          role: string | null
+          status: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          join_date?: string | null
+          monthly_salary?: number | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          status?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          join_date?: string | null
+          monthly_salary?: number | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          status?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_members_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
