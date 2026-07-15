@@ -2,19 +2,23 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Receipt, Cpu, Rocket, TrendingUp } from "lucide-react";
+import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Receipt, Cpu, Rocket, TrendingUp, History, Package, Wallet, AlertTriangle } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/sign-out-button";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/app")({ component: AppLayout });
 
 const MAIN = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/app/orders", label: "Live orders", icon: ListOrdered },
+  { to: "/app/history", label: "Order history", icon: History },
   { to: "/app/kds", label: "Kitchen Display", icon: Cpu },
   { to: "/app/menu", label: "Menu", icon: Utensils },
   { to: "/app/tables", label: "Tables & QR", icon: QrCode },
+  { to: "/app/inventory", label: "Stock", icon: Package },
+  { to: "/app/expenses", label: "Expenses", icon: Wallet },
   { to: "/app/customers", label: "Customers", icon: Users },
   { to: "/app/reviews", label: "Reviews", icon: Star },
   { to: "/app/staff", label: "Staff", icon: UsersRound },
@@ -30,6 +34,7 @@ const BILLING = [
 function AppLayout() {
   const [tenant, setTenant] = useState<any>(null);
   const [status, setStatus] = useState<string>("loading");
+  const [sub, setSub] = useState<any>(null);
   const navigate = useNavigate();
   useEffect(() => {
     (async () => {
@@ -41,12 +46,23 @@ function AppLayout() {
       const { data: t } = await supabase.from("tenants").select("*").eq("owner_id", u.user.id).maybeSingle();
       setTenant(t);
       setStatus(t?.status ?? "none");
+      if (t) {
+        const { data: s } = await supabase.from("subscriptions").select("*, plan:subscription_plans(name)").eq("tenant_id", t.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        setSub(s);
+      }
     })();
   }, [navigate]);
 
   if (status === "loading") return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
+
+  const missing: string[] = [];
+  if (!tenant?.address) missing.push("address");
+  if (!tenant?.city) missing.push("city");
+  if (!tenant?.owner_phone) missing.push("owner phone");
+  if (!tenant?.opening_time || !tenant?.closing_time) missing.push("opening hours");
+  const profileIncomplete = missing.length > 0;
 
   return (
     <SidebarProvider>
@@ -73,12 +89,25 @@ function AppLayout() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-14 border-b flex items-center justify-between px-4 gap-2 bg-background sticky top-0 z-10">
             <div className="flex items-center gap-2"><SidebarTrigger /></div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <Link to="/app/subscription" className="hidden md:flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border hover:bg-accent/40">
+                <CreditCard className="h-3 w-3 text-primary"/>
+                <span className="font-medium">{sub?.plan?.name || "Free trial"}</span>
+                {sub?.current_period_end && <span className="text-muted-foreground">· renews {format(new Date(sub.current_period_end), "MMM d")}</span>}
+              </Link>
               <NotificationBell />
               <SignOutButton />
             </div>
           </header>
-          <main className="flex-1 p-6 overflow-auto"><Outlet /></main>
+          <main className="flex-1 p-6 overflow-auto">
+            {profileIncomplete && (
+              <div className="mb-4 p-3 rounded-lg border border-warning/50 bg-warning/5 flex items-center justify-between gap-3 text-sm">
+                <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning"/><span>Complete your restaurant profile to unlock all features. Missing: <b>{missing.join(", ")}</b>.</span></div>
+                <Link to="/app/settings"><Button size="sm">Complete profile</Button></Link>
+              </div>
+            )}
+            <Outlet />
+          </main>
         </div>
       </div>
     </SidebarProvider>
