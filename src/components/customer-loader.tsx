@@ -1,5 +1,3 @@
-import { Loader2 } from "lucide-react";
-
 export function CustomerLoader({ tenant, label }: { tenant?: any; label?: string }) {
   return (
     <div className="min-h-screen grid place-items-center bg-background p-6">
@@ -13,10 +11,7 @@ export function CustomerLoader({ tenant, label }: { tenant?: any; label?: string
         )}
         {tenant?.name && <div className="font-semibold">{tenant.name}</div>}
         {tenant?.slogan && <div className="text-sm text-muted-foreground italic">"{tenant.slogan}"</div>}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {label || "Please wait…"}
-        </div>
+        {label && <div className="text-xs text-muted-foreground mt-1">{label}</div>}
       </div>
     </div>
   );
