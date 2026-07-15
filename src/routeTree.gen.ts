@@ -38,6 +38,7 @@ import { Route as AuthenticatedAppMarketingRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppLoyaltyRouteImport } from './routes/_authenticated/app.loyalty'
 import { Route as AuthenticatedAppKdsRouteImport } from './routes/_authenticated/app.kds'
 import { Route as AuthenticatedAppInventoryRouteImport } from './routes/_authenticated/app.inventory'
+import { Route as AuthenticatedAppHistoryRouteImport } from './routes/_authenticated/app.history'
 import { Route as AuthenticatedAppFranchiseRouteImport } from './routes/_authenticated/app.franchise'
 import { Route as AuthenticatedAppExpensesRouteImport } from './routes/_authenticated/app.expenses'
 import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
@@ -204,6 +205,11 @@ const AuthenticatedAppInventoryRoute =
     path: '/inventory',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppHistoryRoute = AuthenticatedAppHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppFranchiseRoute =
   AuthenticatedAppFranchiseRouteImport.update({
     id: '/franchise',
@@ -321,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/app/customers': typeof AuthenticatedAppCustomersRoute
   '/app/expenses': typeof AuthenticatedAppExpensesRoute
   '/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/app/history': typeof AuthenticatedAppHistoryRoute
   '/app/inventory': typeof AuthenticatedAppInventoryRoute
   '/app/kds': typeof AuthenticatedAppKdsRoute
   '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
@@ -365,6 +372,7 @@ export interface FileRoutesByTo {
   '/app/customers': typeof AuthenticatedAppCustomersRoute
   '/app/expenses': typeof AuthenticatedAppExpensesRoute
   '/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/app/history': typeof AuthenticatedAppHistoryRoute
   '/app/inventory': typeof AuthenticatedAppInventoryRoute
   '/app/kds': typeof AuthenticatedAppKdsRoute
   '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
@@ -413,6 +421,7 @@ export interface FileRoutesById {
   '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRoute
   '/_authenticated/app/expenses': typeof AuthenticatedAppExpensesRoute
   '/_authenticated/app/franchise': typeof AuthenticatedAppFranchiseRoute
+  '/_authenticated/app/history': typeof AuthenticatedAppHistoryRoute
   '/_authenticated/app/inventory': typeof AuthenticatedAppInventoryRoute
   '/_authenticated/app/kds': typeof AuthenticatedAppKdsRoute
   '/_authenticated/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
@@ -461,6 +470,7 @@ export interface FileRouteTypes {
     | '/app/customers'
     | '/app/expenses'
     | '/app/franchise'
+    | '/app/history'
     | '/app/inventory'
     | '/app/kds'
     | '/app/loyalty'
@@ -505,6 +515,7 @@ export interface FileRouteTypes {
     | '/app/customers'
     | '/app/expenses'
     | '/app/franchise'
+    | '/app/history'
     | '/app/inventory'
     | '/app/kds'
     | '/app/loyalty'
@@ -552,6 +563,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/customers'
     | '/_authenticated/app/expenses'
     | '/_authenticated/app/franchise'
+    | '/_authenticated/app/history'
     | '/_authenticated/app/inventory'
     | '/_authenticated/app/kds'
     | '/_authenticated/app/loyalty'
@@ -790,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppInventoryRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/history': {
+      id: '/_authenticated/app/history'
+      path: '/history'
+      fullPath: '/app/history'
+      preLoaderRoute: typeof AuthenticatedAppHistoryRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/franchise': {
       id: '/_authenticated/app/franchise'
       path: '/franchise'
@@ -941,6 +960,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRoute
   AuthenticatedAppExpensesRoute: typeof AuthenticatedAppExpensesRoute
   AuthenticatedAppFranchiseRoute: typeof AuthenticatedAppFranchiseRoute
+  AuthenticatedAppHistoryRoute: typeof AuthenticatedAppHistoryRoute
   AuthenticatedAppInventoryRoute: typeof AuthenticatedAppInventoryRoute
   AuthenticatedAppKdsRoute: typeof AuthenticatedAppKdsRoute
   AuthenticatedAppLoyaltyRoute: typeof AuthenticatedAppLoyaltyRoute
@@ -969,6 +989,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRoute,
   AuthenticatedAppExpensesRoute: AuthenticatedAppExpensesRoute,
   AuthenticatedAppFranchiseRoute: AuthenticatedAppFranchiseRoute,
+  AuthenticatedAppHistoryRoute: AuthenticatedAppHistoryRoute,
   AuthenticatedAppInventoryRoute: AuthenticatedAppInventoryRoute,
   AuthenticatedAppKdsRoute: AuthenticatedAppKdsRoute,
   AuthenticatedAppLoyaltyRoute: AuthenticatedAppLoyaltyRoute,
