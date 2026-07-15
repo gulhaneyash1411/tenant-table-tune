@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
+const rs = (n: number) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 import { format } from "date-fns";
 import { Download, Plus } from "lucide-react";
 import { jsPDF } from "jspdf";
@@ -38,39 +39,49 @@ function StatusPage() {
     setItems(oi || []); setTenant(ten);
   }
 
-  function downloadInvoice() {
-    if (!selected) return;
+  async function downloadInvoice(orderArg?: any) {
+    let order = orderArg || selected;
+    let its = orderArg ? [] as any[] : items;
+    let ten = tenant;
+    if (!order) return;
+    if (orderArg) {
+      const [{ data: oi }, { data: t2 }] = await Promise.all([
+        supabase.from("order_items").select("*").eq("order_id", order.id),
+        supabase.from("tenants").select("id,name,address,city,gst_number,slogan").eq("id", order.tenant_id).maybeSingle(),
+      ]);
+      its = oi || []; ten = t2;
+    }
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     let y = 48;
-    doc.setFont("helvetica", "bold").setFontSize(18).text(tenant?.name || "Invoice", 48, y); y += 18;
+    doc.setFont("helvetica", "bold").setFontSize(18).text(ten?.name || "Invoice", 48, y); y += 18;
     doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
-    if (tenant?.slogan) { doc.text(tenant.slogan, 48, y); y += 14; }
-    const addr = [tenant?.address, tenant?.city].filter(Boolean).join(", ");
+    if (ten?.slogan) { doc.text(ten.slogan, 48, y); y += 14; }
+    const addr = [ten?.address, ten?.city].filter(Boolean).join(", ");
     if (addr) { doc.text(addr, 48, y); y += 14; }
-    if (tenant?.gst_number) { doc.text(`GST: ${tenant.gst_number}`, 48, y); y += 14; }
+    if (ten?.gst_number) { doc.text(`GST: ${ten.gst_number}`, 48, y); y += 14; }
     y += 8; doc.setDrawColor(230).line(48, y, 547, y); y += 20;
-    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(12).text(`Invoice #${selected.order_number}`, 48, y);
-    doc.setFont("helvetica","normal").setFontSize(10).setTextColor(120).text(format(new Date(selected.created_at), "PPpp"), 48, y + 14);
-    doc.setTextColor(0).text(`${selected.customer_name} \u00b7 ${selected.customer_phone}`, 547, y, { align: "right" });
-    doc.setFontSize(9).setTextColor(selected.payment_status === "paid" ? 22 : 150, selected.payment_status === "paid" ? 101 : 100, 52).text(selected.payment_status.toUpperCase(), 547, y + 14, { align: "right" });
+    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(12).text(`Invoice #${order.order_number}`, 48, y);
+    doc.setFont("helvetica","normal").setFontSize(10).setTextColor(120).text(format(new Date(order.created_at), "PPpp"), 48, y + 14);
+    doc.setTextColor(0).text(`${order.customer_name} \u00b7 ${order.customer_phone}`, 547, y, { align: "right" });
+    doc.setFontSize(9).setTextColor(order.payment_status === "paid" ? 22 : 150, order.payment_status === "paid" ? 101 : 100, 52).text(order.payment_status.toUpperCase(), 547, y + 14, { align: "right" });
     y += 40;
     doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10);
     doc.text("Item", 48, y); doc.text("Qty", 340, y, { align: "right" }); doc.text("Price", 430, y, { align: "right" }); doc.text("Amount", 547, y, { align: "right" });
     y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
     doc.setFont("helvetica","normal");
-    items.forEach(i => {
+    its.forEach(i => {
       doc.text(String(i.name).slice(0, 50), 48, y);
       doc.text(String(i.quantity), 340, y, { align: "right" });
-      doc.text(money(Number(i.price)), 430, y, { align: "right" });
-      doc.text(money(Number(i.price) * i.quantity), 547, y, { align: "right" });
+      doc.text(rs(Number(i.price)), 430, y, { align: "right" });
+      doc.text(rs(Number(i.price) * i.quantity), 547, y, { align: "right" });
       y += 16;
     });
     y += 8; doc.setDrawColor(230).line(340, y, 547, y); y += 16;
-    doc.text("Subtotal", 430, y, { align: "right" }); doc.text(money(Number(selected.subtotal)), 547, y, { align: "right" }); y += 14;
-    doc.text("Tax", 430, y, { align: "right" }); doc.text(money(Number(selected.tax)), 547, y, { align: "right" }); y += 16;
-    doc.setFont("helvetica","bold").text("Total", 430, y, { align: "right" }); doc.text(money(Number(selected.total)), 547, y, { align: "right" });
+    doc.text("Subtotal", 430, y, { align: "right" }); doc.text(rs(order.subtotal), 547, y, { align: "right" }); y += 14;
+    doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 16;
+    doc.setFont("helvetica","bold").text("Total", 430, y, { align: "right" }); doc.text(rs(order.total), 547, y, { align: "right" });
     y += 40; doc.setFont("helvetica","italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
-    doc.save(`Invoice-${selected.order_number}.pdf`);
+    doc.save(`Invoice-${order.order_number}.pdf`);
   }
 
   function keepOrdering() {
@@ -84,8 +95,8 @@ function StatusPage() {
     <div className="min-h-screen p-6 max-w-md mx-auto space-y-4">
       <h1 className="text-2xl font-semibold">Your orders</h1>
       {orders.map(o => (
-        <Card key={o.id} className="p-4 cursor-pointer hover:bg-accent/40 transition-colors" onClick={() => openOrder(o)}>
-          <div className="flex justify-between items-start">
+        <Card key={o.id} className="p-4 hover:bg-accent/40 transition-colors">
+          <div className="flex justify-between items-start cursor-pointer" onClick={() => openOrder(o)}>
             <div>
               <div className="font-medium">Order #{o.order_number}</div>
               <div className="text-xs text-muted-foreground">{format(new Date(o.created_at), "PPp")}</div>
@@ -95,7 +106,12 @@ function StatusPage() {
               <span className={`text-[10px] px-2 py-0.5 rounded ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
             </div>
           </div>
-          <div className="mt-2 font-medium">{money(Number(o.total))}</div>
+          <div className="mt-2 flex items-center justify-between">
+            <div className="font-medium">{money(Number(o.total))}</div>
+            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); downloadInvoice(o); }}>
+              <Download className="h-3 w-3 mr-1"/>Invoice
+            </Button>
+          </div>
         </Card>
       ))}
       {orders.length === 0 && <div className="text-muted-foreground text-sm">No recent orders.</div>}
@@ -125,7 +141,7 @@ function StatusPage() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={keepOrdering}><Plus className="h-4 w-4 mr-2"/>Keep ordering</Button>
-                <Button onClick={downloadInvoice}><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
+                <Button onClick={() => downloadInvoice()}><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
               </div>
             </div>
           )}
