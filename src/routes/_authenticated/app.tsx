@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Receipt, Cpu, Rocket, TrendingUp, History, Package, Wallet, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet, AlertTriangle } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -17,7 +17,6 @@ const MAIN = [
   { to: "/app/kds", label: "Kitchen Display", icon: Cpu },
   { to: "/app/menu", label: "Menu", icon: Utensils },
   { to: "/app/tables", label: "Tables & QR", icon: QrCode },
-  { to: "/app/inventory", label: "Stock", icon: Package },
   { to: "/app/expenses", label: "Expenses", icon: Wallet },
   { to: "/app/customers", label: "Customers", icon: Users },
   { to: "/app/reviews", label: "Reviews", icon: Star },
@@ -27,7 +26,6 @@ const MAIN = [
 ];
 const BILLING = [
   { to: "/app/subscription", label: "Subscription", icon: CreditCard },
-  { to: "/app/billing", label: "Billing", icon: Receipt },
   { to: "/app/settings", label: "Settings", icon: Settings },
 ];
 

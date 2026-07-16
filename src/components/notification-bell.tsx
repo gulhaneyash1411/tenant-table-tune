@@ -39,6 +39,11 @@ export function NotificationBell() {
     load();
   }
 
+  async function markOneRead(id: string) {
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+  }
+
   return (
     <>
       <button onClick={() => setOpen(true)} className="relative h-9 w-9 rounded-lg hover:bg-accent grid place-items-center">
@@ -59,7 +64,7 @@ export function NotificationBell() {
               <TabsTrigger value="read">Read</TabsTrigger>
             </TabsList>
             <TabsContent value="unread" className="flex-1 overflow-y-auto px-4 pb-4 mt-2">
-              <NotifList items={unreadItems} emptyLabel="You're all caught up." />
+              <NotifList items={unreadItems} emptyLabel="You're all caught up." onItemClick={markOneRead} />
             </TabsContent>
             <TabsContent value="read" className="flex-1 overflow-y-auto px-4 pb-4 mt-2">
               <NotifList items={read} emptyLabel="No read notifications yet." />
@@ -71,12 +76,16 @@ export function NotificationBell() {
   );
 }
 
-function NotifList({ items, emptyLabel }: { items: any[]; emptyLabel: string }) {
+function NotifList({ items, emptyLabel, onItemClick }: { items: any[]; emptyLabel: string; onItemClick?: (id: string) => void }) {
   if (items.length === 0) return <div className="py-12 text-center text-sm text-muted-foreground">{emptyLabel}</div>;
   return (
     <div className="divide-y">
       {items.map((n) => (
-        <div key={n.id} className={`py-3 ${!n.is_read ? "" : "opacity-70"}`}>
+        <div
+          key={n.id}
+          onClick={() => onItemClick && !n.is_read && onItemClick(n.id)}
+          className={`py-3 ${!n.is_read ? "cursor-pointer hover:bg-accent/40 -mx-4 px-4 rounded" : "opacity-70"}`}
+        >
           <div className="flex items-start justify-between gap-2">
             <div className="font-medium text-sm flex items-center gap-2">
               {!n.is_read && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
