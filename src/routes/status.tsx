@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getOrdersByPhone, getOrderDetail } from "@/lib/public-orders.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,22 +21,22 @@ function StatusPage() {
 
   useEffect(() => {
     if (!phone) return;
+    let cancelled = false;
     const load = async () => {
-      const { data } = await supabase.from("orders").select("*").eq("customer_phone", phone).order("created_at", { ascending: false }).limit(15);
-      setOrders(data || []);
+      try {
+        const list = await getOrdersByPhone({ data: { phone } });
+        if (!cancelled) setOrders(list || []);
+      } catch { /* ignore */ }
     };
     load();
-    const ch = supabase.channel("status-" + phone).on("postgres_changes", { event: "*", schema: "public", table: "orders" }, load).subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const t = setInterval(load, 5000);
+    return () => { cancelled = true; clearInterval(t); };
   }, [phone]);
 
   async function openOrder(o: any) {
     setSelected(o);
-    const [{ data: oi }, { data: ten }] = await Promise.all([
-      supabase.from("order_items").select("*").eq("order_id", o.id),
-      supabase.from("tenants").select("id,name,address,city,gst_number,slogan").eq("id", o.tenant_id).maybeSingle(),
-    ]);
-    setItems(oi || []); setTenant(ten);
+    const detail = await getOrderDetail({ data: { order_id: o.id, phone: phone! } });
+    setItems(detail.items || []); setTenant(detail.tenant);
   }
 
   async function downloadInvoice(orderArg?: any) {
@@ -45,11 +45,8 @@ function StatusPage() {
     let ten = tenant;
     if (!order) return;
     if (orderArg) {
-      const [{ data: oi }, { data: t2 }] = await Promise.all([
-        supabase.from("order_items").select("*").eq("order_id", order.id),
-        supabase.from("tenants").select("id,name,address,city,gst_number,slogan").eq("id", order.tenant_id).maybeSingle(),
-      ]);
-      its = oi || []; ten = t2;
+      const detail = await getOrderDetail({ data: { order_id: order.id, phone: phone! } });
+      its = detail.items || []; ten = detail.tenant;
     }
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     let y = 48;
