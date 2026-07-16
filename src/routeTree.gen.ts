@@ -37,13 +37,11 @@ import { Route as AuthenticatedAppMenuRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAppMarketingRouteImport } from './routes/_authenticated/app.marketing'
 import { Route as AuthenticatedAppLoyaltyRouteImport } from './routes/_authenticated/app.loyalty'
 import { Route as AuthenticatedAppKdsRouteImport } from './routes/_authenticated/app.kds'
-import { Route as AuthenticatedAppInventoryRouteImport } from './routes/_authenticated/app.inventory'
 import { Route as AuthenticatedAppHistoryRouteImport } from './routes/_authenticated/app.history'
 import { Route as AuthenticatedAppFranchiseRouteImport } from './routes/_authenticated/app.franchise'
 import { Route as AuthenticatedAppExpensesRouteImport } from './routes/_authenticated/app.expenses'
 import { Route as AuthenticatedAppCustomersRouteImport } from './routes/_authenticated/app.customers'
 import { Route as AuthenticatedAppCrmRouteImport } from './routes/_authenticated/app.crm'
-import { Route as AuthenticatedAppBillingRouteImport } from './routes/_authenticated/app.billing'
 import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated/app.api'
 import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
 import { Route as AuthenticatedAppAiRouteImport } from './routes/_authenticated/app.ai'
@@ -199,12 +197,6 @@ const AuthenticatedAppKdsRoute = AuthenticatedAppKdsRouteImport.update({
   path: '/kds',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppInventoryRoute =
-  AuthenticatedAppInventoryRouteImport.update({
-    id: '/inventory',
-    path: '/inventory',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
 const AuthenticatedAppHistoryRoute = AuthenticatedAppHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -231,11 +223,6 @@ const AuthenticatedAppCustomersRoute =
 const AuthenticatedAppCrmRoute = AuthenticatedAppCrmRouteImport.update({
   id: '/crm',
   path: '/crm',
-  getParentRoute: () => AuthenticatedAppRoute,
-} as any)
-const AuthenticatedAppBillingRoute = AuthenticatedAppBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
 const AuthenticatedAppApiRoute = AuthenticatedAppApiRouteImport.update({
@@ -322,13 +309,11 @@ export interface FileRoutesByFullPath {
   '/app/ai': typeof AuthenticatedAppAiRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/api': typeof AuthenticatedAppApiRoute
-  '/app/billing': typeof AuthenticatedAppBillingRoute
   '/app/crm': typeof AuthenticatedAppCrmRoute
   '/app/customers': typeof AuthenticatedAppCustomersRoute
   '/app/expenses': typeof AuthenticatedAppExpensesRoute
   '/app/franchise': typeof AuthenticatedAppFranchiseRoute
   '/app/history': typeof AuthenticatedAppHistoryRoute
-  '/app/inventory': typeof AuthenticatedAppInventoryRoute
   '/app/kds': typeof AuthenticatedAppKdsRoute
   '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
   '/app/marketing': typeof AuthenticatedAppMarketingRoute
@@ -367,13 +352,11 @@ export interface FileRoutesByTo {
   '/app/ai': typeof AuthenticatedAppAiRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/app/api': typeof AuthenticatedAppApiRoute
-  '/app/billing': typeof AuthenticatedAppBillingRoute
   '/app/crm': typeof AuthenticatedAppCrmRoute
   '/app/customers': typeof AuthenticatedAppCustomersRoute
   '/app/expenses': typeof AuthenticatedAppExpensesRoute
   '/app/franchise': typeof AuthenticatedAppFranchiseRoute
   '/app/history': typeof AuthenticatedAppHistoryRoute
-  '/app/inventory': typeof AuthenticatedAppInventoryRoute
   '/app/kds': typeof AuthenticatedAppKdsRoute
   '/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
   '/app/marketing': typeof AuthenticatedAppMarketingRoute
@@ -416,13 +399,11 @@ export interface FileRoutesById {
   '/_authenticated/app/ai': typeof AuthenticatedAppAiRoute
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
   '/_authenticated/app/api': typeof AuthenticatedAppApiRoute
-  '/_authenticated/app/billing': typeof AuthenticatedAppBillingRoute
   '/_authenticated/app/crm': typeof AuthenticatedAppCrmRoute
   '/_authenticated/app/customers': typeof AuthenticatedAppCustomersRoute
   '/_authenticated/app/expenses': typeof AuthenticatedAppExpensesRoute
   '/_authenticated/app/franchise': typeof AuthenticatedAppFranchiseRoute
   '/_authenticated/app/history': typeof AuthenticatedAppHistoryRoute
-  '/_authenticated/app/inventory': typeof AuthenticatedAppInventoryRoute
   '/_authenticated/app/kds': typeof AuthenticatedAppKdsRoute
   '/_authenticated/app/loyalty': typeof AuthenticatedAppLoyaltyRoute
   '/_authenticated/app/marketing': typeof AuthenticatedAppMarketingRoute
@@ -465,13 +446,11 @@ export interface FileRouteTypes {
     | '/app/ai'
     | '/app/analytics'
     | '/app/api'
-    | '/app/billing'
     | '/app/crm'
     | '/app/customers'
     | '/app/expenses'
     | '/app/franchise'
     | '/app/history'
-    | '/app/inventory'
     | '/app/kds'
     | '/app/loyalty'
     | '/app/marketing'
@@ -510,13 +489,11 @@ export interface FileRouteTypes {
     | '/app/ai'
     | '/app/analytics'
     | '/app/api'
-    | '/app/billing'
     | '/app/crm'
     | '/app/customers'
     | '/app/expenses'
     | '/app/franchise'
     | '/app/history'
-    | '/app/inventory'
     | '/app/kds'
     | '/app/loyalty'
     | '/app/marketing'
@@ -558,13 +535,11 @@ export interface FileRouteTypes {
     | '/_authenticated/app/ai'
     | '/_authenticated/app/analytics'
     | '/_authenticated/app/api'
-    | '/_authenticated/app/billing'
     | '/_authenticated/app/crm'
     | '/_authenticated/app/customers'
     | '/_authenticated/app/expenses'
     | '/_authenticated/app/franchise'
     | '/_authenticated/app/history'
-    | '/_authenticated/app/inventory'
     | '/_authenticated/app/kds'
     | '/_authenticated/app/loyalty'
     | '/_authenticated/app/marketing'
@@ -795,13 +770,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppKdsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/app/inventory': {
-      id: '/_authenticated/app/inventory'
-      path: '/inventory'
-      fullPath: '/app/inventory'
-      preLoaderRoute: typeof AuthenticatedAppInventoryRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
     '/_authenticated/app/history': {
       id: '/_authenticated/app/history'
       path: '/history'
@@ -835,13 +803,6 @@ declare module '@tanstack/react-router' {
       path: '/crm'
       fullPath: '/app/crm'
       preLoaderRoute: typeof AuthenticatedAppCrmRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/app/billing': {
-      id: '/_authenticated/app/billing'
-      path: '/billing'
-      fullPath: '/app/billing'
-      preLoaderRoute: typeof AuthenticatedAppBillingRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/api': {
@@ -955,13 +916,11 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAiRoute: typeof AuthenticatedAppAiRoute
   AuthenticatedAppAnalyticsRoute: typeof AuthenticatedAppAnalyticsRoute
   AuthenticatedAppApiRoute: typeof AuthenticatedAppApiRoute
-  AuthenticatedAppBillingRoute: typeof AuthenticatedAppBillingRoute
   AuthenticatedAppCrmRoute: typeof AuthenticatedAppCrmRoute
   AuthenticatedAppCustomersRoute: typeof AuthenticatedAppCustomersRoute
   AuthenticatedAppExpensesRoute: typeof AuthenticatedAppExpensesRoute
   AuthenticatedAppFranchiseRoute: typeof AuthenticatedAppFranchiseRoute
   AuthenticatedAppHistoryRoute: typeof AuthenticatedAppHistoryRoute
-  AuthenticatedAppInventoryRoute: typeof AuthenticatedAppInventoryRoute
   AuthenticatedAppKdsRoute: typeof AuthenticatedAppKdsRoute
   AuthenticatedAppLoyaltyRoute: typeof AuthenticatedAppLoyaltyRoute
   AuthenticatedAppMarketingRoute: typeof AuthenticatedAppMarketingRoute
@@ -984,13 +943,11 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppAiRoute: AuthenticatedAppAiRoute,
   AuthenticatedAppAnalyticsRoute: AuthenticatedAppAnalyticsRoute,
   AuthenticatedAppApiRoute: AuthenticatedAppApiRoute,
-  AuthenticatedAppBillingRoute: AuthenticatedAppBillingRoute,
   AuthenticatedAppCrmRoute: AuthenticatedAppCrmRoute,
   AuthenticatedAppCustomersRoute: AuthenticatedAppCustomersRoute,
   AuthenticatedAppExpensesRoute: AuthenticatedAppExpensesRoute,
   AuthenticatedAppFranchiseRoute: AuthenticatedAppFranchiseRoute,
   AuthenticatedAppHistoryRoute: AuthenticatedAppHistoryRoute,
-  AuthenticatedAppInventoryRoute: AuthenticatedAppInventoryRoute,
   AuthenticatedAppKdsRoute: AuthenticatedAppKdsRoute,
   AuthenticatedAppLoyaltyRoute: AuthenticatedAppLoyaltyRoute,
   AuthenticatedAppMarketingRoute: AuthenticatedAppMarketingRoute,
