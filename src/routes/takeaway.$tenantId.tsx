@@ -50,9 +50,8 @@ function TakeawayOrder() {
     if (!phone.trim()) return toast.error("Phone is required");
     if (cartItems.length === 0) return toast.error("Cart is empty");
     setPlacing(true);
-    const { data: cust } = await supabase.from("customers").upsert({ tenant_id: tenant.id, name, phone }, { onConflict: "tenant_id,phone" }).select().single();
     const { data: order, error } = await supabase.from("orders").insert({
-      tenant_id: tenant.id, customer_id: cust?.id,
+      tenant_id: tenant.id,
       customer_name: name, customer_phone: phone,
       order_type: "takeaway", status: "new", payment_status: "unpaid",
       subtotal, tax, total,
