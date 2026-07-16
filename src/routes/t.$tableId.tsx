@@ -9,6 +9,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin } from "lucide-react";
 import { CustomerLoader } from "@/components/customer-loader";
+import { getActiveTableOrder } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/t/$tableId")({ component: TableOrder });
 
@@ -38,7 +39,7 @@ function TableOrder() {
       supabase.from("menu_items").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
     ]);
     setCats(c || []); setItems(i || []);
-    const { data: ao } = await supabase.from("orders").select("*").eq("table_id", t.id).not("status", "in", "(served,cancelled)").maybeSingle();
+    const ao = await getActiveTableOrder({ data: { table_id: t.id } });
     if (ao) { setActiveOrder(ao); setGateStep("resume"); }
     else setGateStep("ok");
   })(); }, [tableId]);
@@ -51,9 +52,8 @@ function TableOrder() {
     if (!phone.trim()) return toast.error("Phone is required");
     if (cartItems.length === 0) return toast.error("Cart is empty");
     setPlacing(true);
-    const { data: cust } = await supabase.from("customers").upsert({ tenant_id: tenant.id, name, phone }, { onConflict: "tenant_id,phone" }).select().single();
     const { data: order, error } = await supabase.from("orders").insert({
-      tenant_id: tenant.id, table_id: table.id, customer_id: cust?.id,
+      tenant_id: tenant.id, table_id: table.id,
       customer_name: name, customer_phone: phone,
       order_type: "dine_in", status: "new", payment_status: "unpaid",
       subtotal: total, tax: Math.round(total * 0.05), total: total + Math.round(total * 0.05),
