@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { money } from "@/lib/format";
 import { LineChart as LineChartIcon } from "lucide-react";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, Bar, CartesianGrid } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/app/analytics")({ component: AnalyticsPage });
 
@@ -49,14 +49,25 @@ function AnalyticsPage() {
       </div>
       <Card className="p-4">
         <div className="font-medium mb-3">Revenue trend</div>
-        <div style={{width:"100%",height:260}}>
+        <div style={{width:"100%",height:300}}>
           <ResponsiveContainer>
-            <LineChart data={daily}>
+            <AreaChart data={daily} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.5}/>
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3}/>
-              <XAxis dataKey="date" fontSize={11}/><YAxis fontSize={11}/>
-              <Tooltip formatter={(v: any)=>money(Number(v))}/>
-              <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} dot={false}/>
-            </LineChart>
+              <XAxis dataKey="date" fontSize={11} tickMargin={6}/>
+              <YAxis fontSize={11} width={70} tickFormatter={(v:number)=>v>=1000?`${(v/1000).toFixed(1)}k`:String(v)}/>
+              <Tooltip
+                contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
+                labelStyle={{ fontSize: 12 }}
+                formatter={(v: any)=>[money(Number(v)), "Revenue"]}
+              />
+              <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#revGrad)" activeDot={{ r: 4 }} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
