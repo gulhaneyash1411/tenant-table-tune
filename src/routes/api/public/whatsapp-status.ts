@@ -56,11 +56,16 @@ export const Route = createFileRoute("/api/public/whatsapp-status")({
         }
 
         const now = new Date().toISOString();
-        const patch: Record<string, unknown> = { status };
-        if (status === "delivered") patch["delivered_at"] = now;
-        if (status === "read") patch["read_at"] = now;
+        const patch: {
+          status: string;
+          delivered_at?: string;
+          read_at?: string;
+          error?: string;
+        } = { status };
+        if (status === "delivered") patch.delivered_at = now;
+        if (status === "read") patch.read_at = now;
         if (status === "failed" || status === "undelivered")
-          patch["error"] = params["ErrorMessage"] ?? params["ErrorCode"] ?? "Delivery failed";
+          patch.error = params["ErrorMessage"] ?? params["ErrorCode"] ?? "Delivery failed";
         await supabaseAdmin.from("whatsapp_messages").update(patch).eq("id", msg.id);
 
         if (msg.campaign_id) {
