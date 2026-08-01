@@ -24,6 +24,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as ApiPublicWhatsappStatusRouteImport } from './routes/api/public/whatsapp-status'
 import { Route as ApiPublicWhatsappDispatchRouteImport } from './routes/api/public/whatsapp-dispatch'
 import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
+import { Route as AuthenticatedAppWhatsappRouteImport } from './routes/_authenticated/app.whatsapp'
 import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
 import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_authenticated/app.subscription'
 import { Route as AuthenticatedAppStaffRouteImport } from './routes/_authenticated/app.staff'
@@ -131,6 +132,12 @@ const ApiPublicBootstrapRoute = ApiPublicBootstrapRouteImport.update({
   path: '/api/public/bootstrap',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppWhatsappRoute =
+  AuthenticatedAppWhatsappRouteImport.update({
+    id: '/whatsapp',
+    path: '/whatsapp',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppTablesRoute = AuthenticatedAppTablesRouteImport.update({
   id: '/tables',
   path: '/tables',
@@ -342,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/app/staff': typeof AuthenticatedAppStaffRoute
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
+  '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
@@ -387,6 +395,7 @@ export interface FileRoutesByTo {
   '/app/staff': typeof AuthenticatedAppStaffRoute
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
+  '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
@@ -436,6 +445,7 @@ export interface FileRoutesById {
   '/_authenticated/app/staff': typeof AuthenticatedAppStaffRoute
   '/_authenticated/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
+  '/_authenticated/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/app/staff'
     | '/app/subscription'
     | '/app/tables'
+    | '/app/whatsapp'
     | '/api/public/bootstrap'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
@@ -530,6 +541,7 @@ export interface FileRouteTypes {
     | '/app/staff'
     | '/app/subscription'
     | '/app/tables'
+    | '/app/whatsapp'
     | '/api/public/bootstrap'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
@@ -578,6 +590,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/staff'
     | '/_authenticated/app/subscription'
     | '/_authenticated/app/tables'
+    | '/_authenticated/app/whatsapp'
     | '/api/public/bootstrap'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
@@ -705,6 +718,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/bootstrap'
       preLoaderRoute: typeof ApiPublicBootstrapRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app/whatsapp': {
+      id: '/_authenticated/app/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/app/whatsapp'
+      preLoaderRoute: typeof AuthenticatedAppWhatsappRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/tables': {
       id: '/_authenticated/app/tables'
@@ -977,6 +997,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppStaffRoute: typeof AuthenticatedAppStaffRoute
   AuthenticatedAppSubscriptionRoute: typeof AuthenticatedAppSubscriptionRoute
   AuthenticatedAppTablesRoute: typeof AuthenticatedAppTablesRoute
+  AuthenticatedAppWhatsappRoute: typeof AuthenticatedAppWhatsappRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
@@ -1004,6 +1025,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppStaffRoute: AuthenticatedAppStaffRoute,
   AuthenticatedAppSubscriptionRoute: AuthenticatedAppSubscriptionRoute,
   AuthenticatedAppTablesRoute: AuthenticatedAppTablesRoute,
+  AuthenticatedAppWhatsappRoute: AuthenticatedAppWhatsappRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 

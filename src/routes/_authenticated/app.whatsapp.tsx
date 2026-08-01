@@ -326,7 +326,7 @@ function Campaigns() {
     setMsgs(data ?? []);
   }
 
-  const totals = rows.reduce(
+  const totals = rows.reduce<{ sent: number; delivered: number; read: number; failed: number }>(
     (a, r) => ({
       sent: a.sent + Number(r["sent_count"] ?? 0),
       delivered: a.delivered + Number(r["delivered_count"] ?? 0),
