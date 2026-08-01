@@ -21,7 +21,10 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/ap
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as ApiPublicWhatsappStatusRouteImport } from './routes/api/public/whatsapp-status'
+import { Route as ApiPublicWhatsappDispatchRouteImport } from './routes/api/public/whatsapp-dispatch'
 import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
+import { Route as AuthenticatedAppWhatsappRouteImport } from './routes/_authenticated/app.whatsapp'
 import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
 import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_authenticated/app.subscription'
 import { Route as AuthenticatedAppStaffRouteImport } from './routes/_authenticated/app.staff'
@@ -113,11 +116,28 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const ApiPublicWhatsappStatusRoute = ApiPublicWhatsappStatusRouteImport.update({
+  id: '/api/public/whatsapp-status',
+  path: '/api/public/whatsapp-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicWhatsappDispatchRoute =
+  ApiPublicWhatsappDispatchRouteImport.update({
+    id: '/api/public/whatsapp-dispatch',
+    path: '/api/public/whatsapp-dispatch',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicBootstrapRoute = ApiPublicBootstrapRouteImport.update({
   id: '/api/public/bootstrap',
   path: '/api/public/bootstrap',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAppWhatsappRoute =
+  AuthenticatedAppWhatsappRouteImport.update({
+    id: '/whatsapp',
+    path: '/whatsapp',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppTablesRoute = AuthenticatedAppTablesRouteImport.update({
   id: '/tables',
   path: '/tables',
@@ -329,7 +349,10 @@ export interface FileRoutesByFullPath {
   '/app/staff': typeof AuthenticatedAppStaffRoute
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
+  '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
+  '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -372,7 +395,10 @@ export interface FileRoutesByTo {
   '/app/staff': typeof AuthenticatedAppStaffRoute
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
+  '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
+  '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
 }
@@ -419,7 +445,10 @@ export interface FileRoutesById {
   '/_authenticated/app/staff': typeof AuthenticatedAppStaffRoute
   '/_authenticated/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
+  '/_authenticated/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
   '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
+  '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
+  '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
 }
@@ -466,7 +495,10 @@ export interface FileRouteTypes {
     | '/app/staff'
     | '/app/subscription'
     | '/app/tables'
+    | '/app/whatsapp'
     | '/api/public/bootstrap'
+    | '/api/public/whatsapp-dispatch'
+    | '/api/public/whatsapp-status'
     | '/admin/'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -509,7 +541,10 @@ export interface FileRouteTypes {
     | '/app/staff'
     | '/app/subscription'
     | '/app/tables'
+    | '/app/whatsapp'
     | '/api/public/bootstrap'
+    | '/api/public/whatsapp-dispatch'
+    | '/api/public/whatsapp-status'
     | '/admin'
     | '/app'
   id:
@@ -555,7 +590,10 @@ export interface FileRouteTypes {
     | '/_authenticated/app/staff'
     | '/_authenticated/app/subscription'
     | '/_authenticated/app/tables'
+    | '/_authenticated/app/whatsapp'
     | '/api/public/bootstrap'
+    | '/api/public/whatsapp-dispatch'
+    | '/api/public/whatsapp-status'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
   fileRoutesById: FileRoutesById
@@ -570,6 +608,8 @@ export interface RootRouteChildren {
   TTableIdRoute: typeof TTableIdRoute
   TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
   ApiPublicBootstrapRoute: typeof ApiPublicBootstrapRoute
+  ApiPublicWhatsappDispatchRoute: typeof ApiPublicWhatsappDispatchRoute
+  ApiPublicWhatsappStatusRoute: typeof ApiPublicWhatsappStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -658,12 +698,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/api/public/whatsapp-status': {
+      id: '/api/public/whatsapp-status'
+      path: '/api/public/whatsapp-status'
+      fullPath: '/api/public/whatsapp-status'
+      preLoaderRoute: typeof ApiPublicWhatsappStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/whatsapp-dispatch': {
+      id: '/api/public/whatsapp-dispatch'
+      path: '/api/public/whatsapp-dispatch'
+      fullPath: '/api/public/whatsapp-dispatch'
+      preLoaderRoute: typeof ApiPublicWhatsappDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/bootstrap': {
       id: '/api/public/bootstrap'
       path: '/api/public/bootstrap'
       fullPath: '/api/public/bootstrap'
       preLoaderRoute: typeof ApiPublicBootstrapRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/app/whatsapp': {
+      id: '/_authenticated/app/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/app/whatsapp'
+      preLoaderRoute: typeof AuthenticatedAppWhatsappRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/app/tables': {
       id: '/_authenticated/app/tables'
@@ -936,6 +997,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppStaffRoute: typeof AuthenticatedAppStaffRoute
   AuthenticatedAppSubscriptionRoute: typeof AuthenticatedAppSubscriptionRoute
   AuthenticatedAppTablesRoute: typeof AuthenticatedAppTablesRoute
+  AuthenticatedAppWhatsappRoute: typeof AuthenticatedAppWhatsappRoute
   AuthenticatedAppIndexRoute: typeof AuthenticatedAppIndexRoute
 }
 
@@ -963,6 +1025,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppStaffRoute: AuthenticatedAppStaffRoute,
   AuthenticatedAppSubscriptionRoute: AuthenticatedAppSubscriptionRoute,
   AuthenticatedAppTablesRoute: AuthenticatedAppTablesRoute,
+  AuthenticatedAppWhatsappRoute: AuthenticatedAppWhatsappRoute,
   AuthenticatedAppIndexRoute: AuthenticatedAppIndexRoute,
 }
 
@@ -992,17 +1055,9 @@ const rootRouteChildren: RootRouteChildren = {
   TTableIdRoute: TTableIdRoute,
   TakeawayTenantIdRoute: TakeawayTenantIdRoute,
   ApiPublicBootstrapRoute: ApiPublicBootstrapRoute,
+  ApiPublicWhatsappDispatchRoute: ApiPublicWhatsappDispatchRoute,
+  ApiPublicWhatsappStatusRoute: ApiPublicWhatsappStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
