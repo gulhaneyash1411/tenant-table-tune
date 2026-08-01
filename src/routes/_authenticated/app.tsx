@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
-import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet, AlertTriangle, MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -19,6 +19,7 @@ const MAIN = [
   { to: "/app/tables", label: "Tables & QR", icon: QrCode },
   { to: "/app/expenses", label: "Expenses", icon: Wallet },
   { to: "/app/customers", label: "Customers", icon: Users },
+  { to: "/app/whatsapp", label: "WhatsApp", icon: MessageCircle },
   { to: "/app/reviews", label: "Reviews", icon: Star },
   { to: "/app/staff", label: "Staff", icon: UsersRound },
   { to: "/app/revenue", label: "Revenue", icon: TrendingUp },
