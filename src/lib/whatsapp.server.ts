@@ -43,9 +43,21 @@ export function resolveCreds(
   return platformCreds();
 }
 
+// Twilio needs strict E.164. Most stored numbers are local (10-digit India) so
+// we normalise before sending instead of letting Twilio reject them.
+export function toE164(raw: string, defaultCc = "91") {
+  let n = raw.trim().replace(/^whatsapp:/i, "").replace(/[\s\-()./]/g, "");
+  if (n.startsWith("00")) n = `+${n.slice(2)}`;
+  if (n.startsWith("+")) return n;
+  n = n.replace(/\D/g, "");
+  if (n.length === 10) return `+${defaultCc}${n}`;
+  if (n.length === 11 && n.startsWith("0")) return `+${defaultCc}${n.slice(1)}`;
+  if (n.length === 12 && n.startsWith(defaultCc)) return `+${n}`;
+  return `+${n}`;
+}
+
 function waAddr(n: string) {
-  const trimmed = n.trim();
-  return trimmed.startsWith("whatsapp:") ? trimmed : `whatsapp:${trimmed}`;
+  return `whatsapp:${toE164(n)}`;
 }
 
 export type SendResult = { ok: true; sid: string; status: string } | { ok: false; error: string };
