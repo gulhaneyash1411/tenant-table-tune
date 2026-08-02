@@ -9,6 +9,7 @@ import {
   sendCampaign,
   sendTestMessage,
 } from "@/lib/whatsapp.functions";
+import { syncCampaignStatuses } from "@/lib/whatsapp.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { MessageCircle, Send, Users, CheckCheck, XCircle, Plus, Trash2, Eye } from "lucide-react";
+import { MessageCircle, Send, Users, CheckCheck, XCircle, Plus, Trash2, Eye, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/whatsapp")({ component: WhatsAppPage });
 
@@ -304,17 +305,34 @@ function Campaigns() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<Record<string, unknown> | null>(null);
   const [msgs, setMsgs] = useState<Record<string, unknown>[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const sync = useServerFn(syncCampaignStatuses);
 
-  useEffect(() => {
-    supabase
+  const load = useCallback(async () => {
+    const { data } = await supabase
       .from("whatsapp_campaigns")
       .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setRows(data ?? []);
-        setLoading(false);
-      });
+      .order("created_at", { ascending: false });
+    setRows(data ?? []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function refreshStatuses() {
+    setSyncing(true);
+    try {
+      const r = await sync({ data: undefined });
+      await load();
+      toast.success(`Checked ${r.checked} message${r.checked === 1 ? "" : "s"} with WhatsApp`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not refresh delivery status");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function view(c: Record<string, unknown>) {
     setOpen(c);
@@ -340,6 +358,12 @@ function Campaigns() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={() => void refreshStatuses()} disabled={syncing}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Checking…" : "Refresh delivery status"}
+        </Button>
+      </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <Stat icon={<Send className="h-4 w-4" />} label="Sent" value={totals.sent} />
         <Stat icon={<CheckCheck className="h-4 w-4" />} label="Delivered" value={totals.delivered} />
