@@ -49,15 +49,20 @@ export async function syncStatuses(tenantId: string) {
       };
       const status = m.status ?? "queued";
       const now = new Date().toISOString();
-      const patch: Record<string, string | null> = { status };
-      if (status === "delivered") patch["delivered_at"] = now;
+      const patch: {
+        status: string;
+        delivered_at?: string;
+        read_at?: string;
+        error?: string;
+      } = { status };
+      if (status === "delivered") patch.delivered_at = now;
       if (status === "read") {
-        patch["read_at"] = now;
-        patch["delivered_at"] = now;
+        patch.read_at = now;
+        patch.delivered_at = now;
       }
       if (status === "failed" || status === "undelivered") {
         const code = m.error_code ? String(m.error_code) : "";
-        patch["error"] = m.error_message || CODE_HINTS[code] || (code ? `Twilio error ${code}` : "Delivery failed");
+        patch.error = m.error_message || CODE_HINTS[code] || (code ? `Twilio error ${code}` : "Delivery failed");
       }
       await supabaseAdmin.from("whatsapp_messages").update(patch).eq("id", r.id);
       updated++;
