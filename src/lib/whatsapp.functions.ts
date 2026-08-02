@@ -139,8 +139,21 @@ export const sendCampaign = createServerFn({ method: "POST" })
     return { campaign_id: campaign.id, scheduled: false, ...result };
   });
 
-export const sendTestMessage = createServerFn({ method: "POST" })
+export const syncCampaignStatuses = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("owner_id", context.userId)
+      .maybeSingle();
+    if (!tenant) return { checked: 0, updated: 0 };
+    const { syncStatuses } = await import("./whatsapp-sync.server");
+    return syncStatuses(tenant.id);
+  });
+
+export const sendTestMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z.object({ phone: z.string().trim().min(8).max(30), body: z.string().trim().min(1).max(1500) }).parse(d),
