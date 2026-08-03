@@ -34,11 +34,7 @@ export const saveWhatsAppSettings = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        use_platform_sender: z.boolean(),
         is_active: z.boolean(),
-        account_sid: z.string().trim().max(100).optional().nullable(),
-        auth_token: z.string().trim().max(200).optional().nullable(),
-        sender_number: z.string().trim().max(30).optional().nullable(),
       })
       .parse(d),
   )
@@ -48,18 +44,16 @@ export const saveWhatsAppSettings = createServerFn({ method: "POST" })
     if (!tenant) throw new Error("No restaurant on this account");
     const { data: existing } = await supabase
       .from("whatsapp_settings")
-      .select("id,auth_token")
+      .select("id")
       .eq("tenant_id", tenant.id)
       .maybeSingle();
-    const token =
-      !data.auth_token || data.auth_token.startsWith("••") ? existing?.auth_token ?? null : data.auth_token;
     const payload = {
       tenant_id: tenant.id,
-      use_platform_sender: data.use_platform_sender,
+      use_platform_sender: true,
       is_active: data.is_active,
-      account_sid: data.account_sid ?? null,
-      auth_token: token,
-      sender_number: data.sender_number ?? null,
+      account_sid: null,
+      auth_token: null,
+      sender_number: null,
     };
     const { error } = existing
       ? await supabase.from("whatsapp_settings").update(payload).eq("id", existing.id)
@@ -162,17 +156,12 @@ export const sendTestMessage = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: tenant } = await supabase.from("tenants").select("id,name").eq("owner_id", context.userId).maybeSingle();
     if (!tenant) throw new Error("No restaurant on this account");
-    const { data: settings } = await supabase
-      .from("whatsapp_settings")
-      .select("*")
-      .eq("tenant_id", tenant.id)
-      .maybeSingle();
-    const { resolveCreds, sendWhatsApp, renderBody } = await import("./whatsapp.server");
-    const creds = resolveCreds(settings);
+    const { resolveCreds, sendWhatsApp, renderBody, brandedBody } = await import("./whatsapp.server");
+    const creds = resolveCreds();
     if (!creds) return { ok: false as const, error: "No WhatsApp sender configured yet." };
     const res = await sendWhatsApp(creds, {
       to: data.phone,
-      body: renderBody(data.body, { name: "there", restaurant: tenant.name }),
+      body: brandedBody(renderBody(data.body, { name: "there", restaurant: tenant.name }), tenant.name),
     });
     return res.ok ? { ok: true as const, sid: res.sid, sender: creds.source } : { ok: false as const, error: res.error };
   });

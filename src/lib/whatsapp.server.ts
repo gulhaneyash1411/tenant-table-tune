@@ -17,30 +17,15 @@ export function platformCreds(): TwilioCreds | null {
 }
 
 export function resolveCreds(
-  settings: {
-    account_sid?: string | null;
-    auth_token?: string | null;
-    sender_number?: string | null;
-    use_platform_sender?: boolean | null;
-    is_active?: boolean | null;
-  } | null,
+  _settings?: unknown,
 ): TwilioCreds | null {
-  if (
-    settings &&
-    settings.is_active &&
-    !settings.use_platform_sender &&
-    settings.account_sid &&
-    settings.auth_token &&
-    settings.sender_number
-  ) {
-    return {
-      accountSid: settings.account_sid,
-      authToken: settings.auth_token,
-      from: settings.sender_number,
-      source: "tenant",
-    };
-  }
+  // PlateOS is the sole sender. Restaurant credentials are intentionally ignored.
   return platformCreds();
+}
+
+export function brandedBody(body: string, restaurant: string) {
+  const trimmed = body.trim();
+  return `*${restaurant}*\n\n${trimmed}\n\n_Powered by PlateOS_`;
 }
 
 // Twilio needs strict E.164. Most stored numbers are local (10-digit India) so
@@ -86,10 +71,13 @@ export async function sendWhatsApp(
         body: params,
       },
     );
-    const json = (await res.json()) as { sid?: string; status?: string; message?: string };
+    const json = (await res.json()) as { sid?: string; status?: string; message?: string; code?: number };
     if (!res.ok) {
       console.error(`Twilio send failed [${res.status}]: ${JSON.stringify(json)}`);
-      return { ok: false, error: json.message || `Twilio error ${res.status}` };
+      const error = json.code === 63015
+        ? "This recipient has not joined the PlateOS WhatsApp sandbox. They must join it before receiving test messages."
+        : json.message || `Twilio error ${res.status}`;
+      return { ok: false, error };
     }
     return { ok: true, sid: json.sid ?? "", status: json.status ?? "queued" };
   } catch (e) {
@@ -109,7 +97,9 @@ export async function pooled<T, R>(items: T[], limit: number, fn: (item: T) => P
   const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
     while (cursor < items.length) {
       const i = cursor++;
-      out[i] = await fn(items[i]!);
+      const item = items[i];
+      if (item === undefined) continue;
+      out[i] = await fn(item);
     }
   });
   await Promise.all(workers);
