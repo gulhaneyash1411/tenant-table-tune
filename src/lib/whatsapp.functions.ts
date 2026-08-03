@@ -2,15 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-const SegmentSchema = z.object({
-  type: z.enum(["all", "frequent", "inactive", "range", "birthday", "anniversary", "manual"]),
-  min_visits: z.number().int().min(1).max(999).optional(),
-  inactive_days: z.number().int().min(1).max(3650).optional(),
-  from: z.string().optional(),
-  to: z.string().optional(),
-  ids: z.array(z.string().uuid()).max(5000).optional(),
-});
-
 export const getWhatsAppSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -64,7 +55,14 @@ export const saveWhatsAppSettings = createServerFn({ method: "POST" })
 
 export const previewSegment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ segment: SegmentSchema }).parse(d))
+  .inputValidator((d: unknown) => z.object({ segment: z.object({
+    type: z.enum(["all", "frequent", "inactive", "range", "birthday", "anniversary", "manual"]),
+    min_visits: z.number().int().min(1).max(999).optional(),
+    inactive_days: z.number().int().min(1).max(3650).optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    ids: z.array(z.string().uuid()).max(5000).optional(),
+  }) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { data: tenant } = await supabase.from("tenants").select("id").eq("owner_id", context.userId).maybeSingle();
@@ -84,7 +82,14 @@ export const sendCampaign = createServerFn({ method: "POST" })
         body: z.string().trim().min(1).max(1500),
         media_url: z.string().trim().url().max(1000).optional().nullable(),
         template_id: z.string().uuid().optional().nullable(),
-        segment: SegmentSchema,
+        segment: z.object({
+          type: z.enum(["all", "frequent", "inactive", "range", "birthday", "anniversary", "manual"]),
+          min_visits: z.number().int().min(1).max(999).optional(),
+          inactive_days: z.number().int().min(1).max(3650).optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          ids: z.array(z.string().uuid()).max(5000).optional(),
+        }),
         scheduled_at: z.string().datetime().optional().nullable(),
         origin: z.string().url().max(300).optional().nullable(),
       })
