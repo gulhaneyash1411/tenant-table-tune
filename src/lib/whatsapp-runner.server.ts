@@ -26,7 +26,12 @@ export async function runCampaign(args: {
       .from("whatsapp_campaigns")
       .update({ status: "failed", error: "No WhatsApp sender configured" })
       .eq("id", campaign.id);
-    return { sent: 0, failed: recipients.length, error: "No WhatsApp sender configured" };
+    return {
+      sent: 0,
+      failed: recipients.length,
+      error: "No WhatsApp sender configured",
+      errors: [{ message: "The PlateOS WhatsApp sender is not configured", count: recipients.length }],
+    };
   }
 
   const statusCallback = origin ? `${origin}/api/public/whatsapp-status` : null;
@@ -74,6 +79,9 @@ export async function runCampaign(args: {
       sent_count: sent,
       failed_count: failed,
       recipient_count: recipients.length,
+      error: failed > 0
+        ? [...failureReasons.entries()].map(([message, count]) => `${count}× ${message}`).join("; ").slice(0, 2000)
+        : null,
     })
     .eq("id", campaign.id);
 

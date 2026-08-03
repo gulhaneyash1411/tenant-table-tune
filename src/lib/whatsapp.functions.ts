@@ -24,7 +24,7 @@ export const getWhatsAppSettings = createServerFn({ method: "GET" })
       .maybeSingle();
     const { platformCreds } = await import("./whatsapp.server");
     const safe = settings
-      ? { ...settings, auth_token: settings.auth_token ? "••••••••" : null }
+      ? { id: settings.id, tenant_id: settings.tenant_id, use_platform_sender: true, is_active: settings.is_active }
       : null;
     return { tenant, settings: safe, platformAvailable: !!platformCreds() };
   });
