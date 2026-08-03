@@ -154,7 +154,10 @@ function Compose() {
         },
       });
       if (res.scheduled) toast.success(`Scheduled for ${res.recipients} customers`);
-      else toast.success(`Sent to ${res.sent} customers${res.failed ? `, ${res.failed} failed` : ""}`);
+       else if (res.failed > 0) {
+         const detail = res.errors?.[0];
+         toast.warning(`${res.sent} accepted, ${res.failed} failed${detail ? `: ${detail.message}` : ""}`, { duration: 9000 });
+       } else toast.success(`Accepted by WhatsApp for ${res.sent} customers`);
       setName("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not send campaign");
@@ -517,13 +520,7 @@ function Settings() {
   const test = useServerFn(sendTestMessage);
   const [loading, setLoading] = useState(true);
   const [platformAvailable, setPlatformAvailable] = useState(false);
-  const [s, setS] = useState({
-    use_platform_sender: true,
-    is_active: false,
-    account_sid: "",
-    auth_token: "",
-    sender_number: "",
-  });
+  const [s, setS] = useState({ is_active: false });
   const [testPhone, setTestPhone] = useState("");
 
   useEffect(() => {
@@ -531,13 +528,7 @@ function Settings() {
       .then((r) => {
         setPlatformAvailable(r.platformAvailable);
         if (r.settings) {
-          setS({
-            use_platform_sender: !!r.settings.use_platform_sender,
-            is_active: !!r.settings.is_active,
-            account_sid: r.settings.account_sid ?? "",
-            auth_token: r.settings.auth_token ?? "",
-            sender_number: r.settings.sender_number ?? "",
-          });
+          setS({ is_active: !!r.settings.is_active });
         }
       })
       .finally(() => setLoading(false));
@@ -549,23 +540,14 @@ function Settings() {
     <div className="grid gap-4 lg:grid-cols-2">
       <Card className="p-5 space-y-4">
         <div className="font-medium">WhatsApp sender</div>
-        <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="rounded-lg border p-3">
           <div>
             <div className="text-sm font-medium">Use the platform number</div>
             <p className="text-xs text-muted-foreground">
               {platformAvailable ? "Messages go out from the PlateOS WhatsApp business number." : "The platform number isn't configured yet."}
             </p>
           </div>
-          <Switch checked={s.use_platform_sender} onCheckedChange={(v) => setS({ ...s, use_platform_sender: v })} />
         </div>
-
-        {!s.use_platform_sender && (
-          <div className="space-y-3">
-            <div><Label>Twilio Account SID</Label><Input value={s.account_sid} onChange={(e) => setS({ ...s, account_sid: e.target.value })} placeholder="AC…" /></div>
-            <div><Label>Twilio Auth Token</Label><Input type="password" value={s.auth_token} onChange={(e) => setS({ ...s, auth_token: e.target.value })} /></div>
-            <div><Label>WhatsApp sender number</Label><Input value={s.sender_number} onChange={(e) => setS({ ...s, sender_number: e.target.value })} placeholder="+14155238886" /></div>
-          </div>
-        )}
 
         <div className="flex items-center justify-between rounded-lg border p-3">
           <div className="text-sm font-medium">WhatsApp messaging enabled</div>

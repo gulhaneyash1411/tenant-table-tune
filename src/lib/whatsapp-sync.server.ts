@@ -13,12 +13,7 @@ type Row = { id: string; provider_sid: string | null; tenant_id: string; campaig
 export async function syncStatuses(tenantId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const { data: settings } = await supabaseAdmin
-    .from("whatsapp_settings")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-  const creds = resolveCreds(settings);
+  const creds = resolveCreds();
   if (!creds) return { checked: 0, updated: 0 };
 
   const { data: pending } = await supabaseAdmin

@@ -1,15 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const PhoneSchema = z.object({ phone: z.string().trim().min(3).max(30) });
-const OrderDetailSchema = z.object({
-  order_id: z.string().uuid(),
-  phone: z.string().trim().min(3).max(30),
-});
-const TableSchema = z.object({ table_id: z.string().uuid() });
+export const placePublicOrder = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    tenant_id: z.string().uuid(),
+    table_id: z.string().uuid().optional().nullable(),
+    order_type: z.enum(["dine_in", "takeaway"]),
+    customer_name: z.string().trim().min(1).max(120),
+    customer_phone: z.string().trim().min(4).max(30),
+    notes: z.string().trim().max(1000).optional().nullable(),
+    items: z.array(z.object({
+      menu_item_id: z.string().uuid(),
+      quantity: z.number().int().min(1).max(50),
+    })).min(1).max(100),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { createPublicOrder } = await import("./public-orders.server");
+    return createPublicOrder(data);
+  });
 
 export const getOrdersByPhone = createServerFn({ method: "GET" })
-  .inputValidator((d: unknown) => PhoneSchema.parse(d))
+  .inputValidator((d: unknown) => z.object({ phone: z.string().trim().min(3).max(30) }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: orders } = await supabaseAdmin
@@ -24,7 +35,10 @@ export const getOrdersByPhone = createServerFn({ method: "GET" })
   });
 
 export const getOrderDetail = createServerFn({ method: "GET" })
-  .inputValidator((d: unknown) => OrderDetailSchema.parse(d))
+  .inputValidator((d: unknown) => z.object({
+    order_id: z.string().uuid(),
+    phone: z.string().trim().min(3).max(30),
+  }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin
@@ -46,7 +60,7 @@ export const getOrderDetail = createServerFn({ method: "GET" })
   });
 
 export const getActiveTableOrder = createServerFn({ method: "GET" })
-  .inputValidator((d: unknown) => TableSchema.parse(d))
+  .inputValidator((d: unknown) => z.object({ table_id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: order } = await supabaseAdmin

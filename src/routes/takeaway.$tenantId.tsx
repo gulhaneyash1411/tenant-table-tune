@@ -9,6 +9,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock } from "lucide-react";
 import { CustomerLoader } from "@/components/customer-loader";
+import { placePublicOrder } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/takeaway/$tenantId")({ component: TakeawayOrder });
 
@@ -50,18 +51,20 @@ function TakeawayOrder() {
     if (!phone.trim()) return toast.error("Phone is required");
     if (cartItems.length === 0) return toast.error("Cart is empty");
     setPlacing(true);
-    const { data: order, error } = await supabase.from("orders").insert({
-      tenant_id: tenant.id,
-      customer_name: name, customer_phone: phone,
-      order_type: "takeaway", status: "new", payment_status: "unpaid",
-      subtotal, tax, total,
-    }).select().single();
-    if (error || !order) { setPlacing(false); return toast.error(error?.message || "Failed to place order"); }
-    await supabase.from("order_items").insert(cartItems.map(i => ({
-      order_id: order.id, tenant_id: tenant.id, menu_item_id: i.id, name: i.name, price: i.price, quantity: cart[i.id],
-    })));
-    toast.success("Order placed!");
-    window.location.href = `/status?phone=${encodeURIComponent(phone)}`;
+    try {
+      await placePublicOrder({ data: {
+        tenant_id: tenant.id,
+        customer_name: name,
+        customer_phone: phone,
+        order_type: "takeaway",
+        items: cartItems.map(i => ({ menu_item_id: i.id, quantity: cart[i.id] })),
+      } });
+      toast.success("Order placed!");
+      window.location.href = `/status?phone=${encodeURIComponent(phone)}`;
+    } catch (error) {
+      setPlacing(false);
+      toast.error(error instanceof Error ? error.message : "Failed to place order");
+    }
   }
 
   if (loading) return <CustomerLoader tenant={tenant} label="Loading menu…" />;

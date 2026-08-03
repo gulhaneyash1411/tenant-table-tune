@@ -40,15 +40,7 @@ export const Route = createFileRoute("/api/public/whatsapp-status")({
           .maybeSingle();
         if (!msg) return new Response("unknown message", { status: 404 });
 
-        const { data: settings } = await supabaseAdmin
-          .from("whatsapp_settings")
-          .select("auth_token,use_platform_sender,is_active")
-          .eq("tenant_id", msg.tenant_id)
-          .maybeSingle();
-        const token =
-          settings && settings.is_active && !settings.use_platform_sender && settings.auth_token
-            ? settings.auth_token
-            : process.env["TWILIO_AUTH_TOKEN"];
+        const token = process.env["TWILIO_AUTH_TOKEN"];
         const header = request.headers.get("x-twilio-signature");
         if (token && header) {
           const expected = await twilioSignature(token, request.url, params);
