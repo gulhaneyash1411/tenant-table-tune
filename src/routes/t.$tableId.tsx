@@ -9,7 +9,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin } from "lucide-react";
 import { CustomerLoader } from "@/components/customer-loader";
-import { getActiveTableOrder } from "@/lib/public-orders.functions";
+import { getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/t/$tableId")({ component: TableOrder });
 
@@ -52,21 +52,24 @@ function TableOrder() {
     if (!phone.trim()) return toast.error("Phone is required");
     if (cartItems.length === 0) return toast.error("Cart is empty");
     setPlacing(true);
-    const { data: order, error } = await supabase.from("orders").insert({
-      tenant_id: tenant.id, table_id: table.id,
-      customer_name: name, customer_phone: phone,
-      order_type: "dine_in", status: "new", payment_status: "unpaid",
-      subtotal: total, tax: Math.round(total * 0.05), total: total + Math.round(total * 0.05),
-    }).select().single();
-    setPlacing(false);
-    if (error || !order) return toast.error(error?.message || "Failed");
-    await supabase.from("order_items").insert(cartItems.map(i => ({
-      order_id: order.id, tenant_id: tenant.id, menu_item_id: i.id, name: i.name, price: i.price, quantity: cart[i.id],
-    })));
-    setActiveOrder(order);
-    setGateStep("resume");
-    setCart({}); setShowCart(false);
-    toast.success("Order placed!");
+    try {
+      const order = await placePublicOrder({ data: {
+        tenant_id: tenant.id,
+        table_id: table.id,
+        customer_name: name,
+        customer_phone: phone,
+        order_type: "dine_in",
+        items: cartItems.map(i => ({ menu_item_id: i.id, quantity: cart[i.id] })),
+      } });
+      setActiveOrder(order);
+      setGateStep("resume");
+      setCart({}); setShowCart(false);
+      toast.success("Order placed!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to place order");
+    } finally {
+      setPlacing(false);
+    }
   }
 
   if (gateStep === "check") return <CustomerLoader tenant={tenant} label="Loading menu…" />;

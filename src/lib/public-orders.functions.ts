@@ -7,6 +7,25 @@ const OrderDetailSchema = z.object({
   phone: z.string().trim().min(3).max(30),
 });
 const TableSchema = z.object({ table_id: z.string().uuid() });
+const CreateOrderSchema = z.object({
+  tenant_id: z.string().uuid(),
+  table_id: z.string().uuid().optional().nullable(),
+  order_type: z.enum(["dine_in", "takeaway"]),
+  customer_name: z.string().trim().min(1).max(120),
+  customer_phone: z.string().trim().min(4).max(30),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  items: z.array(z.object({
+    menu_item_id: z.string().uuid(),
+    quantity: z.number().int().min(1).max(50),
+  })).min(1).max(100),
+});
+
+export const placePublicOrder = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => CreateOrderSchema.parse(d))
+  .handler(async ({ data }) => {
+    const { createPublicOrder } = await import("./public-orders.server");
+    return createPublicOrder(data);
+  });
 
 export const getOrdersByPhone = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => PhoneSchema.parse(d))

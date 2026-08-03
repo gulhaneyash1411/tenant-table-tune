@@ -48,8 +48,8 @@ function SettingsPage() {
           <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
           <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
           <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
-          <Field label="Opening time" v={t.opening_time||""} on={v=>set("opening_time",v)} />
-          <Field label="Closing time" v={t.closing_time||""} on={v=>set("closing_time",v)} />
+          <Field type="time" label="Opening time" v={t.opening_time||""} on={v=>set("opening_time",v)} />
+          <Field type="time" label="Closing time" v={t.closing_time||""} on={v=>set("closing_time",v)} />
         </div>
         {t.logo_url && <img src={t.logo_url} alt="logo" className="h-16 w-16 rounded object-cover border"/>}
       </Card>
@@ -87,6 +87,6 @@ function SettingsPage() {
     </div>
   );
 }
-function Field({ label, v, on }: { label: string; v: any; on: (v: string)=>void }) {
-  return <div><Label>{label}</Label><Input value={v} onChange={e=>on(e.target.value)}/></div>;
+function Field({ label, v, on, type = "text" }: { label: string; v: any; on: (v: string)=>void; type?: string }) {
+  return <div><Label>{label}</Label><Input type={type} value={v} onChange={e=>on(e.target.value)}/></div>;
 }
