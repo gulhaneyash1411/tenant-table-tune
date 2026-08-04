@@ -11,7 +11,7 @@ import { Utensils } from "lucide-react";
 export const Route = createFileRoute("/auth")({ component: AuthPage });
 
 function AuthPage() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,14 +41,16 @@ function AuthPage() {
             <button onClick={() => setMode("signin")} className={`flex-1 rounded-md py-2 text-sm ${mode==="signin"?"bg-background shadow":""}`}>Sign in</button>
             <button onClick={() => setMode("signup")} className={`flex-1 rounded-md py-2 text-sm ${mode==="signup"?"bg-background shadow":""}`}>Register restaurant</button>
           </div>
-          {mode === "signin" ? <SignInForm /> : <SignUpForm onDone={() => setMode("signin")} />}
+          {mode === "signin" && <SignInForm onForgot={() => setMode("forgot")} />}
+          {mode === "signup" && <SignUpForm onDone={() => setMode("signin")} />}
+          {mode === "forgot" && <ForgotForm onBack={() => setMode("signin")} />}
         </Card>
       </div>
     </div>
   );
 }
 
-function SignInForm() {
+function SignInForm({ onForgot }: { onForgot: () => void }) {
   const [email, setEmail] = useState("owner@bellacucina.dev");
   const [password, setPassword] = useState("Owner123!");
   const [loading, setLoading] = useState(false);
@@ -66,6 +68,43 @@ function SignInForm() {
       <div><Label>Email</Label><Input value={email} onChange={(e)=>setEmail(e.target.value)} type="email" required /></div>
       <div><Label>Password</Label><Input value={password} onChange={(e)=>setPassword(e.target.value)} type="password" required /></div>
       <Button className="w-full" disabled={loading}>{loading?"Signing in…":"Sign in"}</Button>
+      <button type="button" onClick={onForgot} className="w-full text-sm text-primary hover:underline">Forgot password?</button>
+    </form>
+  );
+}
+
+function ForgotForm({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    setSent(true);
+    toast.success("Reset link sent — check your inbox");
+  }
+  if (sent) {
+    return (
+      <div className="space-y-4 text-center">
+        <h2 className="font-semibold">Check your email</h2>
+        <p className="text-sm text-muted-foreground">We sent a password reset link to <b>{email}</b>. Open it to set a new password.</p>
+        <Button variant="outline" className="w-full" onClick={onBack}>Back to sign in</Button>
+      </div>
+    );
+  }
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div>
+        <Label>Email</Label>
+        <Input value={email} onChange={(e)=>setEmail(e.target.value)} type="email" required placeholder="you@restaurant.com" />
+      </div>
+      <Button className="w-full" disabled={loading}>{loading?"Sending…":"Send reset link"}</Button>
+      <button type="button" onClick={onBack} className="w-full text-sm text-muted-foreground hover:underline">Back to sign in</button>
     </form>
   );
 }

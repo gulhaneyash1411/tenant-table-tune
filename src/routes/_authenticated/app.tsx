@@ -35,6 +35,7 @@ function AppLayout() {
   const [status, setStatus] = useState<string>("loading");
   const [sub, setSub] = useState<any>(null);
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
@@ -62,6 +63,8 @@ function AppLayout() {
   if (!tenant?.owner_phone) missing.push("owner phone");
   if (!tenant?.opening_time || !tenant?.closing_time) missing.push("opening hours");
   const profileIncomplete = missing.length > 0;
+  const onSettings = pathname === "/app/settings";
+  const locked = profileIncomplete && !onSettings;
 
   return (
     <SidebarProvider>
@@ -105,7 +108,20 @@ function AppLayout() {
                 <Link to="/app/settings"><Button size="sm">Complete profile</Button></Link>
               </div>
             )}
-            <Outlet />
+            {locked ? (
+              <div className="min-h-[50vh] grid place-items-center">
+                <div className="max-w-md text-center">
+                  <div className="mx-auto h-14 w-14 rounded-full bg-warning/10 text-warning grid place-items-center mb-4"><AlertTriangle className="h-6 w-6" /></div>
+                  <h1 className="text-xl font-semibold">Please fill your restaurant profile first</h1>
+                  <p className="text-muted-foreground mt-2">
+                    This page is locked until your restaurant profile is complete. Missing: <b>{missing.join(", ")}</b>.
+                  </p>
+                  <Link to="/app/settings"><Button className="mt-6">Go to Settings</Button></Link>
+                </div>
+              </div>
+            ) : (
+              <Outlet />
+            )}
           </main>
         </div>
       </div>
