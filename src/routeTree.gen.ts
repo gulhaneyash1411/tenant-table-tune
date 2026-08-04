@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -65,6 +66,11 @@ const StatusRoute = StatusRouteImport.update({
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -311,6 +317,7 @@ const AuthenticatedAdminAnnouncementsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
@@ -359,6 +366,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
   '/admin/auth': typeof AdminAuthRoute
@@ -407,6 +415,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
@@ -457,6 +466,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/reset-password'
     | '/review'
     | '/status'
     | '/admin'
@@ -505,6 +515,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/reset-password'
     | '/review'
     | '/status'
     | '/admin/auth'
@@ -552,6 +563,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/reset-password'
     | '/review'
     | '/status'
     | '/_authenticated/admin'
@@ -602,6 +614,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ReviewRoute: typeof ReviewRoute
   StatusRoute: typeof StatusRoute
   AdminAuthRoute: typeof AdminAuthRoute
@@ -626,6 +639,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/review'
       preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -1049,6 +1069,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ReviewRoute: ReviewRoute,
   StatusRoute: StatusRoute,
   AdminAuthRoute: AdminAuthRoute,

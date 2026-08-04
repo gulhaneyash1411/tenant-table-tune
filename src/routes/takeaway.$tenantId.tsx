@@ -9,6 +9,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock } from "lucide-react";
 import { CustomerLoader } from "@/components/customer-loader";
+import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/takeaway/$tenantId")({ component: TakeawayOrder });
@@ -26,6 +27,7 @@ function TakeawayOrder() {
   const [placing, setPlacing] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
+  useTenantBrand(tenant);
 
   useEffect(() => { (async () => {
     setLoading(true);

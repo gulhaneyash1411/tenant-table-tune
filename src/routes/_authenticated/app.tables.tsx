@@ -21,7 +21,8 @@ function TablesPage() {
     const { data: u } = await supabase.auth.getUser();
     const { data: t } = await supabase.from("tenants").select("*").eq("owner_id", u.user!.id).single();
     setTenant(t);
-    const { data: rows } = await supabase.from("restaurant_tables").select("*").order("label");
+    if (!t) return;
+    const { data: rows } = await supabase.from("restaurant_tables").select("*").eq("tenant_id", t.id).order("label");
     setTables(rows || []);
   }
   useEffect(() => { load(); }, []);

@@ -9,6 +9,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin } from "lucide-react";
 import { CustomerLoader } from "@/components/customer-loader";
+import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/t/$tableId")({ component: TableOrder });
@@ -27,6 +28,7 @@ function TableOrder() {
   const [placing, setPlacing] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
+  useTenantBrand(tenant);
 
   useEffect(() => { (async () => {
     const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
