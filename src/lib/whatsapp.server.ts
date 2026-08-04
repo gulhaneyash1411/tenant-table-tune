@@ -76,7 +76,9 @@ export async function sendWhatsApp(
       console.error(`Twilio send failed [${res.status}]: ${JSON.stringify(json)}`);
       const error = json.code === 63015
         ? "This recipient has not joined the PlateOS WhatsApp sandbox. They must join it before receiving test messages."
-        : json.message || `Twilio error ${res.status}`;
+        : json.code === 63038
+          ? "The WhatsApp account has hit its daily message limit (trial accounts allow only a few messages per day). Upgrade the WhatsApp/Twilio account to keep sending."
+          : json.message || `Twilio error ${res.status}`;
       return { ok: false, error };
     }
     return { ok: true, sid: json.sid ?? "", status: json.status ?? "queued" };

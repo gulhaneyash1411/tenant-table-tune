@@ -23,9 +23,10 @@ function Menu() {
     const { data: u } = await supabase.auth.getUser();
     const { data: t } = await supabase.from("tenants").select("*").eq("owner_id", u.user!.id).single();
     setTenant(t);
-    const { data: c } = await supabase.from("menu_categories").select("*").order("sort_order");
+    if (!t) return;
+    const { data: c } = await supabase.from("menu_categories").select("*").eq("tenant_id", t.id).order("sort_order");
     setCats(c || []);
-    const { data: i } = await supabase.from("menu_items").select("*").order("sort_order");
+    const { data: i } = await supabase.from("menu_items").select("*").eq("tenant_id", t.id).order("sort_order");
     const byCat: Record<string, any[]> = {};
     (i || []).forEach((it: any) => { (byCat[it.category_id] ||= []).push(it); });
     setItems(byCat);
