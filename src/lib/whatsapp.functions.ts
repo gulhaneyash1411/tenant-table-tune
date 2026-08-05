@@ -170,3 +170,63 @@ export const sendTestMessage = createServerFn({ method: "POST" })
     });
     return res.ok ? { ok: true as const, sid: res.sid, sender: creds.source } : { ok: false as const, error: res.error };
   });
+
+/** Sends the customer their bill on WhatsApp once an order is marked paid. */
+export const sendOrderInvoice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ order_id: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: tenant } = await supabase.from("tenants").select("id,name,currency").eq("owner_id", context.userId).maybeSingle();
+    if (!tenant) throw new Error("No restaurant on this account");
+
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id,order_number,total,subtotal,tax,customer_name,customer_phone,created_at,tenant_id")
+      .eq("id", data.order_id)
+      .eq("tenant_id", tenant.id)
+      .maybeSingle();
+    if (!order) throw new Error("Order not found");
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("name,quantity,price")
+      .eq("order_id", order.id);
+
+    const { resolveCreds, sendWhatsApp, brandedBody, isSendablePhone } = await import("./whatsapp.server");
+    if (!isSendablePhone(order.customer_phone)) {
+      return { ok: false as const, error: "Customer phone number is not a valid WhatsApp number." };
+    }
+    const creds = resolveCreds();
+    if (!creds) return { ok: false as const, error: "No WhatsApp sender configured yet." };
+
+    const rs = (n: unknown) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
+    const lines = (items ?? []).map((i) => `• ${i.quantity}× ${i.name} — ${rs(Number(i.price) * i.quantity)}`);
+    const body = [
+      `Hi ${order.customer_name || "there"}, thanks for your payment!`,
+      "",
+      `*Invoice #${order.order_number}*`,
+      ...lines,
+      "",
+      `Subtotal: ${rs(order.subtotal)}`,
+      `Tax: ${rs(order.tax)}`,
+      `*Total paid: ${rs(order.total)}*`,
+    ].join("\n");
+
+    const res = await sendWhatsApp(creds, {
+      to: order.customer_phone,
+      body: brandedBody(body, tenant.name),
+    });
+    await supabase.from("whatsapp_messages").insert({
+      tenant_id: tenant.id,
+      to_phone: order.customer_phone,
+      to_name: order.customer_name,
+      body: brandedBody(body, tenant.name),
+      status: res.ok ? res.status : "failed",
+      provider_sid: res.ok ? res.sid : null,
+      error: res.ok ? null : res.error,
+      sent_at: res.ok ? new Date().toISOString() : null,
+    });
+    return res.ok ? { ok: true as const, sid: res.sid } : { ok: false as const, error: res.error };
+  });
