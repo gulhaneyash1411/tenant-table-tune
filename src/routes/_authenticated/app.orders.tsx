@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { sendOrderInvoice } from "@/lib/whatsapp.functions";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/orders")({ component: LiveOrders });
 
@@ -22,6 +24,7 @@ function LiveOrders() {
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0,10));
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [dragging, setDragging] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     const start = new Date(date + "T00:00:00");
@@ -35,8 +38,9 @@ function LiveOrders() {
       (oi || []).forEach(i => { (byOrder[i.order_id] ||= []).push(i); });
       setItems(byOrder);
     } else setItems({});
+    setLoading(false);
   }
-  useEffect(() => { load(); }, [date]);
+  useEffect(() => { setLoading(true); load(); }, [date]);
   useEffect(() => {
     const ch = supabase.channel("orders-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => load())
@@ -61,6 +65,13 @@ function LiveOrders() {
     const { error } = await supabase.from("orders").update({ payment_status: "paid" }).eq("id", o.id);
     if (error) return toast.error(error.message);
     toast.success("Marked as paid");
+    try {
+      const res = await sendOrderInvoice({ data: { order_id: o.id } });
+      if (res.ok) toast.success(`Invoice sent on WhatsApp to ${o.customer_phone}`);
+      else toast.warning(`Invoice not sent: ${res.error}`);
+    } catch (e) {
+      toast.warning(e instanceof Error ? e.message : "Invoice could not be sent");
+    }
     load();
   }
 
@@ -74,6 +85,11 @@ function LiveOrders() {
           <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-auto" />
         </div>
       </div>
+      {loading ? (
+        <div className="min-h-[40vh] grid place-items-center text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Loading orders…</div>
+        </div>
+      ) : (
       <div className="grid gap-3 md:grid-cols-4">
         {COLUMNS.map(col => (
           <Card
@@ -119,6 +135,7 @@ function LiveOrders() {
           </Card>
         ))}
       </div>
+      )}
     </div>
   );
 }

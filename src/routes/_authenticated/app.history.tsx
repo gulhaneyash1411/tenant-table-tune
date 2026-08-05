@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
 import { format } from "date-fns";
-import { History, Download, Search } from "lucide-react";
+import { History, Download, Search, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/history")({ component: OrderHistory });
 
@@ -18,6 +18,7 @@ function OrderHistory() {
   const [rows, setRows] = useState<any[]>([]);
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [selected, setSelected] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     const start = new Date(from + "T00:00:00").toISOString();
@@ -31,8 +32,9 @@ function OrderHistory() {
       (oi || []).forEach(i => (by[i.order_id] ||= []).push(i));
       setItems(by);
     } else setItems({});
+    setLoading(false);
   }
-  useEffect(() => { load(); }, [from, to]);
+  useEffect(() => { setLoading(true); load(); }, [from, to]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -87,7 +89,8 @@ function OrderHistory() {
                 <td className="p-3 text-right font-medium">{money(Number(o.total||0))}</td>
               </tr>
             ))}
-            {filtered.length===0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No orders in this range</td></tr>}
+            {loading && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground"><span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/>Loading orders…</span></td></tr>}
+            {!loading && filtered.length===0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No orders in this range</td></tr>}
           </tbody>
         </table>
       </Card>
