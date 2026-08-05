@@ -45,6 +45,13 @@ function waAddr(n: string) {
   return `whatsapp:${toE164(n)}`;
 }
 
+/** Twilio rejects malformed numbers with 21211/21408; filter them out first. */
+export function isSendablePhone(raw?: string | null) {
+  if (!raw) return false;
+  const digits = toE164(raw).replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+}
+
 export type SendResult = { ok: true; sid: string; status: string } | { ok: false; error: string };
 
 export async function sendWhatsApp(
