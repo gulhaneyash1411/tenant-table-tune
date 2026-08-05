@@ -12,6 +12,28 @@ import { jsPDF } from "jspdf";
 
 export const Route = createFileRoute("/status")({ component: StatusPage });
 
+/** Loads a remote logo into a data URL so jsPDF can embed it. */
+async function loadLogo(url?: string | null): Promise<{ data: string; w: number; h: number } | null> {
+  if (!url) return null;
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.crossOrigin = "anonymous";
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return { data: canvas.toDataURL("image/png"), w: img.naturalWidth, h: img.naturalHeight };
+  } catch {
+    return null;
+  }
+}
+
 function StatusPage() {
   const phone = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("phone");
   const [orders, setOrders] = useState<any[]>([]);
@@ -50,6 +72,12 @@ function StatusPage() {
     }
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     let y = 48;
+    const logo = await loadLogo(ten?.logo_url);
+    if (logo) {
+      const size = 56;
+      const h = Math.min(size, (logo.h / logo.w) * size);
+      try { doc.addImage(logo.data, "PNG", 491, y - 22, size, h); } catch { /* ignore bad image */ }
+    }
     doc.setFont("helvetica", "bold").setFontSize(18).text(ten?.name || "Invoice", 48, y); y += 18;
     doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
     if (ten?.slogan) { doc.text(ten.slogan, 48, y); y += 14; }

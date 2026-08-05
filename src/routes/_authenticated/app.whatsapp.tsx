@@ -69,6 +69,13 @@ function WhatsAppPage() {
         </div>
       </div>
       <Tabs defaultValue="compose">
+      <div className="rounded-lg border border-warning/50 bg-warning/5 p-3 text-sm mb-4">
+        <b>Before you send:</b> the PlateOS sender is currently a WhatsApp <b>sandbox</b> number
+        (+1 415 523 8886). A customer only receives messages after they send{" "}
+        <code className="px-1 rounded bg-muted">join &lt;sandbox-code&gt;</code> to that number on WhatsApp.
+        Numbers that haven't joined fail with "not joined the sandbox", and invalid numbers are skipped
+        automatically. Moving the platform to an approved WhatsApp Business sender removes this limit.
+      </div>
         <TabsList>
           <TabsTrigger value="compose">Compose</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>

@@ -52,7 +52,7 @@ export const getOrderDetail = createServerFn({ method: "GET" })
       supabaseAdmin.from("order_items").select("*").eq("order_id", order.id),
       supabaseAdmin
         .from("tenants")
-        .select("id,name,address,city,gst_number,slogan")
+        .select("id,name,address,city,gst_number,slogan,logo_url")
         .eq("id", order.tenant_id)
         .maybeSingle(),
     ]);
