@@ -9,7 +9,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin } from "lucide-react";
 import { CustomerLoader } from "@/components/customer-loader";
-import { useTenantBrand } from "@/hooks/use-tenant-brand";
+import { useTenantBrand, readCachedBrand, cacheBrand } from "@/hooks/use-tenant-brand";
 import { getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/t/$tableId")({ component: TableOrder });
@@ -30,12 +30,15 @@ function TableOrder() {
   const [activeCat, setActiveCat] = useState<string>("all");
   useTenantBrand(tenant);
 
+  useEffect(() => { setTenant((prev: any) => prev ?? readCachedBrand(tableId)); }, [tableId]);
+
   useEffect(() => { (async () => {
     const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
     if (!t) { setGateStep("blocked"); return; }
     setTable(t);
     const { data: ten } = await supabase.from("tenants").select("*").eq("id", t.tenant_id).single();
     setTenant(ten);
+    cacheBrand(tableId, ten);
     const [{ data: c }, { data: i }] = await Promise.all([
       supabase.from("menu_categories").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
       supabase.from("menu_items").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
@@ -137,7 +140,15 @@ function TableOrder() {
                     <div className="text-sm font-medium truncate">{i.name}</div>
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-xs">{money(i.price)}</span>
-                      <Button size="sm" variant="secondary" className="h-6 px-2 text-xs" onClick={()=>setCart({...cart,[i.id]:(cart[i.id]||0)+1})}>Add</Button>
+                      {cart[i.id] ? (
+                        <div className="flex items-center gap-1 border rounded-full px-1">
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={()=>setCart({...cart,[i.id]:Math.max(0,cart[i.id]-1)})}><Minus className="h-3 w-3"/></Button>
+                          <span className="w-4 text-center text-xs font-semibold text-primary">{cart[i.id]}</span>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={()=>setCart({...cart,[i.id]:cart[i.id]+1})}><Plus className="h-3 w-3"/></Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="secondary" className="h-6 px-2 text-xs" onClick={()=>setCart({...cart,[i.id]:1})}>Add</Button>
+                      )}
                     </div>
                   </div>
                 </Card>

@@ -9,7 +9,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock } from "lucide-react";
 import { CustomerLoader } from "@/components/customer-loader";
-import { useTenantBrand } from "@/hooks/use-tenant-brand";
+import { useTenantBrand, readCachedBrand, cacheBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/takeaway/$tenantId")({ component: TakeawayOrder });
@@ -29,10 +29,13 @@ function TakeawayOrder() {
   const [activeCat, setActiveCat] = useState<string>("all");
   useTenantBrand(tenant);
 
+  useEffect(() => { setTenant((prev: any) => prev ?? readCachedBrand(tenantId)); }, [tenantId]);
+
   useEffect(() => { (async () => {
     setLoading(true);
     const { data: t } = await supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle();
     setTenant(t);
+    cacheBrand(tenantId, t);
     if (t) {
       const [{ data: c }, { data: i }] = await Promise.all([
         supabase.from("menu_categories").select("*").eq("tenant_id", tenantId).order("sort_order"),
@@ -109,7 +112,15 @@ function TakeawayOrder() {
                     <div className="text-sm font-medium truncate">{i.name}</div>
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-xs">{money(i.price)}</span>
-                      <Button size="sm" variant="secondary" className="h-6 px-2 text-xs" onClick={()=>setCart({...cart,[i.id]:(cart[i.id]||0)+1})}>Add</Button>
+                      {cart[i.id] ? (
+                        <div className="flex items-center gap-1 border rounded-full px-1">
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={()=>setCart({...cart,[i.id]:Math.max(0,cart[i.id]-1)})}><Minus className="h-3 w-3"/></Button>
+                          <span className="w-4 text-center text-xs font-semibold text-primary">{cart[i.id]}</span>
+                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={()=>setCart({...cart,[i.id]:cart[i.id]+1})}><Plus className="h-3 w-3"/></Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="secondary" className="h-6 px-2 text-xs" onClick={()=>setCart({...cart,[i.id]:1})}>Add</Button>
+                      )}
                     </div>
                   </div>
                 </Card>
