@@ -89,8 +89,11 @@ function AppLayout() {
           </SidebarContent>
         </Sidebar>
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 border-b flex items-center justify-between px-4 gap-2 bg-background sticky top-0 z-10">
-            <div className="flex items-center gap-2"><SidebarTrigger /></div>
+          <header className="h-14 border-b flex items-center justify-between px-3 md:px-4 gap-2 bg-background sticky top-0 z-20">
+            <div className="flex items-center gap-2 min-w-0">
+              <SidebarTrigger />
+              <span className="md:hidden font-semibold text-sm truncate">{tenant?.name}</span>
+            </div>
             <div className="flex items-center gap-2">
               <Link to="/app/subscription" className="hidden md:flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border hover:bg-accent/40">
                 <CreditCard className="h-3 w-3 text-primary"/>
@@ -101,7 +104,7 @@ function AppLayout() {
               <SignOutButton />
             </div>
           </header>
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-3 md:p-6 overflow-auto pb-20 md:pb-6">
             {profileIncomplete && (
               <div className="mb-4 p-3 rounded-lg border border-warning/50 bg-warning/5 flex items-center justify-between gap-3 text-sm">
                 <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning"/><span>Complete your restaurant profile to unlock all features. Missing: <b>{missing.join(", ")}</b>.</span></div>
@@ -123,9 +126,41 @@ function AppLayout() {
               <Outlet />
             )}
           </main>
+          {!locked && <MobileNav />}
         </div>
       </div>
     </SidebarProvider>
+  );
+}
+
+const MOBILE_TABS = [
+  { to: "/app", label: "Home", icon: LayoutDashboard, exact: true },
+  { to: "/app/orders", label: "Orders", icon: ListOrdered },
+  { to: "/app/kds", label: "Kitchen", icon: Cpu },
+  { to: "/app/menu", label: "Menu", icon: Utensils },
+  { to: "/app/settings", label: "Settings", icon: Settings },
+];
+
+function MobileNav() {
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  return (
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
+      <div className="grid grid-cols-5">
+        {MOBILE_TABS.map((t) => {
+          const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
+          return (
+            <Link
+              key={t.to}
+              to={t.to}
+              className={`flex flex-col items-center gap-0.5 py-2 text-[10px] ${active ? "text-primary font-medium" : "text-muted-foreground"}`}
+            >
+              <t.icon className="h-5 w-5" />
+              {t.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
