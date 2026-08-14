@@ -11,8 +11,8 @@ import { ShieldCheck } from "lucide-react";
 export const Route = createFileRoute("/admin/auth")({ component: AdminAuth });
 
 function AdminAuth() {
-  const [email, setEmail] = useState("admin@platform.dev");
-  const [password, setPassword] = useState("Admin123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   useEffect(() => {

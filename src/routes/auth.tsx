@@ -51,8 +51,8 @@ function AuthPage() {
 }
 
 function SignInForm({ onForgot }: { onForgot: () => void }) {
-  const [email, setEmail] = useState("owner@bellacucina.dev");
-  const [password, setPassword] = useState("Owner123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   async function submit(e: React.FormEvent) {

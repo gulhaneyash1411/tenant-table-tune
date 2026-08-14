@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserContext } from "@/hooks/use-session";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -39,19 +40,16 @@ function AdminBrand() {
 }
 
 function AdminLayout() {
-  const [authorized, setAuthorized] = useState<boolean | null>(null);
+  // `user` comes from the `_authenticated` layout's beforeLoad guard, so it's
+  // already known to be signed in — no need to re-verify with getUser() here.
+  const { user } = Route.useRouteContext();
   const navigate = useNavigate();
+  const { isSuperAdmin, loading } = useUserContext(user);
   useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) { navigate({ to: "/admin/auth" }); return; }
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", u.user.id).eq("role", "super_admin");
-      if (!data || data.length === 0) { navigate({ to: "/app" }); return; }
-      setAuthorized(true);
-    })();
-  }, [navigate]);
+    if (!loading && !isSuperAdmin) navigate({ to: "/app" });
+  }, [loading, isSuperAdmin, navigate]);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  if (!authorized) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
+  if (loading || !isSuperAdmin) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
