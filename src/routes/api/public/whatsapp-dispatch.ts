@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Called by the scheduler to send campaigns whose scheduled time has arrived.
-// Gated by a dedicated server-only secret, NOT the Supabase publishable key —
-// that key ships in the client bundle, so checking against it authenticates nobody.
+
 async function dispatch(request: Request) {
   const secret = process.env["WHATSAPP_DISPATCH_SECRET"];
   const key = request.headers.get("x-dispatch-secret");
