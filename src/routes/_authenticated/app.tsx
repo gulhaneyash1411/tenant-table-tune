@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext, type Tenant } from "@/hooks/use-session";
+import { BrandedLoader } from "@/components/branded-loader";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet, AlertTriangle, MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -57,7 +58,7 @@ function AppLayout() {
 
   const status = loading || isSuperAdmin ? "loading" : (tenant?.status ?? "none");
 
-  if (status === "loading") return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
+  if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
 

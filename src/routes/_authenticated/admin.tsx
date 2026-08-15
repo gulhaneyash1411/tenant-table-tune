@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/use-session";
+import { BrandedLoader } from "@/components/branded-loader";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -49,7 +50,7 @@ function AdminLayout() {
     if (!loading && !isSuperAdmin) navigate({ to: "/app" });
   }, [loading, isSuperAdmin, navigate]);
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  if (loading || !isSuperAdmin) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
+  if (loading || !isSuperAdmin) return <BrandedLoader label="Loading admin console…" />;
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">

@@ -16,7 +16,9 @@ export const Route = createFileRoute("/takeaway/$tenantId")({ component: Takeawa
 
 function TakeawayOrder() {
   const { tenantId } = useParams({ from: "/takeaway/$tenantId" });
-  const [tenant, setTenant] = useState<any>(null);
+  // Lazily seeded from the cached brand so a repeat visit paints the real
+  // logo on the very first render — no flash of the generic loader first.
+  const [tenant, setTenant] = useState<any>(() => readCachedBrand(tenantId));
   const [cats, setCats] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -29,20 +31,18 @@ function TakeawayOrder() {
   const [activeCat, setActiveCat] = useState<string>("all");
   useTenantBrand(tenant);
 
-  useEffect(() => { setTenant((prev: any) => prev ?? readCachedBrand(tenantId)); }, [tenantId]);
-
   useEffect(() => { (async () => {
     setLoading(true);
-    const { data: t } = await supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle();
+    // None of these depend on each other — tenantId comes straight from the
+    // URL — so fetch tenant + menu together instead of gating menu on tenant.
+    const [{ data: t }, { data: c }, { data: i }] = await Promise.all([
+      supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
+      supabase.from("menu_categories").select("*").eq("tenant_id", tenantId).order("sort_order"),
+      supabase.from("menu_items").select("*").eq("tenant_id", tenantId).eq("is_available", true).order("sort_order"),
+    ]);
     setTenant(t);
     cacheBrand(tenantId, t);
-    if (t) {
-      const [{ data: c }, { data: i }] = await Promise.all([
-        supabase.from("menu_categories").select("*").eq("tenant_id", tenantId).order("sort_order"),
-        supabase.from("menu_items").select("*").eq("tenant_id", tenantId).eq("is_available", true).order("sort_order"),
-      ]);
-      setCats(c || []); setItems(i || []);
-    }
+    setCats(c || []); setItems(i || []);
     setLoading(false);
   })(); }, [tenantId]);
 
