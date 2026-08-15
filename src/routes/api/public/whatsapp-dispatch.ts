@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// Called by the scheduler to send campaigns whose scheduled time has arrived.
+
 async function dispatch(request: Request) {
-  const anon = process.env["SUPABASE_ANON_KEY"] ?? process.env["SUPABASE_PUBLISHABLE_KEY"];
-  const key = request.headers.get("apikey");
-  if (!anon || key !== anon) return new Response("Unauthorized", { status: 401 });
+  const secret = process.env["WHATSAPP_DISPATCH_SECRET"];
+  const key = request.headers.get("x-dispatch-secret");
+  if (!secret || key !== secret) return new Response("Unauthorized", { status: 401 });
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { resolveSegment } = await import("@/lib/whatsapp-segments.server");
