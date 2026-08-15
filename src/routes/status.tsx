@@ -7,28 +7,31 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { money } from "@/lib/format";
 const rs = (n: number) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 import { format } from "date-fns";
-import { Download, Plus } from "lucide-react";
+import { Download, Loader2, Plus } from "lucide-react";
 import { jsPDF } from "jspdf";
 
 export const Route = createFileRoute("/status")({ component: StatusPage });
 
-/** Loads a remote logo into a data URL so jsPDF can embed it. */
+/**
+ * Loads a remote logo into a data URL so jsPDF can embed it. Fetches the
+ * bytes directly (instead of drawing a cross-origin <img> onto a canvas) so
+ * a storage host that omits permissive CORS headers can't taint the canvas
+ * and silently drop the logo; this also normalises any source format
+ * (PNG/JPEG/WEBP) to PNG, which is what jsPDF is told to expect below.
+ */
 async function loadLogo(url?: string | null): Promise<{ data: string; w: number; h: number } | null> {
   if (!url) return null;
   try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.crossOrigin = "anonymous";
-      el.onload = () => resolve(el);
-      el.onerror = reject;
-      el.src = url;
-    });
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const bitmap = await createImageBitmap(blob);
     const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    canvas.width = bitmap.width; canvas.height = bitmap.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
-    return { data: canvas.toDataURL("image/png"), w: img.naturalWidth, h: img.naturalHeight };
+    ctx.drawImage(bitmap, 0, 0);
+    return { data: canvas.toDataURL("image/png"), w: bitmap.width, h: bitmap.height };
   } catch {
     return null;
   }
@@ -37,21 +40,27 @@ async function loadLogo(url?: string | null): Promise<{ data: string; w: number;
 function StatusPage() {
   const phone = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("phone");
   const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [tenant, setTenant] = useState<any>(null);
 
   useEffect(() => {
-    if (!phone) return;
+    if (!phone) { setLoading(false); return; }
     let cancelled = false;
-    const load = async () => {
+    // Only the first fetch should gate the loading UI — the 5s poll after it
+    // just refreshes `orders` in place without flashing "No recent orders."
+    const load = async (isFirst: boolean) => {
       try {
         const list = await getOrdersByPhone({ data: { phone } });
         if (!cancelled) setOrders(list || []);
       } catch { /* ignore */ }
+      finally {
+        if (!cancelled && isFirst) setLoading(false);
+      }
     };
-    load();
-    const t = setInterval(load, 5000);
+    load(true);
+    const t = setInterval(() => load(false), 5000);
     return () => { cancelled = true; clearInterval(t); };
   }, [phone]);
 
@@ -106,6 +115,7 @@ function StatusPage() {
     doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 16;
     doc.setFont("helvetica","bold").text("Total", 430, y, { align: "right" }); doc.text(rs(order.total), 547, y, { align: "right" });
     y += 40; doc.setFont("helvetica","italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
+    y += 20; doc.setFont("helvetica","normal").setFontSize(8).setTextColor(160).text("Powered by PlateOS", 48, y);
     doc.save(`Invoice-${order.order_number}.pdf`);
   }
 
@@ -139,7 +149,13 @@ function StatusPage() {
           </div>
         </Card>
       ))}
-      {orders.length === 0 && <div className="text-muted-foreground text-sm">No recent orders.</div>}
+      {loading ? (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm py-6 justify-center">
+          <Loader2 className="h-4 w-4 animate-spin" />Loading your orders…
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="text-muted-foreground text-sm">No recent orders.</div>
+      ) : null}
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-md">

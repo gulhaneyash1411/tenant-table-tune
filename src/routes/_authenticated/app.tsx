@@ -1,6 +1,8 @@
 import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserContext, type Tenant } from "@/hooks/use-session";
+import { BrandedLoader } from "@/components/branded-loader";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet, AlertTriangle, MessageCircle } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -31,29 +33,32 @@ const BILLING = [
 ];
 
 function AppLayout() {
-  const [tenant, setTenant] = useState<any>(null);
-  const [status, setStatus] = useState<string>("loading");
-  const [sub, setSub] = useState<any>(null);
+  // `user` comes from the `_authenticated` layout's beforeLoad guard, so it's
+  // already known to be signed in — no need to re-verify with getUser() here.
+  const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  useEffect(() => {
-    (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      // block super admin from app portal
-      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", u.user.id);
-      if (roles?.some((r: any) => r.role === "super_admin")) { navigate({ to: "/admin" }); return; }
-      const { data: t } = await supabase.from("tenants").select("*").eq("owner_id", u.user.id).maybeSingle();
-      setTenant(t);
-      setStatus(t?.status ?? "none");
-      if (t) {
-        const { data: s } = await supabase.from("subscriptions").select("*, plan:subscription_plans(name)").eq("tenant_id", t.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-        setSub(s);
-      }
-    })();
-  }, [navigate]);
+  const { isSuperAdmin, tenant, loading } = useUserContext(user);
+  const [sub, setSub] = useState<any>(null);
 
-  if (status === "loading") return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
+  // Super admins operate from /admin, not the tenant portal.
+  useEffect(() => {
+    if (!loading && isSuperAdmin) navigate({ to: "/admin" });
+  }, [loading, isSuperAdmin, navigate]);
+
+  useEffect(() => {
+    if (!tenant) { setSub(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data: s } = await supabase.from("subscriptions").select("*, plan:subscription_plans(name)").eq("tenant_id", tenant.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!cancelled) setSub(s);
+    })();
+    return () => { cancelled = true; };
+  }, [tenant?.id]);
+
+  const status = loading || isSuperAdmin ? "loading" : (tenant?.status ?? "none");
+
+  if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
 
@@ -187,7 +192,7 @@ function NavGroup({ label, items }: { label: string; items: any[] }) {
   );
 }
 
-function AwaitingApproval({ status, tenant }: { status: string; tenant: any }) {
+function AwaitingApproval({ status, tenant }: { status: string; tenant: Tenant | null }) {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen grid place-items-center p-6 bg-background">

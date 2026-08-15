@@ -10,6 +10,10 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
+    // Preload a route's JS chunk + beforeLoad on link hover/touchstart instead
+    // of waiting for the click — the dashboards' route-per-page code splitting
+    // means this is what actually makes in-app navigation feel instant.
+    defaultPreload: "intent",
   });
 
   return router;

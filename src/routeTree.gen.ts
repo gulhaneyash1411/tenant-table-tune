@@ -24,7 +24,6 @@ import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as ApiPublicWhatsappStatusRouteImport } from './routes/api/public/whatsapp-status'
 import { Route as ApiPublicWhatsappDispatchRouteImport } from './routes/api/public/whatsapp-dispatch'
-import { Route as ApiPublicBootstrapRouteImport } from './routes/api/public/bootstrap'
 import { Route as AuthenticatedAppWhatsappRouteImport } from './routes/_authenticated/app.whatsapp'
 import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
 import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_authenticated/app.subscription'
@@ -133,11 +132,6 @@ const ApiPublicWhatsappDispatchRoute =
     path: '/api/public/whatsapp-dispatch',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicBootstrapRoute = ApiPublicBootstrapRouteImport.update({
-  id: '/api/public/bootstrap',
-  path: '/api/public/bootstrap',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAppWhatsappRoute =
   AuthenticatedAppWhatsappRouteImport.update({
     id: '/whatsapp',
@@ -357,7 +351,6 @@ export interface FileRoutesByFullPath {
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
-  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -404,7 +397,6 @@ export interface FileRoutesByTo {
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
-  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -455,7 +447,6 @@ export interface FileRoutesById {
   '/_authenticated/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
   '/_authenticated/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
-  '/api/public/bootstrap': typeof ApiPublicBootstrapRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -506,7 +497,6 @@ export interface FileRouteTypes {
     | '/app/subscription'
     | '/app/tables'
     | '/app/whatsapp'
-    | '/api/public/bootstrap'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
     | '/admin/'
@@ -553,7 +543,6 @@ export interface FileRouteTypes {
     | '/app/subscription'
     | '/app/tables'
     | '/app/whatsapp'
-    | '/api/public/bootstrap'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
     | '/admin'
@@ -603,7 +592,6 @@ export interface FileRouteTypes {
     | '/_authenticated/app/subscription'
     | '/_authenticated/app/tables'
     | '/_authenticated/app/whatsapp'
-    | '/api/public/bootstrap'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
     | '/_authenticated/admin/'
@@ -620,7 +608,6 @@ export interface RootRouteChildren {
   AdminAuthRoute: typeof AdminAuthRoute
   TTableIdRoute: typeof TTableIdRoute
   TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
-  ApiPublicBootstrapRoute: typeof ApiPublicBootstrapRoute
   ApiPublicWhatsappDispatchRoute: typeof ApiPublicWhatsappDispatchRoute
   ApiPublicWhatsappStatusRoute: typeof ApiPublicWhatsappStatusRoute
 }
@@ -730,13 +717,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/whatsapp-dispatch'
       fullPath: '/api/public/whatsapp-dispatch'
       preLoaderRoute: typeof ApiPublicWhatsappDispatchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/bootstrap': {
-      id: '/api/public/bootstrap'
-      path: '/api/public/bootstrap'
-      fullPath: '/api/public/bootstrap'
-      preLoaderRoute: typeof ApiPublicBootstrapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/whatsapp': {
@@ -1075,7 +1055,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAuthRoute: AdminAuthRoute,
   TTableIdRoute: TTableIdRoute,
   TakeawayTenantIdRoute: TakeawayTenantIdRoute,
-  ApiPublicBootstrapRoute: ApiPublicBootstrapRoute,
   ApiPublicWhatsappDispatchRoute: ApiPublicWhatsappDispatchRoute,
   ApiPublicWhatsappStatusRoute: ApiPublicWhatsappStatusRoute,
 }

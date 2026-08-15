@@ -17,7 +17,9 @@ export const Route = createFileRoute("/t/$tableId")({ component: TableOrder });
 function TableOrder() {
   const { tableId } = useParams({ from: "/t/$tableId" });
   const [table, setTable] = useState<any>(null);
-  const [tenant, setTenant] = useState<any>(null);
+  // Lazily seeded from the cached brand so a repeat visit paints the real
+  // logo on the very first render — no flash of the generic loader first.
+  const [tenant, setTenant] = useState<any>(() => readCachedBrand(tableId));
   const [cats, setCats] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -30,21 +32,21 @@ function TableOrder() {
   const [activeCat, setActiveCat] = useState<string>("all");
   useTenantBrand(tenant);
 
-  useEffect(() => { setTenant((prev: any) => prev ?? readCachedBrand(tableId)); }, [tableId]);
-
   useEffect(() => { (async () => {
     const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
     if (!t) { setGateStep("blocked"); return; }
     setTable(t);
-    const { data: ten } = await supabase.from("tenants").select("*").eq("id", t.tenant_id).single();
-    setTenant(ten);
-    cacheBrand(tableId, ten);
-    const [{ data: c }, { data: i }] = await Promise.all([
+    // Everything below only depends on t.tenant_id/t.id, so fetch it all in
+    // parallel instead of a chain of sequential round trips.
+    const [{ data: ten }, { data: c }, { data: i }, ao] = await Promise.all([
+      supabase.from("tenants").select("*").eq("id", t.tenant_id).single(),
       supabase.from("menu_categories").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
       supabase.from("menu_items").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
+      getActiveTableOrder({ data: { table_id: t.id } }),
     ]);
+    setTenant(ten);
+    cacheBrand(tableId, ten);
     setCats(c || []); setItems(i || []);
-    const ao = await getActiveTableOrder({ data: { table_id: t.id } });
     if (ao) { setActiveOrder(ao); setGateStep("resume"); }
     else setGateStep("ok");
   })(); }, [tableId]);
