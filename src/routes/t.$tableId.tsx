@@ -1,5 +1,5 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,51 +8,78 @@ import { Label } from "@/components/ui/label";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin } from "lucide-react";
-import { CustomerLoader } from "@/components/customer-loader";
-import { useTenantBrand, readCachedBrand, cacheBrand } from "@/hooks/use-tenant-brand";
+import { BrandedLoader } from "@/components/branded-loader";
+import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
 
-export const Route = createFileRoute("/t/$tableId")({ component: TableOrder });
+// Everything the page needs, resolved before the component ever mounts.
+// TanStack Router won't render `component` until this promise settles — for
+// both the initial SSR request and any later client-side navigation — so
+// there is exactly one place in the whole lifecycle that can show a loading
+// UI: the route's own `pendingComponent` below. The component itself never
+// renders a "loading" state of its own, because by the time it renders it
+// always already has real data.
+async function loadTableData(tableId: string) {
+  const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
+  if (!t) return { table: null as any, tenant: null as any, cats: [] as any[], items: [] as any[], activeOrder: null as any };
+  // Everything below only depends on t.tenant_id/t.id, so fetch it all in
+  // parallel instead of a chain of sequential round trips.
+  const [{ data: ten }, { data: c }, { data: i }, ao] = await Promise.all([
+    supabase.from("tenants").select("*").eq("id", t.tenant_id).single(),
+    supabase.from("menu_categories").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
+    supabase.from("menu_items").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
+    // An active-order lookup failure shouldn't block the whole page — treat
+    // it as "no active order" rather than failing the entire loader.
+    getActiveTableOrder({ data: { table_id: t.id } }).catch(() => null),
+  ]);
+  return { table: t, tenant: ten ?? null, cats: c ?? [], items: i ?? [], activeOrder: ao ?? null };
+}
+
+// The ONE loading screen for this route. Deliberately generic/unbranded —
+// it has no tenant data yet (the loader hasn't resolved), and must never
+// change appearance once shown, so it never tries to guess a logo.
+function TablePending() {
+  return <BrandedLoader label="Loading Menu..." />;
+}
+
+function TableError() {
+  return (
+    <div className="min-h-screen grid place-items-center p-6 text-center">
+      <div>
+        <h1 className="text-xl font-semibold">Couldn't load the menu</h1>
+        <p className="text-muted-foreground mt-2">Something went wrong. Please try again.</p>
+        <Button className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    </div>
+  );
+}
+
+export const Route = createFileRoute("/t/$tableId")({
+  loader: ({ params }) => loadTableData(params.tableId),
+  pendingComponent: TablePending,
+  // No artificial delay in either direction: show the pending state the
+  // instant loading takes any time at all, and don't hold it a minimum
+  // duration once data is ready.
+  pendingMs: 0,
+  pendingMinMs: 0,
+  errorComponent: TableError,
+  component: TableOrder,
+});
 
 function TableOrder() {
-  const { tableId } = useParams({ from: "/t/$tableId" });
-  const [table, setTable] = useState<any>(null);
-  // Lazily seeded from the cached brand so a repeat visit paints the real
-  // logo on the very first render — no flash of the generic loader first.
-  const [tenant, setTenant] = useState<any>(() => readCachedBrand(tableId));
-  const [cats, setCats] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
+  const loaderData = Route.useLoaderData();
+  const { table, tenant, cats, items } = loaderData;
   const [cart, setCart] = useState<Record<string, number>>({});
   const [showCart, setShowCart] = useState(false);
   const [name, setName] = useState(""); const [phone, setPhone] = useState("");
-  const [activeOrder, setActiveOrder] = useState<any>(null);
-  const [gateStep, setGateStep] = useState<"check"|"blocked"|"ok"|"resume">("check");
+  const [activeOrder, setActiveOrder] = useState<any>(loaderData.activeOrder);
   const [placing, setPlacing] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
   useTenantBrand(tenant);
 
-  useEffect(() => { (async () => {
-    const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
-    if (!t) { setGateStep("blocked"); return; }
-    setTable(t);
-    // Everything below only depends on t.tenant_id/t.id, so fetch it all in
-    // parallel instead of a chain of sequential round trips.
-    const [{ data: ten }, { data: c }, { data: i }, ao] = await Promise.all([
-      supabase.from("tenants").select("*").eq("id", t.tenant_id).single(),
-      supabase.from("menu_categories").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
-      supabase.from("menu_items").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
-      getActiveTableOrder({ data: { table_id: t.id } }),
-    ]);
-    setTenant(ten);
-    cacheBrand(tableId, ten);
-    setCats(c || []); setItems(i || []);
-    if (ao) { setActiveOrder(ao); setGateStep("resume"); }
-    else setGateStep("ok");
-  })(); }, [tableId]);
-
-  const cartItems = items.filter(i => cart[i.id]);
-  const total = cartItems.reduce((a, b) => a + Number(b.price) * cart[b.id], 0);
+  const cartItems = items.filter((i: any) => cart[i.id]);
+  const total = cartItems.reduce((a: number, b: any) => a + Number(b.price) * cart[b.id], 0);
 
   async function placeOrder() {
     if (!name.trim()) return toast.error("Name is required");
@@ -66,10 +93,9 @@ function TableOrder() {
         customer_name: name,
         customer_phone: phone,
         order_type: "dine_in",
-        items: cartItems.map(i => ({ menu_item_id: i.id, quantity: cart[i.id] })),
+        items: cartItems.map((i: any) => ({ menu_item_id: i.id, quantity: cart[i.id] })),
       } });
       setActiveOrder(order);
-      setGateStep("resume");
       setCart({}); setShowCart(false);
       toast.success("Order placed!");
     } catch (error) {
@@ -79,11 +105,10 @@ function TableOrder() {
     }
   }
 
-  if (gateStep === "check") return <CustomerLoader tenant={tenant} label="Loading menu…" />;
-  if (placing) return <CustomerLoader tenant={tenant} label="Placing your order…" />;
-  if (gateStep === "blocked") return <div className="min-h-screen grid place-items-center p-6 text-center"><div><h1 className="text-xl font-semibold">Invalid QR</h1><p className="text-muted-foreground">This table code is not recognised.</p></div></div>;
+  if (placing) return <BrandedLoader tenant={tenant} label="Placing your order…" />;
+  if (!table) return <div className="min-h-screen grid place-items-center p-6 text-center"><div><h1 className="text-xl font-semibold">Invalid QR</h1><p className="text-muted-foreground">This table code is not recognised.</p></div></div>;
 
-  if (gateStep === "resume") {
+  if (activeOrder) {
     return (
       <div className="min-h-screen bg-background p-4 max-w-md mx-auto">
         <Card className="p-6 text-center space-y-3">
@@ -105,8 +130,8 @@ function TableOrder() {
   }
 
   const q = search.trim().toLowerCase();
-  const visibleItems = items.filter(i => i.is_available !== false && (activeCat === "all" || i.category_id === activeCat) && (!q || i.name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q)));
-  const mustTry = items.filter(i => i.is_available !== false && i.is_must_try);
+  const visibleItems = items.filter((i: any) => i.is_available !== false && (activeCat === "all" || i.category_id === activeCat) && (!q || i.name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q)));
+  const mustTry = items.filter((i: any) => i.is_available !== false && i.is_must_try);
 
   return (
     <div className="min-h-screen bg-muted/30 pb-28">

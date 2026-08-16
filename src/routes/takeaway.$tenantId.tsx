@@ -1,5 +1,5 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,46 +8,64 @@ import { Label } from "@/components/ui/label";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock } from "lucide-react";
-import { CustomerLoader } from "@/components/customer-loader";
-import { useTenantBrand, readCachedBrand, cacheBrand } from "@/hooks/use-tenant-brand";
+import { BrandedLoader } from "@/components/branded-loader";
+import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
 
-export const Route = createFileRoute("/takeaway/$tenantId")({ component: TakeawayOrder });
+// Everything the page needs, resolved before the component ever mounts —
+// same reasoning as /t/$tableId: TanStack Router won't render `component`
+// until this settles, for both SSR and client-side navigation, so the
+// route's own `pendingComponent` is the only loading UI in the lifecycle.
+async function loadTakeawayData(tenantId: string): Promise<{ tenant: any; cats: any[]; items: any[] }> {
+  const [{ data: t }, { data: c }, { data: i }] = await Promise.all([
+    supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
+    supabase.from("menu_categories").select("*").eq("tenant_id", tenantId).order("sort_order"),
+    supabase.from("menu_items").select("*").eq("tenant_id", tenantId).eq("is_available", true).order("sort_order"),
+  ]);
+  return { tenant: t ?? null, cats: c ?? [], items: i ?? [] };
+}
+
+// The ONE loading screen for this route. Deliberately generic/unbranded —
+// it has no tenant data yet (the loader hasn't resolved), and must never
+// change appearance once shown, so it never tries to guess a logo.
+function TakeawayPending() {
+  return <BrandedLoader label="Loading Menu..." />;
+}
+
+function TakeawayError() {
+  return (
+    <div className="min-h-screen grid place-items-center p-6 text-center">
+      <div>
+        <h1 className="text-xl font-semibold">Couldn't load the menu</h1>
+        <p className="text-muted-foreground mt-2">Something went wrong. Please try again.</p>
+        <Button className="mt-4" onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    </div>
+  );
+}
+
+export const Route = createFileRoute("/takeaway/$tenantId")({
+  loader: ({ params }) => loadTakeawayData(params.tenantId),
+  pendingComponent: TakeawayPending,
+  pendingMs: 0,
+  pendingMinMs: 0,
+  errorComponent: TakeawayError,
+  component: TakeawayOrder,
+});
 
 function TakeawayOrder() {
-  const { tenantId } = useParams({ from: "/takeaway/$tenantId" });
-  // Lazily seeded from the cached brand so a repeat visit paints the real
-  // logo on the very first render — no flash of the generic loader first.
-  const [tenant, setTenant] = useState<any>(() => readCachedBrand(tenantId));
-  const [cats, setCats] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
+  const { tenant, cats, items } = Route.useLoaderData();
   const [cart, setCart] = useState<Record<string, number>>({});
   const [showCart, setShowCart] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
   useTenantBrand(tenant);
 
-  useEffect(() => { (async () => {
-    setLoading(true);
-    // None of these depend on each other — tenantId comes straight from the
-    // URL — so fetch tenant + menu together instead of gating menu on tenant.
-    const [{ data: t }, { data: c }, { data: i }] = await Promise.all([
-      supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
-      supabase.from("menu_categories").select("*").eq("tenant_id", tenantId).order("sort_order"),
-      supabase.from("menu_items").select("*").eq("tenant_id", tenantId).eq("is_available", true).order("sort_order"),
-    ]);
-    setTenant(t);
-    cacheBrand(tenantId, t);
-    setCats(c || []); setItems(i || []);
-    setLoading(false);
-  })(); }, [tenantId]);
-
-  const cartItems = items.filter(i => cart[i.id]);
-  const subtotal = cartItems.reduce((a, b) => a + Number(b.price) * cart[b.id], 0);
+  const cartItems = items.filter((i: any) => cart[i.id]);
+  const subtotal = cartItems.reduce((a: number, b: any) => a + Number(b.price) * cart[b.id], 0);
   const tax = Math.round(subtotal * 0.05);
   const total = subtotal + tax;
 
@@ -62,7 +80,7 @@ function TakeawayOrder() {
         customer_name: name,
         customer_phone: phone,
         order_type: "takeaway",
-        items: cartItems.map(i => ({ menu_item_id: i.id, quantity: cart[i.id] })),
+        items: cartItems.map((i: any) => ({ menu_item_id: i.id, quantity: cart[i.id] })),
       } });
       toast.success("Order placed!");
       window.location.href = `/status?phone=${encodeURIComponent(phone)}`;
@@ -72,13 +90,12 @@ function TakeawayOrder() {
     }
   }
 
-  if (loading) return <CustomerLoader tenant={tenant} label="Loading menu…" />;
-  if (placing) return <CustomerLoader tenant={tenant} label="Placing your order…" />;
+  if (placing) return <BrandedLoader tenant={tenant} label="Placing your order…" />;
   if (!tenant) return <div className="min-h-screen grid place-items-center text-muted-foreground">Restaurant not found</div>;
 
   const q = search.trim().toLowerCase();
-  const visibleItems = items.filter(i => (activeCat === "all" || i.category_id === activeCat) && (!q || i.name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q)));
-  const mustTry = items.filter(i => i.is_must_try);
+  const visibleItems = items.filter((i: any) => (activeCat === "all" || i.category_id === activeCat) && (!q || i.name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q)));
+  const mustTry = items.filter((i: any) => i.is_must_try);
 
   return (
     <div className="min-h-screen bg-muted/30 pb-28">
