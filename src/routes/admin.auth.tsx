@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -40,7 +41,7 @@ function AdminAuth() {
         <p className="text-sm text-muted-foreground mb-6">Platform-owner portal. Restaurants sign in <Link to="/auth" className="text-primary">here</Link>.</p>
         <form onSubmit={submit} className="space-y-4">
           <div><Label>Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} type="email" required /></div>
-          <div><Label>Password</Label><Input value={password} onChange={e=>setPassword(e.target.value)} type="password" required /></div>
+          <div><Label>Password</Label><PasswordInput value={password} onChange={e=>setPassword(e.target.value)} required /></div>
           <Button className="w-full" disabled={loading}>{loading?"Signing in…":"Sign in"}</Button>
         </form>
       </Card>
