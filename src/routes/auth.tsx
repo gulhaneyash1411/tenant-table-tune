@@ -37,10 +37,12 @@ function AuthPage() {
       </div>
       <div className="flex items-center justify-center p-6">
         <Card className="w-full max-w-md p-8">
-          <div className="flex gap-1 rounded-lg bg-muted p-1 mb-6">
-            <button onClick={() => setMode("signin")} className={`flex-1 rounded-md py-2 text-sm ${mode==="signin"?"bg-background shadow":""}`}>Sign in</button>
-            <button onClick={() => setMode("signup")} className={`flex-1 rounded-md py-2 text-sm ${mode==="signup"?"bg-background shadow":""}`}>Register restaurant</button>
-          </div>
+          {mode !== "forgot" && (
+            <div className="flex gap-1 rounded-lg bg-muted p-1 mb-6">
+              <button onClick={() => setMode("signin")} className={`flex-1 rounded-md py-2 text-sm ${mode==="signin"?"bg-background shadow":""}`}>Sign in</button>
+              <button onClick={() => setMode("signup")} className={`flex-1 rounded-md py-2 text-sm ${mode==="signup"?"bg-background shadow":""}`}>Register restaurant</button>
+            </div>
+          )}
           {mode === "signin" && <SignInForm onForgot={() => setMode("forgot")} />}
           {mode === "signup" && <SignUpForm onDone={() => setMode("signin")} />}
           {mode === "forgot" && <ForgotForm onBack={() => setMode("signin")} />}
@@ -68,7 +70,7 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
       <div><Label>Email</Label><Input value={email} onChange={(e)=>setEmail(e.target.value)} type="email" required /></div>
       <div><Label>Password</Label><Input value={password} onChange={(e)=>setPassword(e.target.value)} type="password" required /></div>
       <Button className="w-full" disabled={loading}>{loading?"Signing in…":"Sign in"}</Button>
-      <button type="button" onClick={onForgot} className="w-full text-sm text-primary hover:underline">Forgot password?</button>
+      <button type="button" onClick={onForgot} className="w-full cursor-pointer text-sm text-primary hover:underline">Forgot password?</button>
     </form>
   );
 }
@@ -93,7 +95,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
       <div className="space-y-4 text-center">
         <h2 className="font-semibold">Check your email</h2>
         <p className="text-sm text-muted-foreground">We sent a password reset link to <b>{email}</b>. Open it to set a new password.</p>
-        <Button variant="outline" className="w-full" onClick={onBack}>Back to sign in</Button>
+        <Button variant="outline" className="w-full cursor-pointer" onClick={onBack}>Back to sign in</Button>
       </div>
     );
   }
@@ -104,7 +106,7 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
         <Input value={email} onChange={(e)=>setEmail(e.target.value)} type="email" required placeholder="you@restaurant.com" />
       </div>
       <Button className="w-full" disabled={loading}>{loading?"Sending…":"Send reset link"}</Button>
-      <button type="button" onClick={onBack} className="w-full text-sm text-muted-foreground hover:underline">Back to sign in</button>
+      <button type="button" onClick={onBack} className="w-full cursor-pointer text-sm text-muted-foreground hover:underline">Back to sign in</button>
     </form>
   );
 }

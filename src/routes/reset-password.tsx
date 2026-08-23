@@ -52,7 +52,7 @@ function ResetPasswordPage() {
         <h1 className="text-xl font-semibold">Set a new password</h1>
         {!ready ? (
           <p className="text-sm text-muted-foreground">
-            Open this page from the reset link in your email. <Link to="/auth" className="text-primary">Back to sign in</Link>
+            Open this page from the reset link in your email. <Link to="/auth" className="text-primary cursor-pointer">Back to sign in</Link>
           </p>
         ) : (
           <form onSubmit={submit} className="space-y-4">
