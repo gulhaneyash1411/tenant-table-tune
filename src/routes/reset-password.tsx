@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -52,12 +52,12 @@ function ResetPasswordPage() {
         <h1 className="text-xl font-semibold">Set a new password</h1>
         {!ready ? (
           <p className="text-sm text-muted-foreground">
-            Open this page from the reset link in your email. <Link to="/auth" className="text-primary">Back to sign in</Link>
+            Open this page from the reset link in your email. <Link to="/auth" className="text-primary cursor-pointer">Back to sign in</Link>
           </p>
         ) : (
           <form onSubmit={submit} className="space-y-4">
-            <div><Label>New password</Label><Input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required /></div>
-            <div><Label>Confirm password</Label><Input type="password" value={confirm} onChange={(e)=>setConfirm(e.target.value)} required /></div>
+            <div><Label>New password</Label><PasswordInput value={password} onChange={(e)=>setPassword(e.target.value)} required /></div>
+            <div><Label>Confirm password</Label><PasswordInput value={confirm} onChange={(e)=>setConfirm(e.target.value)} required /></div>
             <Button className="w-full" disabled={loading}>{loading ? "Updating…" : "Update password"}</Button>
           </form>
         )}
