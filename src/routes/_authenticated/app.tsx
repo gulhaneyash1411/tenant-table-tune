@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserContext, type Tenant } from "@/hooks/use-session";
+import { useUserContext, TenantContextProvider, type Tenant } from "@/hooks/use-session";
 import { BrandedLoader } from "@/components/branded-loader";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from "@/components/ui/sidebar";
 import { LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound, LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet, AlertTriangle, MessageCircle } from "lucide-react";
@@ -38,7 +38,7 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { isSuperAdmin, tenant, loading } = useUserContext(user);
+  const { isSuperAdmin, tenant, loading, setTenant } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
 
   // Super admins operate from /admin, not the tenant portal.
@@ -72,69 +72,71 @@ function AppLayout() {
   const locked = profileIncomplete && !onSettings;
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <Sidebar collapsible="icon">
-          <SidebarContent>
-            <div className="px-4 py-4 border-b flex items-center gap-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
-              {tenant?.logo_url ? (
-                <img src={tenant.logo_url} alt={tenant.name} className="h-8 w-8 rounded object-cover shrink-0" />
-              ) : (
-                <div className="h-8 w-8 rounded bg-primary/10 text-primary grid place-items-center text-sm font-semibold shrink-0">
-                  {(tenant?.name || "R").slice(0,1)}
+    <TenantContextProvider value={{ tenant, setTenant }}>
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full bg-background">
+          <Sidebar collapsible="icon">
+            <SidebarContent>
+              <div className="px-4 py-4 border-b flex items-center gap-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:justify-center">
+                {tenant?.logo_url ? (
+                  <img src={tenant.logo_url} alt={tenant.name} className="h-8 w-8 rounded object-cover shrink-0" />
+                ) : (
+                  <div className="h-8 w-8 rounded bg-primary/10 text-primary grid place-items-center text-sm font-semibold shrink-0">
+                    {(tenant?.name || "R").slice(0,1)}
+                  </div>
+                )}
+                <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+                  <div className="font-semibold truncate text-sm">{tenant?.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{tenant?.city}</div>
+                </div>
+              </div>
+              <NavGroup label="Operations" items={MAIN} />
+              <NavGroup label="Billing" items={BILLING} />
+            </SidebarContent>
+          </Sidebar>
+          <div className="flex-1 flex flex-col min-w-0">
+            <header className="h-14 border-b flex items-center justify-between px-3 md:px-4 gap-2 bg-background sticky top-0 z-20">
+              <div className="flex items-center gap-2 min-w-0">
+                <SidebarTrigger />
+                <span className="md:hidden font-semibold text-sm truncate">{tenant?.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link to="/app/subscription" className="hidden md:flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border hover:bg-accent/40">
+                  <CreditCard className="h-3 w-3 text-primary"/>
+                  <span className="font-medium">{sub?.plan?.name || "Free trial"}</span>
+                  {sub?.current_period_end && <span className="text-muted-foreground">· renews {format(new Date(sub.current_period_end), "MMM d")}</span>}
+                </Link>
+                <NotificationBell />
+                <SignOutButton />
+              </div>
+            </header>
+            <main className="flex-1 p-3 md:p-6 overflow-auto pb-20 md:pb-6">
+              {profileIncomplete && (
+                <div className="mb-4 p-3 rounded-lg border border-warning/50 bg-warning/5 flex items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning"/><span>Complete your restaurant profile to unlock all features. Missing: <b>{missing.join(", ")}</b>.</span></div>
+                  <Link to="/app/settings"><Button size="sm">Complete profile</Button></Link>
                 </div>
               )}
-              <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                <div className="font-semibold truncate text-sm">{tenant?.name}</div>
-                <div className="text-xs text-muted-foreground truncate">{tenant?.city}</div>
-              </div>
-            </div>
-            <NavGroup label="Operations" items={MAIN} />
-            <NavGroup label="Billing" items={BILLING} />
-          </SidebarContent>
-        </Sidebar>
-        <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 border-b flex items-center justify-between px-3 md:px-4 gap-2 bg-background sticky top-0 z-20">
-            <div className="flex items-center gap-2 min-w-0">
-              <SidebarTrigger />
-              <span className="md:hidden font-semibold text-sm truncate">{tenant?.name}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link to="/app/subscription" className="hidden md:flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border hover:bg-accent/40">
-                <CreditCard className="h-3 w-3 text-primary"/>
-                <span className="font-medium">{sub?.plan?.name || "Free trial"}</span>
-                {sub?.current_period_end && <span className="text-muted-foreground">· renews {format(new Date(sub.current_period_end), "MMM d")}</span>}
-              </Link>
-              <NotificationBell />
-              <SignOutButton />
-            </div>
-          </header>
-          <main className="flex-1 p-3 md:p-6 overflow-auto pb-20 md:pb-6">
-            {profileIncomplete && (
-              <div className="mb-4 p-3 rounded-lg border border-warning/50 bg-warning/5 flex items-center justify-between gap-3 text-sm">
-                <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning"/><span>Complete your restaurant profile to unlock all features. Missing: <b>{missing.join(", ")}</b>.</span></div>
-                <Link to="/app/settings"><Button size="sm">Complete profile</Button></Link>
-              </div>
-            )}
-            {locked ? (
-              <div className="min-h-[50vh] grid place-items-center">
-                <div className="max-w-md text-center">
-                  <div className="mx-auto h-14 w-14 rounded-full bg-warning/10 text-warning grid place-items-center mb-4"><AlertTriangle className="h-6 w-6" /></div>
-                  <h1 className="text-xl font-semibold">Please fill your restaurant profile first</h1>
-                  <p className="text-muted-foreground mt-2">
-                    This page is locked until your restaurant profile is complete. Missing: <b>{missing.join(", ")}</b>.
-                  </p>
-                  <Link to="/app/settings"><Button className="mt-6">Go to Settings</Button></Link>
+              {locked ? (
+                <div className="min-h-[50vh] grid place-items-center">
+                  <div className="max-w-md text-center">
+                    <div className="mx-auto h-14 w-14 rounded-full bg-warning/10 text-warning grid place-items-center mb-4"><AlertTriangle className="h-6 w-6" /></div>
+                    <h1 className="text-xl font-semibold">Please fill your restaurant profile first</h1>
+                    <p className="text-muted-foreground mt-2">
+                      This page is locked until your restaurant profile is complete. Missing: <b>{missing.join(", ")}</b>.
+                    </p>
+                    <Link to="/app/settings"><Button className="mt-6">Go to Settings</Button></Link>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <Outlet />
-            )}
-          </main>
-          {!locked && <MobileNav />}
+              ) : (
+                <Outlet />
+              )}
+            </main>
+            {!locked && <MobileNav />}
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </TenantContextProvider>
   );
 }
 

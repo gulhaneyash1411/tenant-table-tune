@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/app/settings")({ component: SettingsPage });
 
 function SettingsPage() {
+  const { setTenant } = useTenantContext();
   const [t, setT] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -31,6 +33,10 @@ function SettingsPage() {
     }).eq("id", t.id);
     setSaving(false);
     if (error) return toast.error(error.message);
+    // Push the freshly-saved row into the layout's cached tenant so the
+    // "complete your profile" banner and sidebar update immediately —
+    // no refetch, no full page reload needed.
+    setTenant(t);
     toast.success("Settings saved");
   }
   if (!t) return <div>Loading…</div>;
