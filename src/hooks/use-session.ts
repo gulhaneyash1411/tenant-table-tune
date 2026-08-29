@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -47,5 +47,26 @@ export function useUserContext(user: User | null) {
     })();
     return () => { cancelled = true; };
   }, [user?.id]);
-  return { loading, ...(ctx ?? { isSuperAdmin: false, tenant: null, approvalStatus: null }) };
+
+  // Lets a caller that just persisted tenant changes (e.g. the Settings page)
+  // push the new row straight into this cached copy, so anything reading
+  // `tenant` from this hook re-renders immediately — no refetch, no reload.
+  const setTenant = useCallback((tenant: Tenant) => {
+    setCtx((prev) => (prev ? { ...prev, tenant, approvalStatus: tenant.status ?? null } : prev));
+  }, []);
+
+  return { loading, setTenant, ...(ctx ?? { isSuperAdmin: false, tenant: null, approvalStatus: null }) };
+}
+
+type TenantContextValue = { tenant: Tenant | null; setTenant: (tenant: Tenant) => void };
+const TenantContext = createContext<TenantContextValue | null>(null);
+
+/** Provided by the `/app` layout so nested routes can update the shared tenant. */
+export const TenantContextProvider = TenantContext.Provider;
+
+/** Read/update the tenant owned by `AppLayout`, from any route nested under it. */
+export function useTenantContext() {
+  const ctx = useContext(TenantContext);
+  if (!ctx) throw new Error("useTenantContext must be used within the /app layout");
+  return ctx;
 }
