@@ -1,16 +1,95 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getOrdersByPhone, getOrderDetail } from "@/lib/public-orders.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
 const rs = (n: number) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 import { format } from "date-fns";
-import { Download, Loader2, Plus } from "lucide-react";
+import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { jsPDF } from "jspdf";
 
 export const Route = createFileRoute("/status")({ component: StatusPage });
+
+/**
+ * The four stages a customer actually cares about, in order. Everything the
+ * kitchen reports is mapped onto one of these — the raw status string is a
+ * back-of-house vocabulary ("confirmed", "in_progress") that means nothing to
+ * someone waiting at a table.
+ */
+const STAGES = ["placed", "preparing", "ready", "served"] as const;
+type Stage = typeof STAGES[number];
+
+const STAGE_OF: Record<string, Stage> = {
+  new: "placed", pending: "placed", placed: "placed",
+  confirmed: "preparing", accepted: "preparing", preparing: "preparing", in_progress: "preparing", cooking: "preparing",
+  ready: "ready", prepared: "ready",
+  served: "served", completed: "served", delivered: "served", done: "served",
+};
+
+const STAGE_COPY: Record<Stage, { label: string; Icon: typeof Receipt }> = {
+  placed: { label: "Order received", Icon: Receipt },
+  preparing: { label: "Preparing your food", Icon: ChefHat },
+  ready: { label: "Ready to serve", Icon: BellRing },
+  served: { label: "Served — enjoy your meal", Icon: CheckCircle2 },
+};
+
+const CANCELLED = new Set(["cancelled", "canceled", "rejected", "refunded"]);
+
+/**
+ * Four-segment bar plus a plain-language line. The list refreshes on every
+ * realtime order event (and on a 5s poll as a fallback), so a kitchen status
+ * change shows up here as the bar filling one more segment.
+ */
+function OrderProgress({ status }: { status: string }) {
+  const key = String(status || "").toLowerCase().trim();
+
+  if (CANCELLED.has(key)) {
+    return (
+      <div className="mt-3 flex items-center gap-2 text-sm text-destructive">
+        <XCircle className="h-4 w-4 shrink-0" />
+        <span className="font-medium">Order cancelled</span>
+      </div>
+    );
+  }
+
+  // An unrecognised status is shown verbatim rather than guessed at — a wrong
+  // stage is worse than no stage when someone is waiting on their food. If you
+  // see this line in the app, add that status string to STAGE_OF above.
+  const stage = STAGE_OF[key];
+  if (!stage) {
+    return <div className="mt-3 text-sm text-muted-foreground capitalize">{key.replace(/_/g, " ") || "Status unavailable"}</div>;
+  }
+
+  const reached = STAGES.indexOf(stage);
+  const { label, Icon } = STAGE_COPY[stage];
+
+  return (
+    <div className="mt-3">
+      <div
+        className="flex items-center gap-1.5"
+        role="progressbar"
+        aria-valuemin={1}
+        aria-valuemax={STAGES.length}
+        aria-valuenow={reached + 1}
+        aria-valuetext={label}
+      >
+        {STAGES.map((s, idx) => (
+          <span
+            key={s}
+            className={`h-1 flex-1 rounded-full transition-colors ${idx <= reached ? "bg-primary" : "bg-muted-foreground/20"}`}
+          />
+        ))}
+      </div>
+      <div className="mt-2.5 flex items-center gap-2 text-sm font-medium text-primary">
+        <Icon className="h-4 w-4 shrink-0" />
+        <span>{label}</span>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Loads a remote logo into a data URL so jsPDF can embed it. Fetches the
@@ -41,28 +120,68 @@ function StatusPage() {
   const phone = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("phone");
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshError, setRefreshError] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
   const [items, setItems] = useState<any[]>([]);
   const [tenant, setTenant] = useState<any>(null);
+  const cancelledRef = useRef(false);
+
+  // Single refresh used by the first load, the poll and the realtime handler,
+  // so all three paths behave identically.
+  const refresh = useCallback(async (isFirst: boolean) => {
+    if (!phone) return;
+    try {
+      const list = await getOrdersByPhone({ data: { phone } });
+      if (cancelledRef.current) return;
+      setOrders(list || []);
+      setRefreshError(false);
+    } catch (err) {
+      // Previously swallowed. A silently failing refresh looks exactly like
+      // "nothing has changed", which is what makes a stale status so hard to
+      // diagnose — so it's logged and surfaced in the UI instead.
+      console.error("[status] refresh failed", err);
+      if (!cancelledRef.current) setRefreshError(true);
+    } finally {
+      if (!cancelledRef.current && isFirst) setLoading(false);
+    }
+  }, [phone]);
 
   useEffect(() => {
     if (!phone) { setLoading(false); return; }
-    let cancelled = false;
-    // Only the first fetch should gate the loading UI — the 5s poll after it
-    // just refreshes `orders` in place without flashing "No recent orders."
-    const load = async (isFirst: boolean) => {
-      try {
-        const list = await getOrdersByPhone({ data: { phone } });
-        if (!cancelled) setOrders(list || []);
-      } catch { /* ignore */ }
-      finally {
-        if (!cancelled && isFirst) setLoading(false);
-      }
+    cancelledRef.current = false;
+    refresh(true);
+
+    // Poll is the fallback path. Realtime below is what makes a kitchen status
+    // change appear immediately; if realtime isn't enabled on the orders table
+    // in Supabase, this still catches it within 5s.
+    const timer = setInterval(() => refresh(false), 5000);
+
+    // Filtering by customer_phone keeps this client from waking on every
+    // order in the restaurant. If your column differs, change the filter.
+    const channel = supabase
+      .channel(`orders-status-${phone}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `customer_phone=eq.${phone}` },
+        () => refresh(false),
+      )
+      .subscribe();
+
+    return () => {
+      cancelledRef.current = true;
+      clearInterval(timer);
+      supabase.removeChannel(channel);
     };
-    load(true);
-    const t = setInterval(() => load(false), 5000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [phone]);
+  }, [phone, refresh]);
+
+  // Keep the open dialog in step with the refreshed list, otherwise the sheet
+  // holds the snapshot from the moment it was opened and shows a stale stage
+  // while the card behind it has already advanced.
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = orders.find((o: any) => o.id === selected.id);
+    if (fresh && fresh.status !== selected.status) setSelected(fresh);
+  }, [orders, selected]);
 
   async function openOrder(o: any) {
     setSelected(o);
@@ -127,67 +246,87 @@ function StatusPage() {
   }
 
   return (
-    <div className="min-h-screen p-6 max-w-md mx-auto space-y-4">
-      <h1 className="text-2xl font-semibold">Your orders</h1>
-      {orders.map(o => (
-        <Card key={o.id} className="p-4 hover:bg-accent/40 transition-colors">
-          <div className="flex justify-between items-start cursor-pointer" onClick={() => openOrder(o)}>
-            <div>
-              <div className="font-medium">Order #{o.order_number}</div>
-              <div className="text-xs text-muted-foreground">{format(new Date(o.created_at), "PPp")}</div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-xs px-2 py-0.5 rounded bg-accent capitalize">{o.status}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <div className="font-medium">{money(Number(o.total))}</div>
-            <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); downloadInvoice(o); }}>
-              <Download className="h-3 w-3 mr-1"/>Invoice
-            </Button>
-          </div>
-        </Card>
-      ))}
-      {loading ? (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm py-6 justify-center">
-          <Loader2 className="h-4 w-4 animate-spin" />Loading your orders…
-        </div>
-      ) : orders.length === 0 ? (
-        <div className="text-muted-foreground text-sm">No recent orders.</div>
-      ) : null}
+    // Same frame as the menu and order-status screens: plain page behind a
+    // phone-width tinted column, so the gutters on a desktop viewport match
+    // and this doesn't read as a different app.
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 p-4 pb-16 space-y-4 shadow-xl shadow-black/5">
+        <h1 className="text-2xl font-bold tracking-tight px-1 pt-2">Your orders</h1>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Order #{selected?.order_number}</DialogTitle></DialogHeader>
-          {selected && (
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="capitalize">Status: <b>{selected.status}</b></span>
-                <span className={`text-xs px-2 py-0.5 rounded ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
+        {refreshError && (
+          <div className="flex items-center gap-2 rounded-2xl bg-warning/15 text-warning px-4 py-3 text-xs font-medium">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            Can't reach the kitchen right now — this status may be out of date.
+          </div>
+        )}
+
+        {orders.map(o => (
+          <Card key={o.id} className="p-4 rounded-3xl border-0 bg-background shadow-md shadow-black/5">
+            {/* The whole header block is one button so the card is reachable
+                by keyboard; the Invoice button sits outside it, since nesting
+                a button inside a button is invalid markup. */}
+            <button
+              onClick={() => openOrder(o)}
+              className="w-full text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <div className="flex justify-between items-baseline gap-3">
+                <span className="font-bold">Order #{o.order_number}</span>
+                <span className="text-lg font-bold tabular-nums">{money(Number(o.total))}</span>
               </div>
-              <div className="text-xs text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</div>
-              <div className="divide-y border rounded">
-                {items.map(i => (
-                  <div key={i.id} className="p-2 flex justify-between text-sm">
-                    <span>{i.quantity}× {i.name}</span>
-                    <span>{money(Number(i.price) * i.quantity)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{money(Number(selected.subtotal))}</span></div>
-                <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>{money(Number(selected.tax))}</span></div>
-                <div className="flex justify-between font-semibold"><span>Total</span><span>{money(Number(selected.total))}</span></div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={keepOrdering}><Plus className="h-4 w-4 mr-2"/>Keep ordering</Button>
-                <Button onClick={() => downloadInvoice()}><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
-              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">{format(new Date(o.created_at), "PPp")}</div>
+              <OrderProgress status={o.status} />
+            </button>
+
+            <div className="mt-4 pt-3 border-t flex items-center justify-between">
+              <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
+              <Button size="sm" variant="outline" className="rounded-full h-9 px-4 border-2 font-semibold" onClick={() => downloadInvoice(o)}>
+                <Download className="h-3.5 w-3.5 mr-1.5"/>Invoice
+              </Button>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </Card>
+        ))}
+
+        {loading ? (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-6 justify-center">
+            <Loader2 className="h-4 w-4 animate-spin" />Loading your orders…
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="text-muted-foreground text-sm text-center py-10">No recent orders.</div>
+        ) : null}
+
+        <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+          {/* Corner radius matched to the cart and item sheets on the menu. */}
+          <DialogContent className="max-w-md rounded-[32px]">
+            <DialogHeader><DialogTitle>Order #{selected?.order_number}</DialogTitle></DialogHeader>
+            {selected && (
+              <div className="space-y-3">
+                <OrderProgress status={selected.status} />
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</span>
+                  <span className={`px-2.5 py-1 rounded-full font-medium ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
+                </div>
+                <div className="divide-y rounded-2xl bg-muted/40">
+                  {items.map(i => (
+                    <div key={i.id} className="p-3 flex justify-between text-sm">
+                      <span>{i.quantity}× {i.name}</span>
+                      <span>{money(Number(i.price) * i.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{money(Number(selected.subtotal))}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>{money(Number(selected.tax))}</span></div>
+                  <div className="flex justify-between font-semibold"><span>Total</span><span>{money(Number(selected.total))}</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Button variant="outline" className="h-12 rounded-full font-semibold border-2" onClick={keepOrdering}><Plus className="h-4 w-4 mr-2"/>Keep ordering</Button>
+                  <Button className="h-12 rounded-full font-semibold shadow-lg shadow-primary/25" onClick={() => downloadInvoice()}><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
