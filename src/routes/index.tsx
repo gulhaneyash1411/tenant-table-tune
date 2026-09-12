@@ -4,8 +4,9 @@ import { motion, AnimatePresence, useReducedMotion, type TargetAndTransition } f
 import {
   Utensils, Zap, ArrowRight, PlayCircle, Check, CheckCircle2, ChevronLeft, ChevronRight,
   ShoppingCart, QrCode, CalendarDays, LineChart, FileText, Percent,
-  Mail, Phone, MapPin, Send, Bell, LayoutDashboard, ChefHat, BarChart3, Loader2, X, Globe, ChevronDown,
+  Mail, Phone, MapPin, Send, Bell, LayoutDashboard, ChefHat, BarChart3, Loader2, X, Globe, ChevronDown, Menu,
 } from "lucide-react";
+// import platesos_teaser from "public/videos/platesos_teaser.mp4"
 
 export const Route = createFileRoute("/")({ component: PlatesOS });
 
@@ -31,7 +32,7 @@ const contactInfo = {
 // Floating WhatsApp chat: number in international format (no +, spaces or dashes)
 const whatsappChat = {
   number: "919876543210",
-  message: "Hi PlatesOS! I'd like to know more about your restaurant management platform.",
+  message: "Hi PlatesOS! \nI'd like to know more about your restaurant management platform.",
 };
 const waLink = (msg: string) => `https://wa.me/${whatsappChat.number}?text=${encodeURIComponent(msg)}`;
 const whatsappChatUrl = waLink(whatsappChat.message);
@@ -48,7 +49,7 @@ const agentQuickReplies = [
 ];
 
 // Demo video: a YouTube link or a file path (e.g. "/videos/platesos-demo.mp4" in /public)
-const DEMO_VIDEO_URL = "https://www.youtube.com/watch?v=YOUR_VIDEO_ID";
+const DEMO_VIDEO_URL = "/videos/platesos_teaser.mp4";
 
 // Set to your API/email endpoint when ready. While null, the form reports an honest error.
 const CONTACT_ENDPOINT: string | null = null;
@@ -57,8 +58,8 @@ const NAV = [
   { id: "home", label: "Home" },
   { id: "features", label: "Features" },
   { id: "products", label: "Products" },
-  { id: "pricing", label: "Pricing" },
   { id: "about", label: "About" },
+  { id: "pricing", label: "Pricing" },
   { id: "contact", label: "Contact" },
 ];
 
@@ -369,6 +370,7 @@ const SOCIALS = [
 const Navbar = () => {
   const t = useT();
   const [active, setActive] = useState("home");
+  const [menu, setMenu] = useState(false);
   useEffect(() => {
     const obs = new IntersectionObserver(
       (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
@@ -379,7 +381,7 @@ const Navbar = () => {
   }, []);
   return (
     <header className="sticky top-0 z-50 bg-white/85 backdrop-blur border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
         <Logo />
         <nav className="hidden md:flex items-center gap-8 text-sm">
           {NAV.map((n) => (
@@ -394,16 +396,72 @@ const Navbar = () => {
             </button>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
-          <Link to="/auth" className="text-sm text-slate-700 hover:text-slate-900">{t("Sign in")}</Link>
-          <Link to="/auth" className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link to="/auth" className="hidden sm:inline text-sm text-slate-700 hover:text-slate-900">{t("Sign in")}</Link>
+          <Link to="/auth" className="hidden sm:inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white"
             style={{ background: BRAND.primary }}>
             {t("Get started")} <ArrowRight className="h-4 w-4" />
           </Link>
           <LanguageMenu />
+          <button onClick={() => setMenu((o) => !o)} aria-expanded={menu} aria-controls="mobile-nav"
+            aria-label={menu ? "Close menu" : "Open menu"}
+            className="md:hidden h-10 w-10 grid place-items-center rounded-lg border border-slate-200 text-slate-700">
+            {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
+
+      {/* mobile drawer */}
+      <AnimatePresence>
+        {menu && (
+          <motion.nav id="mobile-nav" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }}
+            className="md:hidden overflow-hidden border-t border-slate-100 bg-white">
+            <div className="px-6 py-4 space-y-1">
+              {NAV.map((n) => (
+                <button key={n.id} onClick={() => { setMenu(false); scrollTo(n.id); }}
+                  className="block w-full rounded-lg px-3 py-2.5 text-left text-[15px]"
+                  style={active === n.id ? { background: BRAND.soft, color: BRAND.primary, fontWeight: 600 } : { color: "#334155" }}>
+                  {t(n.label)}
+                </button>
+              ))}
+              <div className="flex gap-3 pt-3">
+                <Link to="/auth" onClick={() => setMenu(false)}
+                  className="flex-1 rounded-lg border border-slate-200 py-2.5 text-center text-sm font-medium text-slate-700">
+                  {t("Sign in")}
+                </Link>
+                <Link to="/auth" onClick={() => setMenu(false)}
+                  className="flex-1 rounded-lg py-2.5 text-center text-sm font-semibold text-white" style={{ background: BRAND.primary }}>
+                  {t("Get started")}
+                </Link>
+              </div>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
     </header>
+  );
+};
+
+// Scales a fixed-size mockup down to fit whatever width is available (phones, tablets)
+const FitScale = ({ w, h, children }: { w: number; h: number; children: ReactNode }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setScale(Math.min(1, el.clientWidth / w));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [w]);
+  return (
+    <div ref={ref} className="w-full flex justify-center">
+      <div style={{ width: w * scale, height: h * scale }}>
+        <div style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: "top left" }}>{children}</div>
+      </div>
+    </div>
   );
 };
 
@@ -411,7 +469,7 @@ const Navbar = () => {
 // PRODUCT CAROUSEL — slide mockups
 // ====================
 const Tablet = ({ children }: { children: ReactNode }) => (
-  <div className="rounded-[28px] bg-slate-900 p-3 shadow-2xl shadow-slate-900/30 w-[440px] max-w-full">
+  <div className="rounded-[28px] bg-slate-900 p-3 shadow-2xl shadow-slate-900/30 w-[440px] shrink-0">
     <div className="rounded-[18px] bg-white overflow-hidden h-[280px] flex text-[10px]">{children}</div>
   </div>
 );
@@ -657,17 +715,19 @@ const ProductCarousel = () => {
           </AnimatePresence>
         </motion.div>
       </div>
-      <div className="relative h-[330px] grid place-items-center overflow-hidden">
-        <AnimatePresence mode="wait" custom={dir}>
-          <motion.div key={index} custom={dir}
-            initial={{ opacity: 0, x: dir * 60, scale: 0.96 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: dir * -60, scale: 0.96 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
-            <Comp />
-          </motion.div>
-        </AnimatePresence>
-      </div>
+      <FitScale w={540} h={340}>
+        <div className="relative h-full w-full grid place-items-center overflow-hidden">
+          <AnimatePresence mode="wait" custom={dir}>
+            <motion.div key={index} custom={dir}
+              initial={{ opacity: 0, x: dir * 60, scale: 0.96 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: dir * -60, scale: 0.96 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+              <Comp />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </FitScale>
       <div className="mt-4 flex items-center justify-center gap-4">
         <button aria-label="Previous slide" onClick={() => go(-1)} className="h-9 w-9 rounded-full bg-white shadow grid place-items-center hover:bg-slate-50" style={{ color: BRAND.primary }}><ChevronLeft className="h-4 w-4" /></button>
         <div className="flex gap-1.5">
@@ -686,6 +746,7 @@ const ProductCarousel = () => {
 // VIDEO MODAL
 // ====================
 const toEmbed = (url: string) => {
+  if (!/youtube\.com|youtu\.be/.test(url)) return null;
   const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
   return m ? `https://www.youtube.com/embed/${m[1]}?autoplay=1&rel=0&modestbranding=1` : null;
 };
@@ -703,23 +764,22 @@ const VideoModal = ({ open, onClose }: { open: boolean; onClose: () => void }) =
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-[100] grid place-items-center p-4 bg-slate-950/80 backdrop-blur-sm"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+        <motion.div className="fixed inset-0 z-[100] grid place-items-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-sm"          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
           role="dialog" aria-modal="true" aria-label="PlatesOS demo video">
           <motion.div className="relative w-full max-w-4xl" onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
-            <button onClick={onClose} autoFocus aria-label="Close video"
-              className="absolute -top-12 right-0 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white grid place-items-center transition">
-              <X className="h-5 w-5" />
-            </button>
-            <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-2xl">
+            <div className="relative aspect-video w-full overflow-hidden rounded-xl sm:rounded-2xl bg-black shadow-2xl">
               {embed ? (
                 <iframe src={embed} title="PlatesOS demo" className="h-full w-full"
                   allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
               ) : (
-                <video src={DEMO_VIDEO_URL} className="h-full w-full" autoPlay controls playsInline />
+                <video src={DEMO_VIDEO_URL} className="h-full w-full" autoPlay muted controls playsInline />
               )}
+              <button onClick={onClose} autoFocus aria-label="Close video"
+                className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-black/55 text-white backdrop-blur grid place-items-center transition hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                <X className="h-5 w-5" />
+              </button>
             </div>
           </motion.div>
         </motion.div>
@@ -737,10 +797,10 @@ const Hero = () => {
   return (
   <section id="home" className="relative overflow-hidden scroll-mt-16">
     <div className="absolute inset-0 -z-10" style={{ background: `radial-gradient(ellipse at 80% 0%, ${BRAND.soft}, transparent 60%), linear-gradient(180deg,#fff, #F6F9FF)` }} />
-    <div className="max-w-7xl mx-auto px-6 py-16 lg:py-20 grid lg:grid-cols-[1fr_1.15fr] gap-10 items-center">
+    <div className="max-w-7xl mx-auto px-5 sm:px-6 py-10 sm:py-14 lg:py-20 grid lg:grid-cols-[1fr_1.15fr] gap-6 sm:gap-10 items-center">
       <Reveal>
         <Pill>{t("Modern Restaurant Management Platform")}</Pill>
-        <h1 className="mt-5 text-[2.6rem] sm:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight leading-[1.08]" style={{ color: BRAND.dark }}>
+        <h1 className="mt-5 text-[clamp(1.9rem,7.5vw,3.5rem)] font-extrabold tracking-tight leading-[1.08]" style={{ color: BRAND.dark }}>
           <span className="block whitespace-nowrap">{t("Run Your Restaurant.")}</span>
           <span className="block" style={{ color: BRAND.primary }}>{t("Smarter.")}</span>
         </h1>
@@ -753,7 +813,7 @@ const Hero = () => {
             <PlayCircle className="h-4 w-4" style={{ color: BRAND.primary }} /> {t("Watch video")}
           </button>
         </div>
-        <div className="mt-6 flex flex-wrap gap-5 text-sm text-slate-500">
+        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">
           {["No commission", "14-day free trial", "Easy setup"].map((label) => (
             <span key={label} className="flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: BRAND.primary }} />{t(label)}</span>
           ))}
@@ -782,7 +842,7 @@ const FeatureCard = ({ f }: { f: (typeof FEATURES)[number] }) => {
   const t = useT();
   return (
   <motion.div whileHover={{ y: -6 }} transition={{ type: "spring", stiffness: 300, damping: 22 }}
-    className="group relative h-full min-h-[240px] overflow-hidden rounded-3xl p-7 bg-white border border-slate-200 hover:border-transparent hover:shadow-xl hover:shadow-blue-500/25 transition-[box-shadow,border-color] duration-300">
+    className="group relative h-full min-h-[210px] sm:min-h-[240px] overflow-hidden rounded-3xl p-6 sm:p-7 bg-white border border-slate-200 hover:border-transparent hover:shadow-xl hover:shadow-blue-500/25 transition-[box-shadow,border-color] duration-300">
     {/* blue fill on hover */}
     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
       style={{ background: `linear-gradient(135deg, #3D9BFF, ${BRAND.primary})` }} />
@@ -805,8 +865,8 @@ const FeatureCard = ({ f }: { f: (typeof FEATURES)[number] }) => {
 const Features = () => {
   const t = useT();
   return (
-  <section id="features" className="py-20 scroll-mt-16">
-    <div className="max-w-7xl mx-auto px-6">
+  <section id="features" className="py-14 sm:py-20 scroll-mt-16">
+    <div className="max-w-7xl mx-auto px-5 sm:px-6">
       <Reveal>
         <div className="text-center max-w-2xl mx-auto">
           <Pill>{t("Everything you need")}</Pill>
@@ -816,7 +876,7 @@ const Features = () => {
           <p className="mt-4 text-slate-600">{t("From online orders to detailed reports, PlatesOS gives you the tools to run your restaurant smoothly and efficiently.")}</p>
         </div>
       </Reveal>
-      <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="mt-10 sm:mt-14 grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         {FEATURES.map((f, i) => (
           <Reveal key={f.title} className="h-full" delay={(i % 3) * 0.08}><FeatureCard f={f} /></Reveal>
         ))}
@@ -1003,10 +1063,10 @@ const TableTentArt = ({ view }: ArtProps) => {
           {view === "front" ? (
             <>
               <Wordmark x={122} y={58} w={88} h={24} fs={13} />
-              <QRPanel x={132} y={90} size={68} />
-              <text x="166" y="172" textAnchor="middle" fill={BRAND.dark} fontSize="10" fontWeight="600" fontFamily="system-ui">TABLE 12 · SCAN TO ORDER</text>
-            </>
-          ) : (
+              <QRPanel x={132} y={88} size={64} />
+              <text x="166" y="166" textAnchor="middle" fill={BRAND.dark} fontSize="9" fontWeight="700" fontFamily="system-ui">TABLE 12</text>
+              <text x="166" y="178" textAnchor="middle" fill="#64748B" fontSize="8" fontWeight="600" fontFamily="system-ui">SCAN TO ORDER</text>            </>
+                        ) : (
             <>
               <text x="166" y="74" textAnchor="middle" fill={BRAND.dark} fontSize="12" fontWeight="700" fontFamily="system-ui">Table</text>
               <text x="166" y="112" textAnchor="middle" fill={BRAND.primary} fontSize="34" fontWeight="800" fontFamily="system-ui">12</text>
@@ -1036,9 +1096,9 @@ const TissueBoxArt = ({ view }: ArtProps) => {
             <ellipse cx="172" cy="75" rx="26" ry="6" fill="#E2E8F0" />
             <rect x="124" y="102" width="72" height="66" rx="8" fill="#fff" opacity=".95" />
           </Flip>
-          <g transform={view === "right" ? "translate(36,0)" : undefined}>
-            <QRPanel x={132} y={108} size={38} />
-            <text x="151" y="160" textAnchor="middle" fill={BRAND.dark} fontSize="7" fontWeight="700" fontFamily="system-ui">SCAN TO ORDER</text>
+          <g>
+            <QRPanel x={141} y={108} size={38} />
+            <text x="160" y="160" textAnchor="middle" fill={BRAND.dark} fontSize="7" fontWeight="700" fontFamily="system-ui">SCAN TO ORDER</text>
           </g>
           <text x="160" y="212" textAnchor="middle" fill="#8A7358" fontSize="9" fontWeight="700" fontFamily="system-ui">BRANDED ON ALL FOUR SIDES</text>
         </>
@@ -1092,7 +1152,7 @@ const ProductViewer = ({ p }: { p: (typeof PRODUCTS)[number] }) => {
 
   useEffect(() => {
     if (!hover || reduce) return;
-    const t = setInterval(() => go(1), 2200);
+    const t = setInterval(() => go(1), 1300);
     return () => clearInterval(t);
   }, [hover, reduce]);
 
@@ -1116,7 +1176,7 @@ const ProductViewer = ({ p }: { p: (typeof PRODUCTS)[number] }) => {
 
       {[-1, 1].map((d) => (
         <button key={d} onClick={() => go(d)} aria-label={d < 0 ? `Previous view of ${p.name}` : `Next view of ${p.name}`}
-          className={`absolute top-1/2 -translate-y-1/2 ${d < 0 ? "left-2" : "right-2"} h-8 w-8 rounded-full bg-white/90 shadow grid place-items-center opacity-0 transition-opacity hover:bg-white focus-visible:opacity-100 group-hover:opacity-100`}
+          className={`absolute top-1/2 -translate-y-1/2 ${d < 0 ? "left-2" : "right-2"} h-8 w-8 rounded-full bg-white/90 shadow grid place-items-center opacity-100 sm:opacity-0 transition-opacity hover:bg-white focus-visible:opacity-100 group-hover:opacity-100`}
           style={{ color: BRAND.primary }}>
           {d < 0 ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
@@ -1153,8 +1213,8 @@ const ProductCard = ({ p }: { p: (typeof PRODUCTS)[number] }) => {
 const Products = () => {
   const t = useT();
   return (
-  <section id="products" className="py-20 scroll-mt-16" style={{ background: "#F8FAFF" }}>
-    <div className="max-w-7xl mx-auto px-6">
+  <section id="products" className="py-14 sm:py-20 scroll-mt-16" style={{ background: "#F8FAFF" }}>
+    <div className="max-w-7xl mx-auto px-5 sm:px-6">
       <Reveal>
         <div className="text-center max-w-2xl mx-auto">
           <Pill>{t("On every table")}</Pill>
@@ -1164,7 +1224,7 @@ const Products = () => {
           <p className="mt-4 text-slate-600">{t("Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your PlatesOS menu.")}</p>
         </div>
       </Reveal>
-      <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="mt-10 sm:mt-14 grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         {PRODUCTS.map((p, i) => (
           <Reveal key={p.name} className="h-full" delay={(i % 3) * 0.08}><ProductCard p={p} /></Reveal>
         ))}
@@ -1265,7 +1325,8 @@ const WhyShowcase = () => {
 
   return (
     <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <div className="relative h-[400px] flex justify-center items-end">
+      <FitScale w={560} h={400}>
+        <div className="relative h-full w-full flex justify-center items-end">
         <AnimatePresence mode="wait">
           <motion.div key={i} className="relative flex items-end pt-14">
             <motion.div initial={{ opacity: 0, x: -30, scale: 0.97 }} animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -1285,8 +1346,9 @@ const WhyShowcase = () => {
             </motion.div>
           </motion.div>
         </AnimatePresence>
-      </div>
-      <div className="mt-10 flex justify-center gap-1.5">
+        </div>
+      </FitScale>
+      <div className="mt-6 sm:mt-10 flex justify-center gap-1.5">
         {WHY_SCENES.map((s, n) => (
           <button key={s.title} aria-label={`Show ${s.title}`} onClick={() => setI(n)}
             className="h-2 rounded-full transition-all" style={{ width: n === i ? 22 : 8, background: n === i ? BRAND.primary : "#cbd5e1" }} />
@@ -1302,8 +1364,8 @@ const WhyShowcase = () => {
 const WhyPlatesOS = () => {
   const t = useT();
   return (
-  <section id="about" className="py-20 scroll-mt-16" style={{ background: "#F4F8FF" }}>
-    <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+  <section id="about" className="py-14 sm:py-20 scroll-mt-16" style={{ background: "#F4F8FF" }}>
+    <div className="max-w-7xl mx-auto px-5 sm:px-6 grid gap-10 lg:grid-cols-2 lg:gap-12 items-center">
       <Reveal>
         <Pill>{t("Why choose PlatesOS")}</Pill>
         <h2 className="mt-4 text-3xl md:text-4xl font-extrabold" style={{ color: BRAND.dark }}>{t("Built for modern")}<br />{t("restaurants")}</h2>
@@ -1334,8 +1396,8 @@ const PLANS = [
 const Pricing = () => {
   const t = useT();
   return (
-  <section id="pricing" className="py-20 scroll-mt-16">
-    <div className="max-w-6xl mx-auto px-6">
+  <section id="pricing" className="py-14 sm:py-20 scroll-mt-16">
+    <div className="max-w-6xl mx-auto px-5 sm:px-6">
       <Reveal>
         <div className="text-center">
           <Pill>{t("Simple pricing")}</Pill>
@@ -1343,10 +1405,10 @@ const Pricing = () => {
           <p className="mt-3 text-slate-600">{t("No commission on orders. 14-day free trial on every plan.")}</p>
         </div>
       </Reveal>
-      <div className="mt-12 grid md:grid-cols-3 gap-6">
+      <div className="mt-10 sm:mt-12 grid gap-5 sm:gap-6 md:grid-cols-3">
         {PLANS.map((p, i) => (
           <Reveal key={p.name} delay={i * 0.08}>
-            <div className={`relative rounded-2xl p-7 h-full flex flex-col border ${p.popular ? "shadow-xl shadow-blue-500/15" : "bg-white"}`}
+            <div className={`relative rounded-2xl p-6 sm:p-7 h-full flex flex-col border ${p.popular ? "shadow-xl shadow-blue-500/15" : "bg-white"}`}
               style={p.popular ? { borderColor: BRAND.primary, background: "#fff" } : { borderColor: "#e2e8f0" }}>
               {p.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ background: BRAND.primary }}>{t("Most popular")}</span>}
               <div className="font-semibold" style={{ color: BRAND.dark }}>{t(p.name)}</div>
@@ -1415,15 +1477,15 @@ const ContactSection = () => {
   const Label = ({ t, req }: { t: string; req?: boolean }) => <label className="text-xs font-medium text-slate-600 mb-1 block">{t}{req && <span className="text-rose-500"> *</span>}</label>;
 
   return (
-    <section id="contact" className="py-20 scroll-mt-16">
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[1fr_0.9fr_1.4fr] gap-10">
+    <section id="contact" className="py-14 sm:py-20 scroll-mt-16">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 grid gap-8 sm:gap-10 md:grid-cols-2 lg:grid-cols-[1fr_0.9fr_1.4fr]">
         <Reveal>
           <Pill>{t("Get in touch")}</Pill>
           <h2 className="mt-4 text-3xl md:text-4xl font-extrabold" style={{ color: BRAND.dark }}>{t("Contact")} <span style={{ color: BRAND.primary }}>{t("Us")}</span></h2>
           <p className="mt-4 text-slate-600">{t("We'd love to hear from you! Whether you have a question, need support, or want to partner with us — we're here to help.")}</p>
         </Reveal>
         <Reveal delay={0.08}>
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6">
             {[
               { icon: Mail, t: "Email", v: contactInfo.email, s: "We'll respond within 24 hours." },
               { icon: Phone, t: "Phone", v: contactInfo.phone, s: contactInfo.hours },
@@ -1437,7 +1499,7 @@ const ContactSection = () => {
           </div>
         </Reveal>
         <Reveal delay={0.16}>
-          <form onSubmit={submit} noValidate className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/50 space-y-4">
+          <form onSubmit={submit} noValidate className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-lg shadow-slate-200/50 space-y-4">
             <div className="font-semibold" style={{ color: BRAND.dark }}>{t("Send us a message")}</div>
             <div className="grid sm:grid-cols-2 gap-4">
               <div><Label t={t("Full name")} req /><input {...field("name")} placeholder={t("Your name")} /><Err k="name" /></div>
@@ -1476,9 +1538,9 @@ const ContactSection = () => {
 const FinalCTA = () => {
   const t = useT();
   return (
-  <section className="px-6 pb-20">
+  <section className="px-5 sm:px-6 pb-14 sm:pb-20">
     <Reveal>
-      <div className="max-w-6xl mx-auto rounded-3xl p-10 md:p-14 text-center text-white relative overflow-hidden"
+      <div className="max-w-6xl mx-auto rounded-3xl p-8 sm:p-10 md:p-14 text-center text-white relative overflow-hidden"
         style={{ background: `linear-gradient(135deg, ${BRAND.primary}, #0552C7)` }}>
         <h2 className="text-3xl md:text-4xl font-extrabold">{t("Ready to grow your restaurant?")}</h2>
         <p className="mt-3 text-blue-100">{t("Set up in minutes. No commission. Cancel anytime.")}</p>
@@ -1498,9 +1560,9 @@ const Footer = () => {
   const t = useT();
   return (
   <footer className="border-t border-slate-100 bg-slate-50/60">
-    <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div className="max-w-7xl mx-auto px-5 sm:px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-6">
       <Logo />
-      <div className="flex gap-8 text-sm text-slate-500">
+      <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-slate-500">
         <a href="#" className="hover:text-slate-800">{t("Privacy Policy")}</a>
         <a href="#" className="hover:text-slate-800">{t("Terms of Service")}</a>
         <button onClick={() => scrollTo("contact")} className="hover:text-slate-800">{t("Contact")}</button>
@@ -1801,7 +1863,7 @@ const WhatsAppFloat = () => {
     <>
       {!open && <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-30" />}
       <AnimatePresence mode="wait" initial={false}>
-        {touch && open ? (
+        {open ? (
           <motion.span key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} className="relative text-white">
             <X className="h-6 w-6" />
           </motion.span>
@@ -1815,20 +1877,24 @@ const WhatsAppFloat = () => {
   );
 
   const fab = (
-    <motion.div className="relative z-10 shrink-0" initial={{ scale: 0 }} animate={{ scale: 1 }}
+  <motion.div className="relative z-10 shrink-0" initial={{ scale: 0 }} animate={{ scale: 1 }}
       transition={{ delay: 1, type: "spring", stiffness: 260, damping: 18 }} whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.95 }}>
-      {touch ? (
-        <button onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="platesos-agent"
-          aria-label={open ? "Close PlatesOS Agent" : "Open PlatesOS Agent"} className={fabClass}>{fabInner}</button>
+      {open ? (
+        <button onClick={close} aria-expanded aria-controls="platesos-agent"
+          aria-label="Close PlatesOS Agent" className={fabClass}>{fabInner}</button>
+      ) : touch ? (
+        <button onClick={() => setOpen(true)} aria-expanded={false} aria-controls="platesos-agent"
+          aria-label="Open PlatesOS Agent" className={fabClass}>{fabInner}</button>
       ) : (
         <a href={whatsappChatUrl} target="_blank" rel="noopener noreferrer" aria-label="Chat with us on WhatsApp"
-          aria-describedby={open ? "platesos-agent" : undefined} className={fabClass}>{fabInner}</a>
+          className={fabClass}>{fabInner}</a>
       )}
     </motion.div>
   );
 
   return (
-    <div ref={rootRef} className="fixed bottom-5 right-5 z-[90]"
+    <div ref={rootRef} className="fixed z-[90] right-4 sm:right-5"
+      style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
       onMouseEnter={touch ? undefined : show} onMouseLeave={touch ? undefined : hide}
       onFocus={touch ? undefined : show}
       onBlur={touch ? undefined : (e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) hide(); }}>
