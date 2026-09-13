@@ -796,32 +796,40 @@ const Hero = () => {
   const [videoOpen, setVideoOpen] = useState(false);
   return (
   <section id="home" className="relative overflow-hidden scroll-mt-16">
-    <div className="absolute inset-0 -z-10" style={{ background: `radial-gradient(ellipse at 80% 0%, ${BRAND.soft}, transparent 60%), linear-gradient(180deg,#fff, #F6F9FF)` }} />
-    <div className="max-w-7xl mx-auto px-5 sm:px-6 py-10 sm:py-14 lg:py-20 grid lg:grid-cols-[1fr_1.15fr] gap-6 sm:gap-10 items-center">
-      <Reveal>
-        <Pill>{t("Modern Restaurant Management Platform")}</Pill>
-        <h1 className="mt-5 text-[clamp(1.9rem,7.5vw,3.5rem)] font-extrabold tracking-tight leading-[1.08]" style={{ color: BRAND.dark }}>
-          <span className="block whitespace-nowrap">{t("Run Your Restaurant.")}</span>
-          <span className="block" style={{ color: BRAND.primary }}>{t("Smarter.")}</span>
-        </h1>
-        <p className="mt-5 text-lg text-slate-600 max-w-md">
-          {t("One powerful platform to manage orders, tables, bookings, QR ordering, and daily operations — all in one place.")}
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <PrimaryBtn to="/auth">{t("Start free trial")} <ArrowRight className="h-4 w-4" /></PrimaryBtn>
-          <button onClick={() => setVideoOpen(true)} className="inline-flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold bg-white border border-slate-200 shadow-sm hover:bg-slate-50" style={{ color: BRAND.dark }}>
-            <PlayCircle className="h-4 w-4" style={{ color: BRAND.primary }} /> {t("Watch video")}
-          </button>
-        </div>
-        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-500">
-          {["No commission", "14-day free trial", "Easy setup"].map((label) => (
-            <span key={label} className="flex items-center gap-1.5"><Check className="h-4 w-4" style={{ color: BRAND.primary }} />{t(label)}</span>
-          ))}
-        </div>
-      </Reveal>
-      <ProductCarousel />
+    <div className="absolute inset-0 -z-10" style={{ background: `radial-gradient(ellipse at 80% 0%, ${BRAND.soft}, transparent 60%), linear-gradient(180deg,#fff, #F6F9FF)` }}
+/>
+<div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-14 lg:py-20 grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-8 sm:gap-10 lg:gap-6 items-center overflow-hidden">
+  <Reveal>
+    <Pill>{t("Modern Restaurant Management Platform")}</Pill>
+    <h1 className="mt-4 sm:mt-5 text-[clamp(2.15rem,8.3vw,3.7rem)] font-extrabold tracking-tight leading-[1.08]" style={{ color: BRAND.dark }}>
+      <span className="block whitespace-nowrap">{t("Run Your Restaurant.")}</span>
+      <span className="block" style={{ color: BRAND.primary }}>{t("Smarter.")}</span>
+    </h1>
+    <p className="mt-4 sm:mt-5 text-base sm:text-lg text-slate-600 max-w-md leading-relaxed">
+      {t("One powerful platform to manage orders, tables, bookings, QR ordering, and daily operations — all in one place.")}
+    </p>
+<div className="mt-6 sm:mt-8 flex flex-col xs:flex-row sm:flex-row gap-3 w-full">
+  <PrimaryBtn to="/auth">
+    <span className="text-center flex-1">{t("Start free trial")}</span>
+    <ArrowRight className="h-4 w-4" />
+  </PrimaryBtn>
+  <button onClick={() => setVideoOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold bg-white border border-slate-200 shadow-sm hover:bg-slate-50 w-full sm:w-auto" style={{ color: BRAND.dark }}
+  >
+    <PlayCircle className="h-4 w-4" style={{ color: BRAND.primary }}/><span>{t("Watch video")}</span>
+  </button>
+</div>
+    <div className="mt-5 sm:mt-6 flex flex-wrap gap-x-4 sm:gap-x-5 gap-y-2 text-xs sm:text-sm text-slate-500">
+      {["No commission", "14-day free trial", "Easy setup"].map((label) => (
+          <span key={label} className="flex items-center gap-1.5"><Check className="h-4 w-4 shrink-0" style={{ color: BRAND.primary }} />{t(label)}</span>
+        ))}
     </div>
-    <VideoModal open={videoOpen} onClose={() => setVideoOpen(false)} />
+  </Reveal>
+  {/* Product carousel */}
+  <div className="w-full min-w-0">
+    <ProductCarousel />
+  </div>
+</div>
+<VideoModal open={videoOpen} onClose={() => setVideoOpen(false)} />
   </section>
   );
 };
@@ -1365,21 +1373,23 @@ const WhyPlatesOS = () => {
   const t = useT();
   return (
   <section id="about" className="py-14 sm:py-20 scroll-mt-16" style={{ background: "#F4F8FF" }}>
-    <div className="max-w-7xl mx-auto px-5 sm:px-6 grid gap-10 lg:grid-cols-2 lg:gap-12 items-center">
-      <Reveal>
-        <Pill>{t("Why choose PlatesOS")}</Pill>
-        <h2 className="mt-4 text-3xl md:text-4xl font-extrabold" style={{ color: BRAND.dark }}>{t("Built for modern")}<br />{t("restaurants")}</h2>
-        <p className="mt-4 text-slate-600 max-w-md">{t("Simple to use, powerful behind the scenes, and designed to help you serve better, manage easier, and grow faster.")}</p>
-        <ul className="mt-6 space-y-3">
-          {["Easy setup & onboarding", "Dedicated support", "Scalable for single or multi-branch restaurants", "Trusted by modern food businesses"].map((item) => (
-            <li key={item} className="flex items-center gap-2 text-slate-700"><CheckCircle2 className="h-5 w-5" style={{ color: BRAND.primary }} />{t(item)}</li>
-          ))}
-        </ul>
-      </Reveal>
-      <Reveal delay={0.1}>
-        <WhyShowcase />
-      </Reveal>
-    </div>
+<div className="max-w-7xl mx-auto px-5 sm:px-6 grid grid-cols-1 gap-8 sm:gap-10 lg:grid-cols-2 lg:gap-12 items-center">
+  <Reveal>
+    <Pill>{t("Why choose PlatesOS")}</Pill>
+    <h2 className="mt-4 text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight" style={{ color: BRAND.dark }}>{t("Built for modern")}<br />
+      {t("restaurants")}
+    </h2>
+    <p className="mt-4 text-sm sm:text-base text-slate-600 max-w-md leading-relaxed">{t("Simple to use, powerful behind the scenes, and designed to help you serve better, manage easier, and grow faster.")}</p>
+    <ul className="mt-5 sm:mt-6 space-y-3">
+      {["Easy setup & onboarding", "Dedicated support", "Scalable for single or multi-branch restaurants", "Trusted by modern food businesses"].map((item) => (
+        <li key={item} className="flex items-start gap-2 text-sm sm:text-base text-slate-700 leading-relaxed"><CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" style={{ color: BRAND.primary }} /> <span>{t(item)}</span> </li>
+      ))}
+    </ul>
+  </Reveal>
+  <Reveal delay={0.1}>
+    <WhyShowcase />
+  </Reveal>
+</div>
   </section>
   );
 };
