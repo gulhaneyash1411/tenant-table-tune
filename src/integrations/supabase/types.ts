@@ -1352,6 +1352,22 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      register_tenant: {
+        Args: {
+          p_city: string
+          p_gst_number: string
+          p_name: string
+          p_number_of_tables: number
+          p_owner_email: string
+          p_owner_id: string
+          p_owner_name: string
+          p_owner_phone: string
+          p_pincode: string
+          p_slug: string
+          p_state: string
+        }
+        Returns: Database["public"]["Tables"]["tenants"]["Row"]
+      }
     }
     Enums: {
       app_role:

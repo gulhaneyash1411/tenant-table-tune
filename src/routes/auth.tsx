@@ -123,12 +123,27 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
       options: { data: { full_name: f.full_name, phone: f.phone } },
     });
     if (error || !data.user) { setLoading(false); return toast.error(error?.message || "Sign up failed"); }
-    // sign in so RLS insert works
-    await supabase.auth.signInWithPassword({ email: f.email, password: f.password });
+    // If email confirmation is off, signUp already returns a session — get it
+    // signed in locally too. If confirmation is required, this sign-in will
+    // fail (email not confirmed yet); that's fine, register_tenant below
+    // doesn't need an authenticated session since it's a SECURITY DEFINER
+    // function that validates ownership itself instead of relying on RLS.
+    if (!data.session) {
+      await supabase.auth.signInWithPassword({ email: f.email, password: f.password });
+    }
     const slug = f.restaurant.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Math.random().toString(36).slice(2,6);
-    const { error: tErr } = await supabase.from("tenants").insert({
-      name: f.restaurant, slug, owner_id: data.user.id, owner_name: f.full_name, owner_email: f.email, owner_phone: f.phone,
-      gst_number: f.gst, city: f.city, state: f.state, pincode: f.pincode, number_of_tables: f.tables, status: "pending",
+    const { error: tErr } = await supabase.rpc("register_tenant", {
+      p_owner_id: data.user.id,
+      p_name: f.restaurant,
+      p_slug: slug,
+      p_owner_name: f.full_name,
+      p_owner_email: f.email,
+      p_owner_phone: f.phone,
+      p_gst_number: f.gst,
+      p_city: f.city,
+      p_state: f.state,
+      p_pincode: f.pincode,
+      p_number_of_tables: f.tables,
     });
     setLoading(false);
     if (tErr) return toast.error(tErr.message);
