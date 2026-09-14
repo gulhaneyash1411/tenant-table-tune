@@ -55,10 +55,22 @@ function SubscriptionPage() {
       tenant_id: tenant.id, plan_id: confirm.id, cycle, amount, status: "succeeded", method: "card",
       card_last4: pay.card.replace(/\s+/g,"").slice(-4),
     });
-    await supabase.from("invoices").insert({
-      tenant_id: tenant.id, subscription_id: sub.id, amount, tax: Math.round(amount * 0.18),
-      status: "paid", paid_at: now.toISOString(),
+    // NOTE: `plan` and `billing_cycle` are also stamped onto the invoice here
+    // so it shows up correctly (plan name + cycle) on the admin Billing page
+    // automatically, instead of falling back to the "Free trial" label that
+    // page uses when an invoice has no `plan` set. Cast as `any` for the same
+    // reason as the admin page — these columns aren't in the generated types yet.
+    await (supabase as any).from("invoices").insert({
+      tenant_id: tenant.id,
+      subscription_id: sub.id,
+      amount,
+      tax: Math.round(amount * 0.18),
+      status: "paid",
+      issued_at: now.toISOString(),
+      paid_at: now.toISOString(),
       invoice_number: "INV-" + Date.now().toString().slice(-8),
+      plan: confirm.name,
+      billing_cycle: cycle,
     });
     setProcessing(false); setConfirm(null);
     toast.success(`Subscribed to ${confirm.name} (${cycle})`);
