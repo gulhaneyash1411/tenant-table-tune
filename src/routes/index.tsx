@@ -18,20 +18,20 @@ const BRAND = { name: "PlatesOS", primary: "#0B7BFF", dark: "#0B1B3F", soft: "#E
 const socialLinks = {
   instagram: "https://instagram.com/platesos",
   facebook: "https://facebook.com/platesos",
-  whatsapp: "https://wa.me/919876543210",
+  whatsapp: "https://wa.me/917218558850",
   linkedin: "https://linkedin.com/company/platesos",
 };
 
 const contactInfo = {
   email: "support@platesos.com",
-  phone: "+91 98765 43210",
+  phone: "+91 7218558850",
   hours: "Mon – Fri, 9:00 AM – 6:00 PM",
   location: "Bengaluru, Karnataka, India",
 };
 
 // Floating WhatsApp chat: number in international format (no +, spaces or dashes)
 const whatsappChat = {
-  number: "919876543210",
+  number: "917218558850",
   message: "Hi PlatesOS! \nI'd like to know more about your restaurant management platform.",
 };
 const waLink = (msg: string) => `https://wa.me/${whatsappChat.number}?text=${encodeURIComponent(msg)}`;
@@ -1514,7 +1514,7 @@ const ContactSection = () => {
             <div className="grid sm:grid-cols-2 gap-4">
               <div><Label t={t("Full name")} req /><input {...field("name")} placeholder={t("Your name")} /><Err k="name" /></div>
               <div><Label t={t("Email")} req /><input type="email" {...field("email")} placeholder="you@example.com" /><Err k="email" /></div>
-              <div><Label t={t("Phone")} /><input {...field("phone")} placeholder="+91 98765 43210" /><Err k="phone" /></div>
+              <div><Label t={t("Phone")} /><input {...field("phone")} placeholder="+91 7218558850" /><Err k="phone" /></div>
               <div><Label t={t("Restaurant name")} /><input {...field("restaurant")} placeholder="Spice Garden" /></div>
             </div>
             <div><Label t={t("Subject")} req />
