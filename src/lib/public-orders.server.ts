@@ -1,10 +1,13 @@
 type PublicOrderInput = {
   tenant_id: string;
   table_id?: string | null;
-  order_type: "dine_in" | "takeaway";
+  order_type: "dine_in" | "takeaway" | "home_delivery";
   customer_name: string;
   customer_phone: string;
   notes?: string | null;
+  delivery_address?: string | null;
+  delivery_landmark?: string | null;
+  delivery_pincode?: string | null;
   items: { menu_item_id: string; quantity: number }[];
 };
 
@@ -18,6 +21,10 @@ export async function createPublicOrder(input: PublicOrderInput) {
     .maybeSingle();
   if (!tenant) throw new Error("This restaurant is not accepting orders");
 
+  const settings = tenant.settings && typeof tenant.settings === "object" && !Array.isArray(tenant.settings)
+    ? tenant.settings as Record<string, unknown>
+    : {};
+
   if (input.order_type === "dine_in") {
     if (!input.table_id) throw new Error("A table is required for dine-in orders");
     const { data: table } = await supabaseAdmin
@@ -28,6 +35,30 @@ export async function createPublicOrder(input: PublicOrderInput) {
       .eq("is_active", true)
       .maybeSingle();
     if (!table) throw new Error("This table is not available");
+  }
+
+  // Delivery config is read from the tenant, never from the request — the
+  // client can propose an address, not a price.
+  const deliveryEnabled = settings["delivery_enabled"] !== false;
+  const configuredFee = Number(settings["delivery_fee"] ?? 0);
+  const deliveryFee = input.order_type === "home_delivery" && Number.isFinite(configuredFee)
+    ? Math.max(0, Math.round(configuredFee * 100) / 100)
+    : 0;
+  const minOrder = Number(settings["delivery_min_order"] ?? 0);
+  const servicePincodes = Array.isArray(settings["delivery_pincodes"])
+    ? (settings["delivery_pincodes"] as unknown[]).map(p => String(p).trim()).filter(Boolean)
+    : [];
+
+  const address = input.delivery_address?.trim() ?? "";
+  const pincode = input.delivery_pincode?.trim() ?? "";
+
+  if (input.order_type === "home_delivery") {
+    if (!deliveryEnabled) throw new Error("This restaurant is not taking home delivery orders right now");
+    if (!address) throw new Error("A delivery address is required");
+    if (!/^\d{6}$/.test(pincode)) throw new Error("Enter a valid 6-digit pincode");
+    if (servicePincodes.length && !servicePincodes.includes(pincode)) {
+      throw new Error("Sorry, we don't deliver to this pincode yet");
+    }
   }
 
   const requestedIds = [...new Set(input.items.map((item) => item.menu_item_id))];
@@ -49,9 +80,11 @@ export async function createPublicOrder(input: PublicOrderInput) {
     return { ...item, name: menuItem.name, price: Number(menuItem.price) };
   });
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const settings = tenant.settings && typeof tenant.settings === "object" && !Array.isArray(tenant.settings)
-    ? tenant.settings as Record<string, unknown>
-    : {};
+
+  if (input.order_type === "home_delivery" && Number.isFinite(minOrder) && subtotal < minOrder) {
+    throw new Error(`Minimum order for delivery is ${minOrder}`);
+  }
+
   const configuredTax = Number(settings["tax_rate"] ?? 5);
   const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 5;
   const tax = Math.round(subtotal * taxRate) / 100;
@@ -68,10 +101,16 @@ export async function createPublicOrder(input: PublicOrderInput) {
       payment_status: "unpaid",
       subtotal,
       tax,
-      total: subtotal + tax,
+      delivery_fee: deliveryFee,
+      total: subtotal + tax + deliveryFee,
+      delivery_address: input.order_type === "home_delivery" ? address : null,
+      delivery_landmark: input.order_type === "home_delivery" ? (input.delivery_landmark?.trim() || null) : null,
+      delivery_pincode: input.order_type === "home_delivery" ? pincode : null,
       notes: input.notes?.trim() || null,
     })
-    .select("id,order_number,status,payment_status,total,created_at,table_id,customer_phone")
+    .select(
+      "id,order_number,status,payment_status,total,created_at,table_id,customer_phone,order_type,delivery_fee,delivery_address,delivery_landmark,delivery_pincode",
+    )
     .single();
   if (orderError || !order) throw new Error(orderError?.message ?? "Failed to place order");
 

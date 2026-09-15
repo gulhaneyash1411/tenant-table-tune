@@ -198,7 +198,7 @@ function AppLayout() {
                   <span className="font-medium">{sub?.plan?.name || "Free trial"}</span>
                   {sub?.current_period_end && (
                     <span className="text-muted-foreground">
-                      · renews {format(new Date(sub.current_period_end), "MMM d")}
+                      · renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}
                     </span>
                   )}
                 </Link>
