@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { money } from "@/lib/format";
 const rs = (n: number) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 import { format } from "date-fns";
-import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
 import { jsPDF } from "jspdf";
 
 export const Route = createFileRoute("/status")({ component: StatusPage });
@@ -36,14 +36,32 @@ const STAGE_COPY: Record<Stage, { label: string; Icon: typeof Receipt }> = {
   served: { label: "Served — enjoy your meal", Icon: CheckCircle2 },
 };
 
+// A delivery order's last two stages mean something different to the guest:
+// nothing is "served" to them, it leaves the kitchen and arrives at a door.
+const DELIVERY_STAGE_COPY: Partial<Record<Stage, { label: string; Icon: typeof Receipt }>> = {
+  ready: { label: "Out for delivery", Icon: Bike },
+  served: { label: "Delivered — enjoy your meal", Icon: CheckCircle2 },
+};
+
+function stageCopy(stage: Stage, orderType?: string) {
+  if (orderType === "home_delivery" && DELIVERY_STAGE_COPY[stage]) return DELIVERY_STAGE_COPY[stage]!;
+  return STAGE_COPY[stage];
+}
+
 const CANCELLED = new Set(["cancelled", "canceled", "rejected", "refunded"]);
+
+const TYPE_LABELS: Record<string, string> = {
+  dine_in: "Dine-in",
+  takeaway: "Takeaway",
+  home_delivery: "Home delivery",
+};
 
 /**
  * Four-segment bar plus a plain-language line. The list refreshes on every
  * realtime order event (and on a 5s poll as a fallback), so a kitchen status
  * change shows up here as the bar filling one more segment.
  */
-function OrderProgress({ status }: { status: string }) {
+function OrderProgress({ status, orderType }: { status: string; orderType?: string }) {
   const key = String(status || "").toLowerCase().trim();
 
   if (CANCELLED.has(key)) {
@@ -64,7 +82,7 @@ function OrderProgress({ status }: { status: string }) {
   }
 
   const reached = STAGES.indexOf(stage);
-  const { label, Icon } = STAGE_COPY[stage];
+  const { label, Icon } = stageCopy(stage, orderType);
 
   return (
     <div className="mt-3">
@@ -218,6 +236,20 @@ function StatusPage() {
     doc.setTextColor(0).text(`${order.customer_name} \u00b7 ${order.customer_phone}`, 547, y, { align: "right" });
     doc.setFontSize(9).setTextColor(order.payment_status === "paid" ? 22 : 150, order.payment_status === "paid" ? 101 : 100, 52).text(order.payment_status.toUpperCase(), 547, y + 14, { align: "right" });
     y += 40;
+
+    // Delivery address is part of the record of what was bought, so it belongs
+    // on the invoice rather than only on the screen.
+    if (order.order_type === "home_delivery" && order.delivery_address) {
+      doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10).text("Delivered to", 48, y); y += 14;
+      doc.setFont("helvetica","normal").setTextColor(120);
+      const lines = doc.splitTextToSize(
+        [order.delivery_address, order.delivery_landmark ? `Near ${order.delivery_landmark}` : null, order.delivery_pincode]
+          .filter(Boolean).join(", "),
+        400,
+      );
+      doc.text(lines, 48, y); y += lines.length * 12 + 12;
+    }
+
     doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10);
     doc.text("Item", 48, y); doc.text("Qty", 340, y, { align: "right" }); doc.text("Price", 430, y, { align: "right" }); doc.text("Amount", 547, y, { align: "right" });
     y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
@@ -231,7 +263,11 @@ function StatusPage() {
     });
     y += 8; doc.setDrawColor(230).line(340, y, 547, y); y += 16;
     doc.text("Subtotal", 430, y, { align: "right" }); doc.text(rs(order.subtotal), 547, y, { align: "right" }); y += 14;
-    doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 16;
+    doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 14;
+    if (Number(order.delivery_fee) > 0) {
+      doc.text("Delivery", 430, y, { align: "right" }); doc.text(rs(order.delivery_fee), 547, y, { align: "right" }); y += 14;
+    }
+    y += 2;
     doc.setFont("helvetica","bold").text("Total", 430, y, { align: "right" }); doc.text(rs(order.total), 547, y, { align: "right" });
     y += 40; doc.setFont("helvetica","italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
     y += 20; doc.setFont("helvetica","normal").setFontSize(8).setTextColor(160).text("Powered by PlateOS", 48, y);
@@ -240,7 +276,8 @@ function StatusPage() {
 
   function keepOrdering() {
     if (!selected) return;
-    if (selected.order_type === "takeaway") window.location.href = `/takeaway/${selected.tenant_id}`;
+    if (selected.order_type === "home_delivery") window.location.href = `/delivery/${selected.tenant_id}`;
+    else if (selected.order_type === "takeaway") window.location.href = `/takeaway/${selected.tenant_id}`;
     else if (selected.table_id) window.location.href = `/t/${selected.table_id}`;
     else window.location.href = `/takeaway/${selected.tenant_id}`;
   }
@@ -273,8 +310,11 @@ function StatusPage() {
                 <span className="font-bold">Order #{o.order_number}</span>
                 <span className="text-lg font-bold tabular-nums">{money(Number(o.total))}</span>
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">{format(new Date(o.created_at), "PPp")}</div>
-              <OrderProgress status={o.status} />
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {format(new Date(o.created_at), "PPp")}
+                {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? o.order_type}</>}
+              </div>
+              <OrderProgress status={o.status} orderType={o.order_type} />
             </button>
 
             <div className="mt-4 pt-3 border-t flex items-center justify-between">
@@ -300,11 +340,23 @@ function StatusPage() {
             <DialogHeader><DialogTitle>Order #{selected?.order_number}</DialogTitle></DialogHeader>
             {selected && (
               <div className="space-y-3">
-                <OrderProgress status={selected.status} />
+                <OrderProgress status={selected.status} orderType={selected.order_type} />
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</span>
                   <span className={`px-2.5 py-1 rounded-full font-medium ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
                 </div>
+
+                {selected.order_type === "home_delivery" && selected.delivery_address && (
+                  <div className="rounded-2xl bg-muted/40 p-3 text-sm">
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <Bike className="h-3.5 w-3.5" />Delivering to
+                    </div>
+                    <div className="mt-1">{selected.delivery_address}</div>
+                    {selected.delivery_landmark && <div className="text-muted-foreground">Near {selected.delivery_landmark}</div>}
+                    <div className="text-muted-foreground">{selected.delivery_pincode}</div>
+                  </div>
+                )}
+
                 <div className="divide-y rounded-2xl bg-muted/40">
                   {items.map(i => (
                     <div key={i.id} className="p-3 flex justify-between text-sm">
@@ -316,6 +368,9 @@ function StatusPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{money(Number(selected.subtotal))}</span></div>
                   <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>{money(Number(selected.tax))}</span></div>
+                  {Number(selected.delivery_fee) > 0 && (
+                    <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span>{money(Number(selected.delivery_fee))}</span></div>
+                  )}
                   <div className="flex justify-between font-semibold"><span>Total</span><span>{money(Number(selected.total))}</span></div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 pt-1">

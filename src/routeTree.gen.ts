@@ -17,6 +17,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TakeawayTenantIdRouteImport } from './routes/takeaway.$tenantId'
 import { Route as TTableIdRouteImport } from './routes/t.$tableId'
+import { Route as DeliveryTenantIdRouteImport } from './routes/delivery.$tenantId'
 import { Route as AdminAuthRouteImport } from './routes/admin.auth'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -94,6 +95,11 @@ const TakeawayTenantIdRoute = TakeawayTenantIdRouteImport.update({
 const TTableIdRoute = TTableIdRouteImport.update({
   id: '/t/$tableId',
   path: '/t/$tableId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeliveryTenantIdRoute = DeliveryTenantIdRouteImport.update({
+  id: '/delivery/$tenantId',
+  path: '/delivery/$tenantId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAuthRoute = AdminAuthRouteImport.update({
@@ -317,6 +323,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
@@ -363,6 +370,7 @@ export interface FileRoutesByTo {
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
@@ -413,6 +421,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/admin/auth': typeof AdminAuthRoute
+  '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
@@ -463,6 +472,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/app'
     | '/admin/auth'
+    | '/delivery/$tenantId'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/admin/announcements'
@@ -509,6 +519,7 @@ export interface FileRouteTypes {
     | '/review'
     | '/status'
     | '/admin/auth'
+    | '/delivery/$tenantId'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/admin/announcements'
@@ -558,6 +569,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/admin/auth'
+    | '/delivery/$tenantId'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/_authenticated/admin/announcements'
@@ -606,6 +618,7 @@ export interface RootRouteChildren {
   ReviewRoute: typeof ReviewRoute
   StatusRoute: typeof StatusRoute
   AdminAuthRoute: typeof AdminAuthRoute
+  DeliveryTenantIdRoute: typeof DeliveryTenantIdRoute
   TTableIdRoute: typeof TTableIdRoute
   TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
   ApiPublicWhatsappDispatchRoute: typeof ApiPublicWhatsappDispatchRoute
@@ -668,6 +681,13 @@ declare module '@tanstack/react-router' {
       path: '/t/$tableId'
       fullPath: '/t/$tableId'
       preLoaderRoute: typeof TTableIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delivery/$tenantId': {
+      id: '/delivery/$tenantId'
+      path: '/delivery/$tenantId'
+      fullPath: '/delivery/$tenantId'
+      preLoaderRoute: typeof DeliveryTenantIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/auth': {
@@ -1053,6 +1073,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRoute: ReviewRoute,
   StatusRoute: StatusRoute,
   AdminAuthRoute: AdminAuthRoute,
+  DeliveryTenantIdRoute: DeliveryTenantIdRoute,
   TTableIdRoute: TTableIdRoute,
   TakeawayTenantIdRoute: TakeawayTenantIdRoute,
   ApiPublicWhatsappDispatchRoute: ApiPublicWhatsappDispatchRoute,
