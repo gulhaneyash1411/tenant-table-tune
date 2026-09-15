@@ -8,7 +8,7 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { sendOrderInvoice } from "@/lib/whatsapp.functions";
-import { Loader2, ChevronLeft } from "lucide-react";
+import { Loader2, ChevronLeft, Bike } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/orders")({ component: LiveOrders });
 
@@ -31,6 +31,14 @@ const NEXT_LABEL: Record<string, string> = {
   preparing: "Start preparing",
   ready: "Mark ready",
   served: "Mark served",
+};
+
+// Delivery tickets advance through the same statuses but the words on the last
+// button are wrong for them — nothing is served to a guest who isn't here.
+const DELIVERY_NEXT_LABEL: Record<string, string> = {
+  ...NEXT_LABEL,
+  ready: "Ready to dispatch",
+  served: "Mark delivered",
 };
 
 function nextStatus(status: string) {
@@ -103,6 +111,12 @@ function LiveOrders() {
     return /^table/i.test(s) ? s : `Table ${s}`;
   }
 
+  function orderTypeLabel(o: any): string {
+    if (o.order_type === "dine_in") return tableLabel(o) ?? "Dine-in";
+    if (o.order_type === "home_delivery") return "Home delivery";
+    return "Takeaway";
+  }
+
   const grouped = useMemo(() => {
     const g: Record<string, any[]> = { new: [], preparing: [], ready: [], served: [] };
     for (const o of orders) if (g[o.status]) g[o.status].push(o);
@@ -172,7 +186,8 @@ function LiveOrders() {
               {grouped[col.key].map((o) => {
                 const next = nextStatus(o.status);
                 const back = prevStatus(o.status);
-                const table = o.order_type === "dine_in" ? tableLabel(o) : null;
+                const isDelivery = o.order_type === "home_delivery";
+                const labels = isDelivery ? DELIVERY_NEXT_LABEL : NEXT_LABEL;
                 const isBusy = busy === o.id;
                 return (
                 <Card
@@ -186,9 +201,15 @@ function LiveOrders() {
                     <div className="font-medium text-sm">#{o.order_number} · {o.customer_name}</div>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {o.order_type === "dine_in" ? (table ?? "Dine-in") : "Takeaway"} · {format(new Date(o.created_at), "p")}
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    {isDelivery && <Bike className="h-3 w-3 shrink-0" />}
+                    {orderTypeLabel(o)} · {format(new Date(o.created_at), "p")}
                   </div>
+                  {isDelivery && o.delivery_address && (
+                    <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                      {o.delivery_address}{o.delivery_pincode ? ` — ${o.delivery_pincode}` : ""}
+                    </div>
+                  )}
                   <ul className="text-xs mt-2 space-y-0.5">
                     {(items[o.id] || []).map(i => <li key={i.id}>{i.quantity}× {i.name}</li>)}
                   </ul>
@@ -219,7 +240,7 @@ function LiveOrders() {
                           disabled={isBusy}
                           onClick={() => move(o, next)}
                         >
-                          {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : NEXT_LABEL[next]}
+                          {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : labels[next]}
                         </Button>
                       )}
                     </div>

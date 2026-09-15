@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -11,6 +11,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -66,8 +91,6 @@ export type Database = {
       }
       customers: {
         Row: {
-          anniversary: string | null
-          birthday: string | null
           created_at: string
           email: string | null
           id: string
@@ -79,8 +102,6 @@ export type Database = {
           visits: number | null
         }
         Insert: {
-          anniversary?: string | null
-          birthday?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -92,8 +113,6 @@ export type Database = {
           visits?: number | null
         }
         Update: {
-          anniversary?: string | null
-          birthday?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -208,11 +227,13 @@ export type Database = {
       invoices: {
         Row: {
           amount: number
+          billing_cycle: string | null
           id: string
           invoice_number: string | null
           issued_at: string
           meta: Json | null
           paid_at: string | null
+          plan: string | null
           status: string
           subscription_id: string | null
           tax: number | null
@@ -220,11 +241,13 @@ export type Database = {
         }
         Insert: {
           amount: number
+          billing_cycle?: string | null
           id?: string
           invoice_number?: string | null
           issued_at?: string
           meta?: Json | null
           paid_at?: string | null
+          plan?: string | null
           status?: string
           subscription_id?: string | null
           tax?: number | null
@@ -232,11 +255,13 @@ export type Database = {
         }
         Update: {
           amount?: number
+          billing_cycle?: string | null
           id?: string
           invoice_number?: string | null
           issued_at?: string
           meta?: Json | null
           paid_at?: string | null
+          plan?: string | null
           status?: string
           subscription_id?: string | null
           tax?: number | null
@@ -522,6 +547,10 @@ export type Database = {
           customer_id: string | null
           customer_name: string
           customer_phone: string
+          delivery_address: string | null
+          delivery_fee: number
+          delivery_landmark: string | null
+          delivery_pincode: string | null
           id: string
           notes: string | null
           order_number: number
@@ -541,6 +570,10 @@ export type Database = {
           customer_id?: string | null
           customer_name: string
           customer_phone: string
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_landmark?: string | null
+          delivery_pincode?: string | null
           id?: string
           notes?: string | null
           order_number?: number
@@ -560,6 +593,10 @@ export type Database = {
           customer_id?: string | null
           customer_name?: string
           customer_phone?: string
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_landmark?: string | null
+          delivery_pincode?: string | null
           id?: string
           notes?: string | null
           order_number?: number
@@ -1090,254 +1127,6 @@ export type Database = {
         }
         Relationships: []
       }
-      whatsapp_campaigns: {
-        Row: {
-          body: string
-          created_at: string
-          delivered_count: number
-          error: string | null
-          failed_count: number
-          id: string
-          kind: string
-          media_url: string | null
-          name: string
-          read_count: number
-          recipient_count: number
-          scheduled_at: string | null
-          segment: Json
-          sent_count: number
-          status: string
-          template_id: string | null
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          delivered_count?: number
-          error?: string | null
-          failed_count?: number
-          id?: string
-          kind?: string
-          media_url?: string | null
-          name: string
-          read_count?: number
-          recipient_count?: number
-          scheduled_at?: string | null
-          segment?: Json
-          sent_count?: number
-          status?: string
-          template_id?: string | null
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          delivered_count?: number
-          error?: string | null
-          failed_count?: number
-          id?: string
-          kind?: string
-          media_url?: string | null
-          name?: string
-          read_count?: number
-          recipient_count?: number
-          scheduled_at?: string | null
-          segment?: Json
-          sent_count?: number
-          status?: string
-          template_id?: string | null
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_campaigns_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "whatsapp_campaigns_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      whatsapp_messages: {
-        Row: {
-          body: string
-          campaign_id: string | null
-          created_at: string
-          customer_id: string | null
-          delivered_at: string | null
-          error: string | null
-          id: string
-          media_url: string | null
-          provider_sid: string | null
-          read_at: string | null
-          sent_at: string | null
-          status: string
-          tenant_id: string
-          to_name: string | null
-          to_phone: string
-          updated_at: string
-        }
-        Insert: {
-          body: string
-          campaign_id?: string | null
-          created_at?: string
-          customer_id?: string | null
-          delivered_at?: string | null
-          error?: string | null
-          id?: string
-          media_url?: string | null
-          provider_sid?: string | null
-          read_at?: string | null
-          sent_at?: string | null
-          status?: string
-          tenant_id: string
-          to_name?: string | null
-          to_phone: string
-          updated_at?: string
-        }
-        Update: {
-          body?: string
-          campaign_id?: string | null
-          created_at?: string
-          customer_id?: string | null
-          delivered_at?: string | null
-          error?: string | null
-          id?: string
-          media_url?: string | null
-          provider_sid?: string | null
-          read_at?: string | null
-          sent_at?: string | null
-          status?: string
-          tenant_id?: string
-          to_name?: string | null
-          to_phone?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_messages_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "whatsapp_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "whatsapp_messages_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "whatsapp_messages_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      whatsapp_settings: {
-        Row: {
-          account_sid: string | null
-          auth_token: string | null
-          created_at: string
-          id: string
-          is_active: boolean
-          sender_number: string | null
-          tenant_id: string
-          updated_at: string
-          use_platform_sender: boolean
-        }
-        Insert: {
-          account_sid?: string | null
-          auth_token?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          sender_number?: string | null
-          tenant_id: string
-          updated_at?: string
-          use_platform_sender?: boolean
-        }
-        Update: {
-          account_sid?: string | null
-          auth_token?: string | null
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          sender_number?: string | null
-          tenant_id?: string
-          updated_at?: string
-          use_platform_sender?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_settings_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: true
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      whatsapp_templates: {
-        Row: {
-          body: string
-          category: string
-          created_at: string
-          id: string
-          is_active: boolean
-          media_url: string | null
-          name: string
-          tenant_id: string
-          updated_at: string
-          variables: Json
-        }
-        Insert: {
-          body: string
-          category?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          media_url?: string | null
-          name: string
-          tenant_id: string
-          updated_at?: string
-          variables?: Json
-        }
-        Update: {
-          body?: string
-          category?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          media_url?: string | null
-          name?: string
-          tenant_id?: string
-          updated_at?: string
-          variables?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whatsapp_templates_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -1366,7 +1155,41 @@ export type Database = {
           p_slug: string
           p_state: string
         }
-        Returns: Database["public"]["Tables"]["tenants"]["Row"]
+        Returns: {
+          address: string | null
+          brand_color: string | null
+          business_type: string | null
+          city: string | null
+          closing_time: string | null
+          country: string | null
+          created_at: string
+          currency: string | null
+          expected_orders_per_day: number | null
+          gst_number: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          number_of_tables: number | null
+          opening_time: string | null
+          owner_email: string | null
+          owner_id: string | null
+          owner_name: string | null
+          owner_phone: string | null
+          pincode: string | null
+          settings: Json
+          slogan: string | null
+          slug: string
+          state: string | null
+          status: Database["public"]["Enums"]["tenant_status"]
+          timezone: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "tenants"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -1379,7 +1202,7 @@ export type Database = {
         | "waiter"
       notif_channel: "dashboard" | "email" | "sms" | "whatsapp"
       order_status: "new" | "preparing" | "ready" | "served" | "cancelled"
-      order_type: "dine_in" | "takeaway"
+      order_type: "dine_in" | "takeaway" | "home_delivery"
       payment_status: "unpaid" | "paid" | "refunded"
       subscription_status:
         | "trialing"
@@ -1404,12 +1227,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1433,11 +1256,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1458,11 +1281,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1483,11 +1306,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1500,11 +1323,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1514,6 +1337,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: [
@@ -1526,7 +1352,7 @@ export const Constants = {
       ],
       notif_channel: ["dashboard", "email", "sms", "whatsapp"],
       order_status: ["new", "preparing", "ready", "served", "cancelled"],
-      order_type: ["dine_in", "takeaway"],
+      order_type: ["dine_in", "takeaway", "home_delivery"],
       payment_status: ["unpaid", "paid", "refunded"],
       subscription_status: [
         "trialing",
