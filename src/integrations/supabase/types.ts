@@ -227,47 +227,78 @@ export type Database = {
       invoices: {
         Row: {
           amount: number
+          approved_at: string | null
+          approved_by: string | null
           billing_cycle: string | null
           id: string
           invoice_number: string | null
           issued_at: string
           meta: Json | null
           paid_at: string | null
+          payment_method: string | null
+          period_end: string | null
+          period_start: string | null
           plan: string | null
+          plan_id: string | null
+          rejection_reason: string | null
           status: string
           subscription_id: string | null
           tax: number | null
           tenant_id: string
+          utr: string | null
         }
         Insert: {
           amount: number
+          approved_at?: string | null
+          approved_by?: string | null
           billing_cycle?: string | null
           id?: string
           invoice_number?: string | null
           issued_at?: string
           meta?: Json | null
           paid_at?: string | null
+          payment_method?: string | null
+          period_end?: string | null
+          period_start?: string | null
           plan?: string | null
+          plan_id?: string | null
+          rejection_reason?: string | null
           status?: string
           subscription_id?: string | null
           tax?: number | null
           tenant_id: string
+          utr?: string | null
         }
         Update: {
           amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
           billing_cycle?: string | null
           id?: string
           invoice_number?: string | null
           issued_at?: string
           meta?: Json | null
           paid_at?: string | null
+          payment_method?: string | null
+          period_end?: string | null
+          period_start?: string | null
           plan?: string | null
+          plan_id?: string | null
+          rejection_reason?: string | null
           status?: string
           subscription_id?: string | null
           tax?: number | null
           tenant_id?: string
+          utr?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_subscription_id_fkey"
             columns: ["subscription_id"]
@@ -283,6 +314,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      invoices_backup_20260916: {
+        Row: {
+          amount: number | null
+          billing_cycle: string | null
+          id: string | null
+          invoice_number: string | null
+          issued_at: string | null
+          meta: Json | null
+          paid_at: string | null
+          plan: string | null
+          status: string | null
+          subscription_id: string | null
+          tax: number | null
+          tenant_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          billing_cycle?: string | null
+          id?: string | null
+          invoice_number?: string | null
+          issued_at?: string | null
+          meta?: Json | null
+          paid_at?: string | null
+          plan?: string | null
+          status?: string | null
+          subscription_id?: string | null
+          tax?: number | null
+          tenant_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          billing_cycle?: string | null
+          id?: string | null
+          invoice_number?: string | null
+          issued_at?: string | null
+          meta?: Json | null
+          paid_at?: string | null
+          plan?: string | null
+          status?: string | null
+          subscription_id?: string | null
+          tax?: number | null
+          tenant_id?: string | null
+        }
+        Relationships: []
       }
       menu_categories: {
         Row: {
@@ -768,29 +844,44 @@ export type Database = {
       }
       salary_payments: {
         Row: {
+          absent_days: number
           amount: number
           created_at: string
+          deduction_amount: number
+          gross_amount: number | null
           id: string
           notes: string | null
           paid_on: string
+          payment_mode: string
+          salary_month: string | null
           staff_id: string
           tenant_id: string
         }
         Insert: {
+          absent_days?: number
           amount?: number
           created_at?: string
+          deduction_amount?: number
+          gross_amount?: number | null
           id?: string
           notes?: string | null
           paid_on?: string
+          payment_mode?: string
+          salary_month?: string | null
           staff_id: string
           tenant_id: string
         }
         Update: {
+          absent_days?: number
           amount?: number
           created_at?: string
+          deduction_amount?: number
+          gross_amount?: number | null
           id?: string
           notes?: string | null
           paid_on?: string
+          payment_mode?: string
+          salary_month?: string | null
           staff_id?: string
           tenant_id?: string
         }
@@ -804,6 +895,48 @@ export type Database = {
           },
           {
             foreignKeyName: "salary_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_attendance: {
+        Row: {
+          attendance_date: string
+          created_at: string
+          id: string
+          staff_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          attendance_date: string
+          created_at?: string
+          id?: string
+          staff_id: string
+          status: string
+          tenant_id: string
+        }
+        Update: {
+          attendance_date?: string
+          created_at?: string
+          id?: string
+          staff_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_attendance_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_attendance_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1132,6 +1265,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_scheduled_subscriptions: { Args: never; Returns: undefined }
       current_tenant_id: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -1211,6 +1345,8 @@ export type Database = {
         | "canceled"
         | "expired"
         | "paused"
+        | "scheduled"
+        | "completed"
       tenant_status: "pending" | "approved" | "suspended" | "rejected"
     }
     CompositeTypes: {
@@ -1361,6 +1497,8 @@ export const Constants = {
         "canceled",
         "expired",
         "paused",
+        "scheduled",
+        "completed",
       ],
       tenant_status: ["pending", "approved", "suspended", "rejected"],
     },
