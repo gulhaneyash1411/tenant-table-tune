@@ -10,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { money } from "@/lib/format";
 import { format } from "date-fns";
-import { Wallet, Plus, Trash2 } from "lucide-react";
+import { Wallet, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/expenses")({ component: ExpensesPage });
+
+const PAGE_SIZE = 10;
 
 const CATEGORIES = [
   { value: "supplies", label: "Supplies" },
@@ -29,9 +31,9 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ];
 
-function todayISO() { return new Date().toISOString().slice(0,10); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 function firstOfMonthISO() {
-  const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10);
+  const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10);
 }
 
 function ExpensesPage() {
@@ -42,6 +44,7 @@ function ExpensesPage() {
   const [fromDate, setFromDate] = useState(firstOfMonthISO());
   const [toDate, setToDate] = useState(todayISO());
   const [catFilter, setCatFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
 
   async function load() {
     const { data: u } = await supabase.auth.getUser();
@@ -61,6 +64,7 @@ function ExpensesPage() {
     if (error) return toast.error(error.message);
     toast.success("Expense added"); setOpen(false);
     setF({ title: "", category: "supplies", amount: "", incurred_on: todayISO(), notes: "" });
+    setPage(1);
     load();
   }
   async function remove(id: string) { await (supabase as any).from("expenses").delete().eq("id", id); load(); }
@@ -72,70 +76,115 @@ function ExpensesPage() {
     if (catFilter !== "all" && (r.category || "other") !== catFilter) return false;
     return true;
   }), [rows, fromDate, toDate, catFilter]);
-  const rangeTotal = filtered.reduce((a,b)=>a+Number(b.amount||0),0);
-  const byCat = filtered.reduce<Record<string,number>>((acc, r) => { acc[r.category||"other"] = (acc[r.category||"other"]||0) + Number(r.amount||0); return acc; }, {});
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [fromDate, toDate, catFilter]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  );
+  const startIdx = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endIdx = Math.min(page * PAGE_SIZE, filtered.length);
+
+  const rangeTotal = filtered.reduce((a, b) => a + Number(b.amount || 0), 0);
+  const byCat = filtered.reduce<Record<string, number>>((acc, r) => { acc[r.category || "other"] = (acc[r.category || "other"] || 0) + Number(r.amount || 0); return acc; }, {});
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2"><Wallet className="h-6 w-6"/><h1 className="text-2xl font-semibold">Expenses</h1></div>
-        <Button onClick={()=>setOpen(true)}><Plus className="h-4 w-4 mr-1"/>Add expense</Button>
+        <div className="flex items-center gap-2"><Wallet className="h-6 w-6" /><h1 className="text-2xl font-semibold">Expenses</h1></div>
+        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add expense</Button>
       </div>
       <Card className="p-3 flex flex-wrap items-end gap-3">
-        <div><Label className="text-xs">From</Label><Input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} className="w-[160px]"/></div>
-        <div><Label className="text-xs">To</Label><Input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} className="w-[160px]"/></div>
+        <div><Label className="text-xs">From</Label><Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-[160px]" /></div>
+        <div><Label className="text-xs">To</Label><Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-[160px]" /></div>
         <div className="min-w-[180px]">
           <Label className="text-xs">Category</Label>
           <Select value={catFilter} onValueChange={setCatFilter}>
-            <SelectTrigger><SelectValue/></SelectTrigger>
+            <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
               {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <Button variant="ghost" size="sm" onClick={()=>{ setFromDate(firstOfMonthISO()); setToDate(todayISO()); setCatFilter("all"); }}>Reset</Button>
+        <Button variant="ghost" size="sm" onClick={() => { setFromDate(firstOfMonthISO()); setToDate(todayISO()); setCatFilter("all"); }}>Reset</Button>
       </Card>
       <div className="grid gap-3 md:grid-cols-4">
         <Card className="p-4"><div className="text-xs text-muted-foreground">Range total</div><div className="text-2xl font-semibold">{money(rangeTotal)}</div></Card>
-        {Object.entries(byCat).slice(0,3).map(([c,v]) => <Card key={c} className="p-4"><div className="text-xs text-muted-foreground capitalize">{c}</div><div className="text-2xl font-semibold">{money(v)}</div></Card>)}
+        {Object.entries(byCat).slice(0, 3).map(([c, v]) => <Card key={c} className="p-4"><div className="text-xs text-muted-foreground capitalize">{c}</div><div className="text-2xl font-semibold">{money(v)}</div></Card>)}
       </div>
       <Card className="p-0 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left"><tr><th className="p-3">Date</th><th className="p-3">Title</th><th className="p-3">Category</th><th className="p-3 text-right">Amount</th><th className="p-3"></th></tr></thead>
-          <tbody>
-            {filtered.map(r => (
-              <tr key={r.id} className="border-t">
-                <td className="p-3">{format(new Date(r.incurred_on), "PP")}</td>
-                <td className="p-3 font-medium">{r.title}{r.notes && <div className="text-xs text-muted-foreground">{r.notes}</div>}</td>
-                <td className="p-3 capitalize">{r.category}</td>
-                <td className="p-3 text-right font-medium">{money(Number(r.amount||0))}</td>
-                <td className="p-3 text-right"><Button size="sm" variant="ghost" className="text-destructive" onClick={()=>remove(r.id)}><Trash2 className="h-3 w-3"/></Button></td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-left">
+              <tr>
+                <th className="p-3">Date</th>
+                <th className="p-3">Title</th>
+                <th className="p-3">Category</th>
+                <th className="p-3">Notes</th>
+                <th className="p-3 text-right">Amount</th>
+                <th className="p-3"><span className="sr-only">Actions</span></th>
               </tr>
-            ))}
-            {filtered.length===0 && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">No expenses in this range</td></tr>}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paged.map(r => (
+                <tr key={r.id} className="border-t">
+                  <td className="p-3 whitespace-nowrap">{format(new Date(r.incurred_on), "PP")}</td>
+                  <td className="p-3 font-medium">{r.title}</td>
+                  <td className="p-3 capitalize">{r.category}</td>
+                  <td className="p-3 text-muted-foreground max-w-[280px] truncate" title={r.notes || ""}>{r.notes || "—"}</td>
+                  <td className="p-3 text-right font-medium">{money(Number(r.amount || 0))}</td>
+                  <td className="p-3 text-right">
+                    <Button size="sm" variant="ghost" className="text-destructive" aria-label={`Delete ${r.title}`} onClick={() => remove(r.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No expenses in this range</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t p-3 text-sm">
+            <div className="text-muted-foreground">
+              Showing {startIdx}–{endIdx} of {filtered.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(p => p - 1)} aria-label="Previous page">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span aria-live="polite">Page {page} of {totalPages}</span>
+              <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage(p => p + 1)} aria-label="Next page">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent><DialogHeader><DialogTitle>Add expense</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>Title</Label><Input value={f.title} onChange={e=>setF({...f,title:e.target.value})} /></div>
+            <div><Label>Title</Label><Input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Category</Label>
-                <Select value={f.category} onValueChange={(v)=>setF({...f,category:v})}>
-                  <SelectTrigger><SelectValue/></SelectTrigger>
+                <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Amount</Label><Input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})} /></div>
-              <div><Label>Date</Label><Input type="date" value={f.incurred_on} onChange={e=>setF({...f,incurred_on:e.target.value})} /></div>
+              <div><Label>Amount</Label><Input type="number" inputMode="decimal" min="0" step="0.01" placeholder="0.00" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></div>
+              <div><Label>Date</Label><Input type="date" value={f.incurred_on} onChange={e => setF({ ...f, incurred_on: e.target.value })} /></div>
             </div>
-            <div><Label>Notes</Label><Input value={f.notes} onChange={e=>setF({...f,notes:e.target.value})} /></div>
+            <div><Label>Notes</Label><Input value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></div>
           </div>
           <DialogFooter><Button onClick={add}>Save</Button></DialogFooter>
         </DialogContent>
