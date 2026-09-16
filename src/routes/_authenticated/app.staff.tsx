@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { money } from "@/lib/format";
 import { format } from "date-fns";
-import { UsersRound, Wallet, Plus, Trash2, Search, ChevronLeft, ChevronRight, X, Download, FileDown } from "lucide-react";
+import { UsersRound, Wallet, Plus, Trash2, Search, ChevronLeft, ChevronRight, X, Download, FileDown, CalendarCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/staff")({ component: StaffPage });
 
@@ -336,6 +336,266 @@ function SearchBox({ value, onChange, placeholder }: { value: string; onChange: 
   );
 }
 
+/* =====================================================================
+   Attendance
+   ===================================================================== */
+type AttStatus = "present" | "absent" | "half_day" | "leave";
+const ATT: Record<AttStatus, { short: string; label: string; cls: string }> = {
+  present: { short: "P", label: "Present", cls: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300" },
+  absent: { short: "A", label: "Absent", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-300" },
+  half_day: { short: "H", label: "Half day", cls: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300" },
+  leave: { short: "L", label: "Paid leave", cls: "bg-sky-100 text-sky-800 border-sky-300 dark:bg-sky-950 dark:text-sky-300" },
+};
+const ATT_ORDER: (AttStatus | undefined)[] = [undefined, "present", "absent", "half_day", "leave"];
+const monthBounds = (ym: string) => ({ start: `${ym}-01`, end: `${ym}-${String(daysInMonth(ym)).padStart(2, "0")}` });
+// Absent = 1 day, half day = 0.5 day. Paid leave and unmarked days are not deducted.
+const deductibleDays = (c: { absent: number; half_day: number }) => c.absent + c.half_day * 0.5;
+
+function AttendanceDialog({
+  open,
+  onOpenChange,
+  tenantId,
+  staff,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  tenantId: string;
+  staff: any[];
+}) {
+  const [tab, setTab] = useState<"daily" | "monthly">("daily");
+  const [date, setDate] = useState(today());
+  const [marks, setMarks] = useState<Record<string, AttStatus>>({});
+  const [saving, setSaving] = useState(false);
+  const [month, setMonth] = useState(thisMonth());
+  const [monthRows, setMonthRows] = useState<any[]>([]);
+
+  const active = staff.filter((s) => (s.status ?? "active") === "active");
+  const table = (supabase as any).from.bind(supabase);
+
+  // Daily: load marks for the selected date
+  useEffect(() => {
+    if (!open || tab !== "daily" || !tenantId) return;
+    table("staff_attendance")
+      .select("staff_id,status")
+      .eq("tenant_id", tenantId)
+      .eq("attendance_date", date)
+      .then(({ data, error }: any) => {
+        if (error) return toast.error(error.message);
+        setMarks(Object.fromEntries((data || []).map((r: any) => [r.staff_id, r.status])));
+      });
+  }, [open, tab, date, tenantId]);
+
+  async function loadMonth() {
+    const { start, end } = monthBounds(month);
+    const { data, error } = await table("staff_attendance")
+      .select("staff_id,attendance_date,status")
+      .eq("tenant_id", tenantId)
+      .gte("attendance_date", start)
+      .lte("attendance_date", end);
+    if (error) return toast.error(error.message);
+    setMonthRows(data || []);
+  }
+  useEffect(() => {
+    if (open && tab === "monthly" && tenantId) loadMonth();
+  }, [open, tab, month, tenantId]);
+
+  const monthMap = useMemo(() => {
+    const m: Record<string, Record<number, AttStatus>> = {};
+    monthRows.forEach((r) => {
+      (m[r.staff_id] ??= {})[Number(r.attendance_date.slice(8, 10))] = r.status;
+    });
+    return m;
+  }, [monthRows]);
+
+  async function saveDay() {
+    const rows = Object.entries(marks).map(([staff_id, status]) => ({ tenant_id: tenantId, staff_id, attendance_date: date, status }));
+    if (!rows.length) return toast.error("Mark at least one staff member");
+    setSaving(true);
+    const { error } = await table("staff_attendance").upsert(rows, { onConflict: "staff_id,attendance_date" });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    const unmarked = active.length - rows.length;
+    toast.success(`Attendance saved for ${format(new Date(date), "dd MMM yyyy")}${unmarked > 0 ? ` · ${unmarked} unmarked` : ""}`);
+  }
+
+  // Monthly grid: click a cell to cycle P → A → H → L → clear
+  async function cycleCell(staffId: string, day: number) {
+    const d = `${month}-${String(day).padStart(2, "0")}`;
+    if (d > today()) return;
+    const curr = monthMap[staffId]?.[day];
+    const next = ATT_ORDER[(ATT_ORDER.indexOf(curr) + 1) % ATT_ORDER.length];
+    const { error } = next
+      ? await table("staff_attendance").upsert(
+          { tenant_id: tenantId, staff_id: staffId, attendance_date: d, status: next },
+          { onConflict: "staff_id,attendance_date" },
+        )
+      : await table("staff_attendance").delete().eq("staff_id", staffId).eq("attendance_date", d);
+    if (error) return toast.error(error.message);
+    loadMonth();
+  }
+
+  const days = daysInMonth(month);
+  const dayNums = Array.from({ length: days }, (_, i) => i + 1);
+  const markedCount = Object.keys(marks).length;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Staff attendance</DialogTitle>
+        </DialogHeader>
+
+        <div className="inline-flex w-fit rounded-md border p-0.5 text-sm">
+          {(["daily", "monthly"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded px-3 py-1 ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {t === "daily" ? "Mark attendance" : "Monthly register"}
+            </button>
+          ))}
+        </div>
+
+        {tab === "daily" ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <Label>Date</Label>
+                <Input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value || today())} className="h-8 w-44" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setMarks(Object.fromEntries(active.map((s) => [s.id, "present" as AttStatus])))}>
+                  Mark all present
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setMarks({})}>
+                  Clear
+                </Button>
+              </div>
+            </div>
+
+            <div className="divide-y rounded-md border">
+              {active.map((s) => (
+                <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                  <div>
+                    <div className="text-sm font-medium">{s.name}</div>
+                    <div className="text-xs capitalize text-muted-foreground">{s.role}</div>
+                  </div>
+                  <div className="flex gap-1" role="radiogroup" aria-label={`Attendance for ${s.name}`}>
+                    {(Object.keys(ATT) as AttStatus[]).map((k) => {
+                      const on = marks[s.id] === k;
+                      return (
+                        <button
+                          key={k}
+                          role="radio"
+                          aria-checked={on}
+                          onClick={() => setMarks({ ...marks, [s.id]: k })}
+                          className={`rounded border px-2 py-1 text-xs ${on ? ATT[k].cls + " font-semibold" : "border-input text-muted-foreground hover:bg-muted"}`}
+                        >
+                          {ATT[k].label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {active.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No active staff</div>}
+            </div>
+
+            <DialogFooter className="items-center gap-2 sm:justify-between">
+              <span className="text-xs text-muted-foreground">
+                {markedCount} of {active.length} marked
+              </span>
+              <Button onClick={saveDay} disabled={saving || !markedCount}>
+                {saving ? "Saving…" : "Save attendance"}
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <Label>Month</Label>
+                <Input type="month" max={thisMonth()} value={month} onChange={(e) => setMonth(e.target.value || thisMonth())} className="h-8 w-44" />
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {(Object.keys(ATT) as AttStatus[]).map((k) => (
+                  <span key={k} className={`rounded border px-1.5 py-0.5 ${ATT[k].cls}`}>
+                    {ATT[k].short} = {ATT[k].label}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Click a day to change it. Absent = 1 day and half day = 0.5 day deductible.</p>
+
+            <div className="overflow-x-auto rounded-md border">
+              <table className="text-xs">
+                <thead className="bg-muted/40">
+                  <tr>
+                    <th className="sticky left-0 z-10 min-w-[140px] bg-muted p-2 text-left">Staff</th>
+                    {dayNums.map((d) => {
+                      const dow = new Date(`${month}-${String(d).padStart(2, "0")}`).getDay();
+                      return (
+                        <th key={d} className={`w-7 p-1 text-center font-medium ${dow === 0 ? "text-red-500" : ""}`}>
+                          {d}
+                        </th>
+                      );
+                    })}
+                    {(["P", "A", "H", "L"] as const).map((h) => (
+                      <th key={h} className="w-8 p-1 text-center">{h}</th>
+                    ))}
+                    <th className="p-1 px-2 text-center">Deduct</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {active.map((s) => {
+                    const row = monthMap[s.id] || {};
+                    const c = { present: 0, absent: 0, half_day: 0, leave: 0 };
+                    Object.values(row).forEach((v) => c[v]++);
+                    return (
+                      <tr key={s.id} className="border-t">
+                        <td className="sticky left-0 z-10 bg-background p-2 font-medium">{s.name}</td>
+                        {dayNums.map((d) => {
+                          const st = row[d];
+                          const future = `${month}-${String(d).padStart(2, "0")}` > today();
+                          return (
+                            <td key={d} className="p-0.5 text-center">
+                              <button
+                                disabled={future}
+                                onClick={() => cycleCell(s.id, d)}
+                                aria-label={`${s.name}, day ${d}: ${st ? ATT[st].label : "not marked"}`}
+                                className={`h-6 w-6 rounded border text-[10px] ${
+                                  st ? ATT[st].cls : "border-dashed border-muted-foreground/30 text-muted-foreground"
+                                } ${future ? "cursor-not-allowed opacity-30" : "hover:ring-1 hover:ring-primary"}`}
+                              >
+                                {st ? ATT[st].short : ""}
+                              </button>
+                            </td>
+                          );
+                        })}
+                        <td className="text-center">{c.present}</td>
+                        <td className="text-center text-red-600">{c.absent}</td>
+                        <td className="text-center text-amber-600">{c.half_day}</td>
+                        <td className="text-center text-sky-600">{c.leave}</td>
+                        <td className="px-2 text-center font-semibold">{deductibleDays(c)}</td>
+                      </tr>
+                    );
+                  })}
+                  {active.length === 0 && (
+                    <tr>
+                      <td colSpan={days + 6} className="p-4 text-center text-muted-foreground">No active staff</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function StaffPage() {
   const [tenantId, setTenantId] = useState<string>("");
   const [business, setBusiness] = useState<{ name: string; address?: string; phone?: string }>({ name: "" });
@@ -345,6 +605,29 @@ function StaffPage() {
   const [openPay, setOpenPay] = useState<any>(null);
   const [f, setF] = useState<any>({ name: "", role: "waiter", phone: "", monthly_salary: 0, join_date: today() });
   const [payForm, setPayForm] = useState<any>(newPayForm());
+  const [openAttendance, setOpenAttendance] = useState(false);
+
+  // Attendance summary for the staff member + month being paid
+  const [payAtt, setPayAtt] = useState<null | { present: number; absent: number; half_day: number; leave: number; marked: number; deductible: number }>(null);
+  const [payAttDismissed, setPayAttDismissed] = useState(false);
+  useEffect(() => {
+    setPayAtt(null);
+    setPayAttDismissed(false);
+    if (!openPay || !payForm.salary_month) return;
+    const { start, end } = monthBounds(payForm.salary_month);
+    (supabase as any)
+      .from("staff_attendance")
+      .select("status")
+      .eq("staff_id", openPay.id)
+      .gte("attendance_date", start)
+      .lte("attendance_date", end)
+      .then(({ data, error }: any) => {
+        if (error) return toast.error(error.message);
+        const c = { present: 0, absent: 0, half_day: 0, leave: 0 };
+        (data || []).forEach((r: any) => c[r.status as AttStatus]++);
+        setPayAtt({ ...c, marked: (data || []).length, deductible: deductibleDays(c) });
+      });
+  }, [openPay?.id, payForm.salary_month]);
 
   // Live calculation for the pay dialog
   const monthlySalary = Number(openPay?.monthly_salary || 0);
@@ -412,6 +695,12 @@ function StaffPage() {
   }
 
   async function paySalary() {
+    if (payAtt && payAtt.deductible > 0 && !payForm.deduct && !payAttDismissed) {
+      const ok = confirm(
+        `${openPay.name} has ${payAtt.deductible} deductible day(s) in attendance for this month.\n\nPay full salary without deduction?`,
+      );
+      if (!ok) return;
+    }
     if (!(Number(payForm.amount) > 0)) return toast.error("Enter a valid amount");
     const absent = Number(payForm.absent_days) || 0;
     if (payForm.deduct && (absent < 0 || absent > calc.days))
@@ -516,10 +805,16 @@ function StaffPage() {
           <UsersRound className="h-6 w-6" />
           <h1 className="text-2xl font-semibold">Staff</h1>
         </div>
-        <Button onClick={() => setOpenAdd(true)}>
-          <Plus className="mr-1 h-4 w-4" />
-          Add staff
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setOpenAttendance(true)}>
+            <CalendarCheck className="mr-1 h-4 w-4" />
+            Attendance
+          </Button>
+          <Button onClick={() => setOpenAdd(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add staff
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -723,6 +1018,8 @@ function StaffPage() {
         <Pager page={payPage} total={filteredPays.length} onChange={setPayPage} />
       </Card>
 
+      <AttendanceDialog open={openAttendance} onOpenChange={setOpenAttendance} tenantId={tenantId} staff={staff} />
+
       {/* ---------- Add staff dialog ---------- */}
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
         <DialogContent>
@@ -780,6 +1077,30 @@ function StaffPage() {
                 <Input value={money(monthlySalary)} disabled />
               </div>
             </div>
+
+            {/* Attendance-based prompt */}
+            {payAtt && (
+              <div className="text-xs text-muted-foreground">
+                Attendance: {payAtt.present} present · {payAtt.absent} absent · {payAtt.half_day} half day · {payAtt.leave} paid leave ·{" "}
+                {daysInMonth(payForm.salary_month) - payAtt.marked} unmarked
+              </div>
+            )}
+            {payAtt && payAtt.deductible > 0 && !payForm.deduct && !payAttDismissed && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/40">
+                <div>
+                  {openPay?.name} has <b>{payAtt.deductible} deductible day(s)</b> this month. Deduct{" "}
+                  <b>{money(calcSalary(monthlySalary, payForm.salary_month, payAtt.deductible).deduction)}</b> from salary?
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Button size="sm" onClick={() => setPayForm({ ...payForm, deduct: true, absent_days: payAtt.deductible })}>
+                    Yes, deduct
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setPayAttDismissed(true)}>
+                    No, pay full salary
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Optional absence deduction */}
             <div className="rounded-md border p-3">
