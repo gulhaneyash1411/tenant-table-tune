@@ -528,10 +528,10 @@ function SubscriptionPage() {
                 <div className="flex flex-col items-center gap-2">
                   {/* White background keeps the QR scannable in dark mode */}
                   <div className="rounded-xl bg-white p-2.5 border">
-                    {/* <QRCodeSVG value={upiUrl} size={168} level="M" /> */}
+                    <QRCodeSVG value={upiUrl} size={168} level="M" />
 
                     {/* here below replace the Qr  */}
-              <img src="\public\upi-qr.png" alt="UPI QR code" width={168} height={168} />
+              {/* <img src="\public\upi-qr.png" alt="UPI QR code" width={168} height={168} /> */}
 
                   </div>
                   <div className="text-xs text-muted-foreground text-center leading-relaxed">
