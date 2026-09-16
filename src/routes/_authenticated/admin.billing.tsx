@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -43,33 +44,42 @@ import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Download, MoreHorizontal, Pencil, Check, Bell, Filter, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Plus, Trash2, Download, MoreHorizontal, Pencil, Check, Bell, Filter, X, ShieldCheck, Ban,
+} from "lucide-react";
+import { INVOICE_STATUS, PAYMENT_METHOD_UPI, addBillingCycle } from "@/lib/payment-config";
 
 type BillingCycle = "monthly" | "yearly" | "14_days";
 type DialogMode = "create" | "edit";
 
-// Fallback label used whenever an invoice has no plan attached
-// (e.g. invoices created before plans existed, or manual invoices
-// created without selecting a plan).
+// Fallback label used whenever an invoice has no plan attached.
 const FREE_TRIAL_LABEL = "Free trial";
 
-// Sentinel id used in the "Plan purchased" select to represent the
-// free trial option, since it isn't a row in subscription_plans.
+// Sentinel id for the free trial option in the "Plan purchased" select.
 const FREE_TRIAL_PLAN_ID = "free_trial";
-const FREE_TRIAL_STATUS = "free_trial";
+const FREE_TRIAL_STATUS = INVOICE_STATUS.FREE_TRIAL;
+const PENDING_APPROVAL = INVOICE_STATUS.PENDING_APPROVAL;
+const REJECTED = INVOICE_STATUS.REJECTED;
 
 // Sentinel id used when editing an invoice whose stored `plan` text
-// doesn't match any currently active plan (e.g. the plan was renamed
-// or deactivated since the invoice was created). Keeps the original
-// plan label intact unless the admin explicitly switches plans.
+// doesn't match any currently active plan.
 const CUSTOM_PLAN_ID = "__custom__";
 
 const PLATFORM_NAME = "PlatesOS";
 const FREE_TRIAL_DAYS = 14;
 
-// Inline replica of the PlatesOS wordmark (blue circle + fork/spoon mark,
-// "Plates" in dark ink, "OS" in brand blue) so the invoice doesn't depend
-// on an externally hosted image.
+const STATUS_META: Record<string, { label: string; className: string; printClass: string }> = {
+  paid: { label: "Paid", className: "bg-success/15 text-success", printClass: "paid" },
+  pending: { label: "Pending", className: "bg-warning/15 text-warning", printClass: "pending" },
+  free_trial: { label: "Free Trial", className: "bg-blue-500/15 text-blue-600", printClass: "free_trial" },
+  pending_approval: { label: "Awaiting approval", className: "bg-orange-500/15 text-orange-600", printClass: "pending" },
+  rejected: { label: "Rejected", className: "bg-destructive/15 text-destructive", printClass: "rejected" },
+};
+function statusMeta(status: string) {
+  return STATUS_META[status] || { label: status, className: "bg-muted", printClass: "pending" };
+}
+
 const INVOICE_LOGO_SVG = `
   <svg width="30" height="30" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg">
     <circle cx="15" cy="15" r="15" fill="#1E6FF2"/>
@@ -89,11 +99,6 @@ const emptyForm = {
 };
 
 // ---- date helpers (local-time safe) ----
-// `new Date("yyyy-mm-dd")` parses as UTC midnight, while `new Date(isoTimestamp)`
-// parses as local time. Comparing the two directly shifts the boundary by your
-// UTC offset (e.g. in IST rows near the edges of the range silently drop out,
-// which is what makes the filter look "broken"). These helpers normalize
-// everything to local-time calendar-day boundaries before comparing.
 function startOfLocalDay(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
@@ -107,16 +112,17 @@ function Billing() {
   const [rows, setRows] = useState<any[]>([]);
   const [tenants, setTenants] = useState<Record<string, any>>({});
   const [tenantList, setTenantList] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);       // active plans (for the form)
+  const [allPlans, setAllPlans] = useState<any[]>([]); // incl. hidden (for approvals)
+  const [adminId, setAdminId] = useState<string | null>(null);
+  // tenant_id -> end of their latest active/scheduled plan (only if in the future)
+  const [busyUntil, setBusyUntil] = useState<Record<string, string>>({});
 
-  // date filter (filters by issued_at) — lives behind a single compact
-  // filter button (top-right of the table) that opens a small popover.
+  // filters
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [filterOpen, setFilterOpen] = useState(false);
-  // draft values edited inside the popover; only committed to
-  // dateFrom/dateTo on "Apply" so opening/closing the popover doesn't
-  // change the active filter until the admin confirms it.
   const [draftFrom, setDraftFrom] = useState<string>("");
   const [draftTo, setDraftTo] = useState<string>("");
 
@@ -134,46 +140,62 @@ function Billing() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // approval state
+  const [approveTarget, setApproveTarget] = useState<any | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [actingId, setActingId] = useState<string | null>(null);
+
   // notify state
   const [notifyingId, setNotifyingId] = useState<string | null>(null);
 
   async function load() {
-    const [{ data: inv }, { data: t }, { data: p }] = await Promise.all([
+    // Switch scheduled plans that are due (cron also does this)
+    try { await (supabase as any).rpc("activate_scheduled_subscriptions"); } catch { /* ignore */ }
+
+    const [{ data: inv }, { data: t }, { data: p }, { data: u }, { data: subs }] = await Promise.all([
       supabase.from("invoices").select("*").order("issued_at", { ascending: false }),
       supabase.from("tenants").select("id,name,owner_id").order("name", { ascending: true }),
       supabase.from("subscription_plans").select("*").order("sort_order", { ascending: true }),
+      supabase.auth.getUser(),
+      (supabase as any)
+        .from("subscriptions")
+        .select("tenant_id,current_period_end")
+        .in("status", ["active", "scheduled"])
+        .gt("current_period_end", new Date().toISOString()),
     ]);
     setRows(inv || []);
     const m: Record<string, any> = {};
     (t || []).forEach((x) => { m[x.id] = x; });
     setTenants(m);
     setTenantList(t || []);
+    setAllPlans(p || []);
     setPlans((p || []).filter((pl: any) => pl.is_active !== false));
+    setAdminId(u.user?.id ?? null);
+
+    const busy: Record<string, string> = {};
+    (subs || []).forEach((s: any) => {
+      if (!busy[s.tenant_id] || new Date(s.current_period_end) > new Date(busy[s.tenant_id])) {
+        busy[s.tenant_id] = s.current_period_end;
+      }
+    });
+    setBusyUntil(busy);
   }
   useEffect(() => { load(); }, []);
 
-  // ---- date filter ----
-  const filteredRows = rows.filter((r) => {
+  // ---- filters ----
+  const dateFilteredRows = rows.filter((r) => {
     if (!dateFrom && !dateTo) return true;
     if (!r.issued_at) return false;
     const issued = new Date(r.issued_at);
-    if (dateFrom) {
-      const from = startOfLocalDay(dateFrom);
-      if (issued < from) return false;
-    }
-    if (dateTo) {
-      const to = endOfLocalDay(dateTo);
-      if (issued > to) return false;
-    }
+    if (dateFrom && issued < startOfLocalDay(dateFrom)) return false;
+    if (dateTo && issued > endOfLocalDay(dateTo)) return false;
     return true;
   });
+  const filteredRows = dateFilteredRows.filter((r) => statusFilter === "all" || r.status === statusFilter);
 
   const dateFilterActive = !!(dateFrom || dateTo);
 
-  // Draft range fed to/from the Calendar picker. react-day-picker's range
-  // mode already keeps from <= to for us (picking an earlier date after a
-  // later one starts a fresh range), so we no longer need a manual
-  // "to before from" guard like the old two-input version did.
   const draftRange: DateRange | undefined =
     draftFrom || draftTo
       ? {
@@ -186,35 +208,25 @@ function Billing() {
     setDraftFrom(range?.from ? format(range.from, "yyyy-MM-dd") : "");
     setDraftTo(range?.to ? format(range.to, "yyyy-MM-dd") : "");
   }
-
-  function openFilter() {
-    setDraftFrom(dateFrom);
-    setDraftTo(dateTo);
-    setFilterOpen(true);
-  }
-
-  function applyFilter() {
-    setDateFrom(draftFrom);
-    setDateTo(draftTo);
-    setFilterOpen(false);
-  }
-
+  function openFilter() { setDraftFrom(dateFrom); setDraftTo(dateTo); setFilterOpen(true); }
+  function applyFilter() { setDateFrom(draftFrom); setDateTo(draftTo); setFilterOpen(false); }
   function clearFilter() {
-    setDraftFrom("");
-    setDraftTo("");
-    setDateFrom("");
-    setDateTo("");
-    setFilterOpen(false);
+    setDraftFrom(""); setDraftTo(""); setDateFrom(""); setDateTo(""); setFilterOpen(false);
   }
 
-  const revenue = filteredRows.filter(r=>r.status==="paid").reduce((a,b)=>a+Number(b.amount||0),0);
-  const outstanding = filteredRows.filter(r=>r.status!=="paid").reduce((a,b)=>a+Number(b.amount||0),0);
+  const revenue = filteredRows.filter((r) => r.status === "paid").reduce((a, b) => a + Number(b.amount || 0), 0);
+  const outstanding = filteredRows
+    .filter((r) => r.status === "pending" || r.status === PENDING_APPROVAL)
+    .reduce((a, b) => a + Number(b.amount || 0), 0);
+  const awaitingCount = rows.filter((r) => r.status === PENDING_APPROVAL).length;
 
   // ---- expiry helpers ----
-  // Free trial invoices expire 14 days after they were marked paid
-  // (or, if never marked paid, 14 days after the issued date as a
-  // fallback). Paid plans expire based on issued_at + billing_cycle.
+  // Approved QR payments store their exact period (period_start/period_end).
+  // Free trial: 14 days from paid_at (or issued_at).
+  // Manual invoices: period starts at issued_at.
   function computeExpiry(r: any): Date | null {
+    if (r.status === PENDING_APPROVAL || r.status === REJECTED) return null;
+    if (r.period_end) return new Date(r.period_end);
     if (r.status === FREE_TRIAL_STATUS) {
       const base = r.paid_at || r.issued_at;
       if (!base) return null;
@@ -222,23 +234,11 @@ function Billing() {
       d.setDate(d.getDate() + FREE_TRIAL_DAYS);
       return d;
     }
-    if (!r.issued_at) return null;
+    const base = r.payment_method === PAYMENT_METHOD_UPI ? r.paid_at || r.issued_at : r.issued_at;
+    if (!base) return null;
     const cycle = r.billing_cycle;
-    const start = new Date(r.issued_at);
-    if (cycle === "yearly") {
-      const d = new Date(start);
-      d.setFullYear(d.getFullYear() + 1);
-      return d;
-    }
-    if (cycle === "monthly") {
-      const d = new Date(start);
-      d.setMonth(d.getMonth() + 1);
-      return d;
-    }
-    if (cycle === "14_days" || cycle === "14 days") {
-      const d = new Date(start);
-      d.setDate(d.getDate() + FREE_TRIAL_DAYS);
-      return d;
+    if (cycle === "yearly" || cycle === "monthly" || cycle === "14_days" || cycle === "14 days") {
+      return addBillingCycle(new Date(base), cycle);
     }
     return null;
   }
@@ -246,8 +246,32 @@ function Billing() {
   function daysRemaining(r: any): number | null {
     const expiry = computeExpiry(r);
     if (!expiry) return null;
-    const diffMs = expiry.getTime() - Date.now();
-    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return Math.ceil((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  }
+
+  // Where would this payment's plan period fall if approved now?
+  // If the restaurant still has a running (or already scheduled) plan,
+  // the new plan starts when that one ends.
+  function periodFor(r: any, busyIso?: string | null) {
+    const now = new Date();
+    const busy = busyIso ? new Date(busyIso) : null;
+    const scheduled = !!busy && busy > now;
+    const start = scheduled ? busy! : now;
+    const end = addBillingCycle(start, r.billing_cycle);
+    return { start, end, scheduled };
+  }
+
+  // Writes to the columns NotificationBell reads (recipient_id, title, body).
+  async function sendNotification(tenantId: string, title: string, body: string) {
+    const recipientId = tenants[tenantId]?.owner_id;
+    if (!recipientId) return { error: { message: "Restaurant has no owner account to notify" } };
+    return supabase.from("notifications").insert({
+      recipient_id: recipientId,
+      tenant_id: tenantId,
+      title,
+      body,
+      is_read: false,
+    } as any);
   }
 
   async function markPaid(id: string) {
@@ -256,48 +280,150 @@ function Billing() {
     toast.success("Marked paid"); load();
   }
 
-  // Sends an expiry-reminder notification to the hotel/restaurant owner.
-  //
-  // FIX: this previously inserted { tenant_id, message, type } — but
-  // NotificationBell reads rows filtered by `recipient_id` and renders
-  // `n.title` / `n.body`. That column mismatch is why notifications never
-  // showed up (and, if `recipient_id` is NOT NULL in the schema, why the
-  // insert may have been failing outright). We now resolve the tenant's
-  // owner user id and write to the columns the bell actually reads.
+  // ---- approve a QR payment ----
+  // 1. Work out the period: now, or after the restaurant's current plan ends
+  // 2. Claim the invoice (only if still pending_approval → prevents double approval)
+  // 3. Create the subscription (active now, or scheduled for later)
+  // 4. Link invoice → subscription; if active now, expire older plans
+  // 5. Notify the owner
+  async function approvePayment(r: any) {
+    const planId = r.plan_id || allPlans.find((p) => p.name === r.plan)?.id;
+    if (!planId) return toast.error("Can't find the plan for this invoice");
+
+    setActingId(r.id);
+    const nowIso = new Date().toISOString();
+
+    // fresh lookup so we never overlap an existing plan
+    const { data: busyRows, error: busyErr } = await (supabase as any)
+      .from("subscriptions")
+      .select("current_period_end")
+      .eq("tenant_id", r.tenant_id)
+      .in("status", ["active", "scheduled"])
+      .gt("current_period_end", nowIso)
+      .order("current_period_end", { ascending: false })
+      .limit(1);
+    if (busyErr) { setActingId(null); return toast.error(busyErr.message); }
+
+    const { start, end, scheduled } = periodFor(r, busyRows?.[0]?.current_period_end ?? null);
+
+    const { data: claimed, error: claimErr } = await (supabase as any)
+      .from("invoices")
+      .update({
+        status: "paid",
+        paid_at: nowIso,
+        approved_at: nowIso,
+        approved_by: adminId,
+        rejection_reason: null,
+        period_start: start.toISOString(),
+        period_end: end.toISOString(),
+      })
+      .eq("id", r.id)
+      .eq("status", PENDING_APPROVAL)
+      .select("id");
+    if (claimErr) { setActingId(null); return toast.error(claimErr.message); }
+    if (!claimed?.length) { setActingId(null); toast.error("This payment was already processed"); return load(); }
+
+    const { data: sub, error: subErr } = await (supabase as any)
+      .from("subscriptions")
+      .insert({
+        tenant_id: r.tenant_id,
+        plan_id: planId,
+        status: scheduled ? "scheduled" : "active",
+        current_period_start: start.toISOString(),
+        current_period_end: end.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (subErr || !sub) {
+      // roll the invoice back so it can be approved again
+      await (supabase as any)
+        .from("invoices")
+        .update({
+          status: PENDING_APPROVAL, paid_at: null, approved_at: null, approved_by: null,
+          period_start: null, period_end: null,
+        })
+        .eq("id", r.id);
+      setActingId(null);
+      return toast.error(subErr?.message || "Could not activate the plan");
+    }
+
+    const followUps: Promise<any>[] = [
+      (supabase as any).from("invoices").update({ subscription_id: sub.id }).eq("id", r.id),
+    ];
+    if (!scheduled) {
+      // no running plan → any older "active" rows have already ended
+      followUps.push(
+        (supabase as any)
+          .from("subscriptions")
+          .update({ status: "expired" })
+          .eq("tenant_id", r.tenant_id)
+          .eq("status", "active")
+          .neq("id", sub.id),
+      );
+    }
+    await Promise.all(followUps);
+
+    const { error: nErr } = await sendNotification(
+      r.tenant_id,
+      scheduled ? "Your next plan is scheduled" : "Your plan is active",
+      scheduled
+        ? `Your payment of ${money(Number(r.amount))} was approved. ${r.plan} (${r.billing_cycle}) will become active after your current plan ends on ${format(start, "PP")} and run until ${format(end, "PP")}.`
+        : `Your payment of ${money(Number(r.amount))} was approved. ${r.plan} (${r.billing_cycle}) is now active until ${format(end, "PP")}.`,
+    );
+
+    setActingId(null);
+    setApproveTarget(null);
+    const tenantName = tenants[r.tenant_id]?.name || "restaurant";
+    toast.success(
+      (scheduled
+        ? `Approved — ${r.plan} scheduled for ${tenantName} from ${format(start, "PP")}`
+        : `Approved — ${r.plan} activated for ${tenantName}`) + (nErr ? " (notification not sent)" : ""),
+    );
+    load();
+  }
+
+  async function rejectPayment(r: any, reason: string) {
+    setActingId(r.id);
+    const { data, error } = await (supabase as any)
+      .from("invoices")
+      .update({ status: REJECTED, rejection_reason: reason, approved_by: adminId })
+      .eq("id", r.id)
+      .eq("status", PENDING_APPROVAL)
+      .select("id");
+    if (error) { setActingId(null); return toast.error(error.message); }
+    if (!data?.length) { setActingId(null); toast.error("This payment was already processed"); return load(); }
+
+    await sendNotification(
+      r.tenant_id,
+      "Payment not approved",
+      `We couldn't verify your payment for ${r.plan} (UTR ${r.utr}). Reason: ${reason}`,
+    );
+    setActingId(null);
+    setRejectTarget(null);
+    setRejectReason("");
+    toast.success("Payment rejected");
+    load();
+  }
+
   async function notifyExpiry(r: any) {
     const days = daysRemaining(r);
-    if (days === null) {
-      return toast.error("No expiry date available for this invoice");
-    }
-    const tenant = tenants[r.tenant_id];
-    const tenantName = tenant?.name || "this restaurant";
-    const recipientId = tenant?.owner_id;
-
-    if (!recipientId) {
-      return toast.error(`${tenantName} has no owner account to notify`);
-    }
-
+    if (days === null) return toast.error("No expiry date available for this invoice");
+    const tenantName = tenants[r.tenant_id]?.name || "this restaurant";
     const body =
       days >= 0
         ? `Your subscription will expire in ${days} day${days === 1 ? "" : "s"}. Please renew to avoid interruption.`
         : `Your subscription expired ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago. Please renew as soon as possible.`;
 
     setNotifyingId(r.id);
-    const { error } = await supabase.from("notifications").insert({
-      recipient_id: recipientId,
-      tenant_id: r.tenant_id,
-      title: "Subscription expiry reminder",
-      body,
-      // type: "subscription_expiry",
-      is_read: false,
-    });
+    const { error } = await sendNotification(r.tenant_id, "Subscription expiry reminder", body);
     setNotifyingId(null);
 
     if (error) return toast.error(error.message);
     toast.success(
       days >= 0
         ? `Notified ${tenantName} — ${days} day${days === 1 ? "" : "s"} left`
-        : `Notified ${tenantName} — subscription expired`
+        : `Notified ${tenantName} — subscription expired`,
     );
   }
 
@@ -329,6 +455,8 @@ function Billing() {
     let planId = "";
     if (isFreeTrial) {
       planId = FREE_TRIAL_PLAN_ID;
+    } else if (r.plan_id && plans.some((p) => p.id === r.plan_id)) {
+      planId = r.plan_id;
     } else if (r.plan) {
       const match = plans.find((p) => p.name === r.plan);
       planId = match ? match.id : CUSTOM_PLAN_ID;
@@ -348,13 +476,12 @@ function Billing() {
       amount: r.amount != null ? String(r.amount) : "",
       invoiceNumber: r.invoice_number || "",
       issuedAt: format(new Date(r.issued_at), "yyyy-MM-dd"),
-      status: r.status === FREE_TRIAL_STATUS ? FREE_TRIAL_STATUS : r.status,
+      status: r.status,
     });
     setMode("edit");
     setFormOpen(true);
   }
 
-  // recompute amount from a plan id + billing cycle
   function priceFor(planId: string, cycle: BillingCycle) {
     const plan = plans.find((p) => p.id === planId);
     if (!plan) return "";
@@ -364,19 +491,12 @@ function Billing() {
 
   function onPlanChange(planId: string) {
     if (planId === FREE_TRIAL_PLAN_ID) {
-      setForm((f) => ({
-        ...f,
-        planId,
-        billingCycle: "14_days",
-        amount: "0",
-        status: FREE_TRIAL_STATUS,
-      }));
+      setForm((f) => ({ ...f, planId, billingCycle: "14_days", amount: "0", status: FREE_TRIAL_STATUS }));
       return;
     }
     setForm((f) => ({
       ...f,
       planId,
-      // moving off the free trial: restore a sane default cycle/status
       billingCycle: f.billingCycle === "14_days" ? "monthly" : f.billingCycle,
       status: f.status === FREE_TRIAL_STATUS ? "pending" : f.status,
       amount: priceFor(planId, f.billingCycle === "14_days" ? "monthly" : f.billingCycle) || f.amount,
@@ -387,14 +507,18 @@ function Billing() {
     setForm((f) => ({
       ...f,
       billingCycle: cycle,
-      amount: f.planId && f.planId !== FREE_TRIAL_PLAN_ID && f.planId !== CUSTOM_PLAN_ID
-        ? priceFor(f.planId, cycle) || f.amount
-        : f.amount,
+      amount:
+        f.planId && f.planId !== FREE_TRIAL_PLAN_ID && f.planId !== CUSTOM_PLAN_ID
+          ? priceFor(f.planId, cycle) || f.amount
+          : f.amount,
     }));
   }
 
   async function submitForm() {
     if (!form.tenantId) return toast.error("Select a restaurant");
+    if (originalStatus === PENDING_APPROVAL && form.status === "paid") {
+      return toast.error("Use Approve payment from the actions menu so the plan gets activated");
+    }
     const isFreeTrial = form.planId === FREE_TRIAL_PLAN_ID;
     const isCustomPlan = form.planId === CUSTOM_PLAN_ID;
     const amountNum = Number(form.amount);
@@ -403,12 +527,7 @@ function Billing() {
     }
 
     const selectedPlan = plans.find((p) => p.id === form.planId);
-    const planName = isFreeTrial
-      ? "Free Trial"
-      : isCustomPlan
-        ? customPlanLabel || null
-        : selectedPlan?.name || null;
-
+    const planName = isFreeTrial ? "Free Trial" : isCustomPlan ? customPlanLabel || null : selectedPlan?.name || null;
     const billingCycleValue = isFreeTrial
       ? "14 days"
       : isCustomPlan
@@ -417,13 +536,6 @@ function Billing() {
           ? form.billingCycle
           : null;
 
-    // NOTE: `plan` and `billing_cycle` were added to the `invoices` table
-    // after the Supabase types were last generated, so the generated
-    // Insert/Update types don't know about them (hence the `never` errors).
-    // The real fix is to regenerate types, e.g.:
-    //   npx supabase gen types typescript --project-id <id> > src/integrations/supabase/types.ts
-    // Until that's done, we build the payload as `any` so TS doesn't block
-    // columns that do exist in the database.
     const payload: any = {
       tenant_id: form.tenantId,
       amount: isFreeTrial ? 0 : amountNum,
@@ -433,6 +545,9 @@ function Billing() {
       plan: planName,
       billing_cycle: billingCycleValue,
     };
+    // keep plan_id in sync unless the plan is a legacy/custom label
+    if (!isCustomPlan) payload.plan_id = isFreeTrial ? null : selectedPlan?.id ?? null;
+    if (mode === "create") payload.payment_method = "manual";
 
     if (form.status === "paid" && (mode === "create" || originalStatus !== "paid")) {
       payload.paid_at = new Date().toISOString();
@@ -462,6 +577,8 @@ function Billing() {
     const planLabel = r.plan || FREE_TRIAL_LABEL;
     const expiry = computeExpiry(r);
     const expiryLabel = expiry ? format(expiry, "PP") : "—";
+    const meta = statusMeta(r.status);
+    const paymentLabel = r.payment_method === PAYMENT_METHOD_UPI ? `UPI${r.utr ? ` (UTR ${r.utr})` : ""}` : "—";
     const fileTitle = `Invoice_PlateOs_${invoiceNo}`;
 
     const html = `
@@ -486,6 +603,7 @@ function Billing() {
             .paid { background: #dcfce7; color: #166534; }
             .pending { background: #fef9c3; color: #854d0e; }
             .free_trial { background: #dbeafe; color: #1d4ed8; }
+            .rejected { background: #fee2e2; color: #991b1b; }
             .thanks { margin-top: 40px; padding-top: 16px; border-top: 1px solid #eee; font-size: 13px; color: #444; }
             .thanks .signoff { margin-top: 8px; font-weight: 600; color: #111; }
           </style>
@@ -501,7 +619,8 @@ function Billing() {
             <tr><td class="label">Restaurant</td><td>${tenantName}</td></tr>
             <tr><td class="label">Plan</td><td>${planLabel}${r.billing_cycle ? ` (${r.billing_cycle})` : ""}</td></tr>
             <tr><td class="label">Amount</td><td>${money(Number(r.amount))}</td></tr>
-            <tr><td class="label">Status</td><td><span class="status ${r.status === "paid" ? "paid" : r.status === "free_trial" ? "free_trial" : "pending"}">${r.status === "free_trial" ? "Free Trial" : r.status}</span></td></tr>
+            <tr><td class="label">Payment</td><td>${paymentLabel}</td></tr>
+            <tr><td class="label">Status</td><td><span class="status ${meta.printClass}">${meta.label}</span></td></tr>
             <tr><td class="label">Paid on</td><td>${paidDate}</td></tr>
             <tr><td class="label">Subscription expiry</td><td>${expiryLabel}</td></tr>
           </table>
@@ -523,10 +642,10 @@ function Billing() {
     win.document.open();
     win.document.write(html);
     win.document.close();
-    // Browsers typically suggest the document title as the "Save as PDF"
-    // filename, so this lines up the saved file with Invoice_PlateOs_{no}.
     win.document.title = fileTitle;
   }
+
+  const approvePeriod = approveTarget ? periodFor(approveTarget, busyUntil[approveTarget.tenant_id]) : null;
 
   return (
     <div className="space-y-4">
@@ -538,79 +657,103 @@ function Billing() {
         </Button>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-3">
+      <div className="grid md:grid-cols-4 gap-3">
         <Card className="p-4"><div className="text-xs text-muted-foreground">Collected</div><div className="text-2xl font-semibold">{money(revenue)}</div></Card>
         <Card className="p-4"><div className="text-xs text-muted-foreground">Outstanding</div><div className="text-2xl font-semibold">{money(outstanding)}</div></Card>
         <Card className="p-4"><div className="text-xs text-muted-foreground">Invoices</div><div className="text-2xl font-semibold">{filteredRows.length}</div></Card>
+        <button
+          type="button"
+          onClick={() => setStatusFilter(statusFilter === PENDING_APPROVAL ? "all" : PENDING_APPROVAL)}
+          className="text-left"
+        >
+          <Card className={`p-4 h-full ${awaitingCount > 0 ? "border-orange-500/50" : ""} ${statusFilter === PENDING_APPROVAL ? "ring-1 ring-orange-500" : ""}`}>
+            <div className="text-xs text-muted-foreground">Awaiting approval</div>
+            <div className="text-2xl font-semibold">{awaitingCount}</div>
+          </Card>
+        </button>
       </div>
+
       <Card>
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b">
           <div className="text-sm font-medium">Invoices</div>
-          <Popover open={filterOpen} onOpenChange={(o) => { if (o) openFilter(); else setFilterOpen(false); }}>
-            <PopoverTrigger asChild>
-              <Button
-                size="sm"
-                variant={dateFilterActive ? "secondary" : "outline"}
-                className="h-8 gap-1.5"
-              >
-                <Filter className="h-3.5 w-3.5" />
-                {dateFilterActive
-                  ? `${dateFrom ? format(startOfLocalDay(dateFrom), "MMM d") : "…"} – ${dateTo ? format(startOfLocalDay(dateTo), "MMM d") : "…"}`
-                  : "Filter"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="!w-[248px] p-2">
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground px-1 pt-0.5">Filter by issued date</div>
-                <Calendar
-                  mode="range"
-                  selected={draftRange}
-                  onSelect={onDraftRangeSelect}
-                  defaultMonth={draftRange?.from}
-                  numberOfMonths={1}
-                  initialFocus
-                  className="p-0"
-                  classNames={{
-                    months: "flex flex-col",
-                    month: "space-y-1.5",
-                    caption: "flex justify-center pt-0.5 relative items-center h-7",
-                    caption_label: "text-xs font-medium",
-                    nav: "space-x-1 flex items-center",
-                    nav_button: "h-6 w-6 bg-transparent p-0 opacity-60 hover:opacity-100 inline-flex items-center justify-center rounded-md border",
-                    nav_button_previous: "absolute left-0",
-                    nav_button_next: "absolute right-0",
-                    table: "w-full border-collapse",
-                    head_row: "flex",
-                    head_cell: "text-muted-foreground w-8 font-normal text-[0.7rem]",
-                    row: "flex w-full mt-0.5",
-                    cell: "h-8 w-8 text-center text-xs p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                    day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md",
-                    day_range_start: "day-range-start rounded-r-none",
-                    day_range_end: "day-range-end rounded-l-none",
-                    day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                    day_today: "bg-accent text-accent-foreground",
-                    day_outside: "text-muted-foreground opacity-40",
-                    day_disabled: "text-muted-foreground opacity-40",
-                    day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground rounded-none",
-                    day_hidden: "invisible",
-                  }}
-                />
-                <div className="text-xs text-muted-foreground px-1">
-                  {draftFrom
-                    ? `${format(startOfLocalDay(draftFrom), "MMM d")} – ${draftTo ? format(startOfLocalDay(draftTo), "MMM d, yyyy") : "…"}`
-                    : "No dates selected"}
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-8 w-[170px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value={PENDING_APPROVAL}>Awaiting approval</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value={FREE_TRIAL_STATUS}>Free Trial</SelectItem>
+                <SelectItem value={REJECTED}>Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Popover open={filterOpen} onOpenChange={(o) => { if (o) openFilter(); else setFilterOpen(false); }}>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant={dateFilterActive ? "secondary" : "outline"} className="h-8 gap-1.5">
+                  <Filter className="h-3.5 w-3.5" />
+                  {dateFilterActive
+                    ? `${dateFrom ? format(startOfLocalDay(dateFrom), "MMM d") : "…"} – ${dateTo ? format(startOfLocalDay(dateTo), "MMM d") : "…"}`
+                    : "Filter"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="!w-[248px] p-2">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-muted-foreground px-1 pt-0.5">Filter by issued date</div>
+                  <Calendar
+                    mode="range"
+                    selected={draftRange}
+                    onSelect={onDraftRangeSelect}
+                    defaultMonth={draftRange?.from}
+                    numberOfMonths={1}
+                    initialFocus
+                    className="p-0"
+                    classNames={{
+                      months: "flex flex-col",
+                      month: "space-y-1.5",
+                      caption: "flex justify-center pt-0.5 relative items-center h-7",
+                      caption_label: "text-xs font-medium",
+                      nav: "space-x-1 flex items-center",
+                      nav_button: "h-6 w-6 bg-transparent p-0 opacity-60 hover:opacity-100 inline-flex items-center justify-center rounded-md border",
+                      nav_button_previous: "absolute left-0",
+                      nav_button_next: "absolute right-0",
+                      table: "w-full border-collapse",
+                      head_row: "flex",
+                      head_cell: "text-muted-foreground w-8 font-normal text-[0.7rem]",
+                      row: "flex w-full mt-0.5",
+                      cell: "h-8 w-8 text-center text-xs p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                      day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100 hover:bg-accent rounded-md",
+                      day_range_start: "day-range-start rounded-r-none",
+                      day_range_end: "day-range-end rounded-l-none",
+                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                      day_today: "bg-accent text-accent-foreground",
+                      day_outside: "text-muted-foreground opacity-40",
+                      day_disabled: "text-muted-foreground opacity-40",
+                      day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground rounded-none",
+                      day_hidden: "invisible",
+                    }}
+                  />
+                  <div className="text-xs text-muted-foreground px-1">
+                    {draftFrom
+                      ? `${format(startOfLocalDay(draftFrom), "MMM d")} – ${draftTo ? format(startOfLocalDay(draftTo), "MMM d, yyyy") : "…"}`
+                      : "No dates selected"}
+                  </div>
+                  <div className="flex justify-end gap-1.5 pt-0.5">
+                    <Button variant="ghost" size="sm" className="h-7 px-2" onClick={clearFilter}>
+                      <X className="h-3.5 w-3.5 mr-1" />
+                      Clear
+                    </Button>
+                    <Button size="sm" className="h-7 px-3" onClick={applyFilter} disabled={!draftFrom}>Apply</Button>
+                  </div>
                 </div>
-                <div className="flex justify-end gap-1.5 pt-0.5">
-                  <Button variant="ghost" size="sm" className="h-7 px-2" onClick={clearFilter}>
-                    <X className="h-3.5 w-3.5 mr-1" />
-                    Clear
-                  </Button>
-                  <Button size="sm" className="h-7 px-3" onClick={applyFilter} disabled={!draftFrom}>Apply</Button>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
+
         <Table>
           <TableHeader>
             <TableRow>
@@ -618,6 +761,7 @@ function Billing() {
               <TableHead>Restaurant</TableHead>
               <TableHead>Plan</TableHead>
               <TableHead>Amount</TableHead>
+              <TableHead>Payment</TableHead>
               <TableHead>Issued</TableHead>
               <TableHead>Expiry</TableHead>
               <TableHead>Status</TableHead>
@@ -625,94 +769,151 @@ function Billing() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredRows.map(r => {
+            {filteredRows.map((r) => {
               const expiry = computeExpiry(r);
               const days = daysRemaining(r);
               const expired = days !== null && days < 0;
               const soon = days !== null && days >= 0 && days <= 7;
+              const meta = statusMeta(r.status);
+              const awaiting = r.status === PENDING_APPROVAL;
+              const periodStart = r.period_start ? new Date(r.period_start) : null;
+              const upcoming = r.status === "paid" && !!periodStart && periodStart > new Date();
+              const willQueue = awaiting && !!busyUntil[r.tenant_id];
               return (
-              <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">{r.invoice_number || r.id.slice(0,8)}</TableCell>
-                <TableCell>{tenants[r.tenant_id]?.name || "—"}</TableCell>
-                <TableCell>
-                  {r.plan || FREE_TRIAL_LABEL}
-                  {r.billing_cycle && <span className="text-xs text-muted-foreground"> ({r.billing_cycle})</span>}
-                </TableCell>
-                <TableCell>{money(Number(r.amount))}</TableCell>
-                <TableCell className="text-xs">{format(new Date(r.issued_at), "PP")}</TableCell>
-                <TableCell className="text-xs">
-                  {expiry ? (
-                    <span className={expired ? "text-destructive font-medium" : soon ? "text-warning font-medium" : ""}>
-                      {format(expiry, "PP")}
-                    </span>
-                  ) : "—"}
-                </TableCell>
-                <TableCell>
-                  <span className={`text-xs px-2 py-0.5 rounded ${
-                    r.status === "paid"
-                      ? "bg-success/15 text-success"
-                      : r.status === FREE_TRIAL_STATUS
-                        ? "bg-blue-500/15 text-blue-600"
-                        : "bg-warning/15 text-warning"
-                  }`}>
-                    {r.status === FREE_TRIAL_STATUS ? "Free Trial" : r.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {r.status !== "paid" && (
-                          <DropdownMenuItem onClick={() => markPaid(r.id)}>
-                            <Check className="h-3.5 w-3.5 mr-2" />
-                            Mark paid
-                          </DropdownMenuItem>
+                <TableRow key={r.id} className={awaiting ? "bg-orange-500/5" : ""}>
+                  <TableCell className="font-mono text-xs">{r.invoice_number || r.id.slice(0, 8)}</TableCell>
+                  <TableCell>{tenants[r.tenant_id]?.name || "—"}</TableCell>
+                  <TableCell>
+                    {r.plan || FREE_TRIAL_LABEL}
+                    {r.billing_cycle && <span className="text-xs text-muted-foreground"> ({r.billing_cycle})</span>}
+                  </TableCell>
+                  <TableCell>{money(Number(r.amount))}</TableCell>
+                  <TableCell className="text-xs">
+                    {r.payment_method === PAYMENT_METHOD_UPI ? (
+                      <div>
+                        <div>UPI QR</div>
+                        {r.utr && <div className="font-mono text-muted-foreground">{r.utr}</div>}
+                      </div>
+                    ) : r.payment_method === "manual" ? "Manual" : "—"}
+                  </TableCell>
+                  <TableCell className="text-xs">{format(new Date(r.issued_at), "PP")}</TableCell>
+                  <TableCell className="text-xs">
+                    {expiry ? (
+                      <div>
+                        <span className={upcoming ? "" : expired ? "text-destructive font-medium" : soon ? "text-warning font-medium" : ""}>
+                          {format(expiry, "PP")}
+                        </span>
+                        {upcoming && (
+                          <div className="text-muted-foreground">Starts {format(periodStart!, "PP")}</div>
                         )}
-                        <DropdownMenuItem onClick={() => openEdit(r)}>
-                          <Pencil className="h-3.5 w-3.5 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => notifyExpiry(r)}
-                          disabled={notifyingId === r.id}
+                      </div>
+                    ) : awaiting ? (
+                      <span className="text-muted-foreground">
+                        {willQueue
+                          ? `Starts after ${format(new Date(busyUntil[r.tenant_id]), "PP")}`
+                          : "Starts on approval"}
+                      </span>
+                    ) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded whitespace-nowrap ${meta.className}`}
+                        title={r.status === REJECTED && r.rejection_reason ? r.rejection_reason : undefined}
+                      >
+                        {meta.label}
+                      </span>
+                      {upcoming && (
+                        <span className="text-xs px-2 py-0.5 rounded whitespace-nowrap bg-primary/10 text-primary">
+                          Scheduled
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end items-center gap-1">
+                      {awaiting && (
+                        <Button
+                          size="sm"
+                          className="h-7 px-2"
+                          disabled={actingId === r.id}
+                          onClick={() => setApproveTarget(r)}
                         >
-                          <Bell className="h-3.5 w-3.5 mr-2" />
-                          {notifyingId === r.id
-                            ? "Notifying..."
-                            : days === null
-                              ? "Notify (no expiry)"
-                              : days >= 0
-                                ? `Notify — ${days}d left`
-                                : "Notify — expired"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => downloadInvoice(r)}>
-                          <Download className="h-3.5 w-3.5 mr-2" />
-                          Download invoice
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => setDeleteTarget(r)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </TableCell>
+                          <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                          Review
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {awaiting && (
+                            <>
+                              <DropdownMenuItem onClick={() => setApproveTarget(r)}>
+                                <ShieldCheck className="h-3.5 w-3.5 mr-2" />
+                                Approve payment
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { setRejectReason(""); setRejectTarget(r); }}>
+                                <Ban className="h-3.5 w-3.5 mr-2" />
+                                Reject payment
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          {r.status === "pending" && (
+                            <DropdownMenuItem onClick={() => markPaid(r.id)}>
+                              <Check className="h-3.5 w-3.5 mr-2" />
+                              Mark paid
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => openEdit(r)}>
+                            <Pencil className="h-3.5 w-3.5 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          {!awaiting && r.status !== REJECTED && !upcoming && (
+                            <DropdownMenuItem onClick={() => notifyExpiry(r)} disabled={notifyingId === r.id}>
+                              <Bell className="h-3.5 w-3.5 mr-2" />
+                              {notifyingId === r.id
+                                ? "Notifying..."
+                                : days === null
+                                  ? "Notify (no expiry)"
+                                  : days >= 0
+                                    ? `Notify — ${days}d left`
+                                    : "Notify — expired"}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => downloadInvoice(r)}>
+                            <Download className="h-3.5 w-3.5 mr-2" />
+                            Download invoice
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => setDeleteTarget(r)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {filteredRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">No invoices found.</TableCell>
               </TableRow>
-            );})}
-            {filteredRows.length===0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No invoices found.</TableCell></TableRow>}
+            )}
           </TableBody>
         </Table>
       </Card>
+
       {/* Create / Edit invoice dialog */}
       <Dialog open={formOpen} onOpenChange={(o) => { setFormOpen(o); if (!o) resetForm(); }}>
         <DialogContent className="sm:max-w-md">
@@ -722,18 +923,13 @@ function Billing() {
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>Restaurant</Label>
-              <Select
-                value={form.tenantId}
-                onValueChange={(v) => setForm(f => ({ ...f, tenantId: v }))}
-              >
+              <Select value={form.tenantId} onValueChange={(v) => setForm((f) => ({ ...f, tenantId: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a registered restaurant" />
                 </SelectTrigger>
                 <SelectContent>
                   {tenantList.length === 0 && (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      No restaurants found
-                    </div>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No restaurants found</div>
                   )}
                   {tenantList.map((t) => (
                     <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -745,24 +941,17 @@ function Billing() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Plan purchased</Label>
-                <Select
-                  value={form.planId}
-                  onValueChange={onPlanChange}
-                >
+                <Select value={form.planId} onValueChange={onPlanChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a plan" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={FREE_TRIAL_PLAN_ID}>Free Trial</SelectItem>
                     {form.planId === CUSTOM_PLAN_ID && (
-                      <SelectItem value={CUSTOM_PLAN_ID}>
-                        {customPlanLabel || "Current plan"}
-                      </SelectItem>
+                      <SelectItem value={CUSTOM_PLAN_ID}>{customPlanLabel || "Current plan"}</SelectItem>
                     )}
                     {plans.length === 0 && (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        No plans found
-                      </div>
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">No plans found</div>
                     )}
                     {plans.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -777,10 +966,7 @@ function Billing() {
                 ) : form.planId === CUSTOM_PLAN_ID ? (
                   <Input value={customBillingCycleRaw || "—"} disabled readOnly />
                 ) : (
-                  <Select
-                    value={form.billingCycle}
-                    onValueChange={(v) => onCycleChange(v as BillingCycle)}
-                  >
+                  <Select value={form.billingCycle} onValueChange={(v) => onCycleChange(v as BillingCycle)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -803,12 +989,10 @@ function Billing() {
                 placeholder="0.00"
                 value={form.amount}
                 disabled={form.planId === FREE_TRIAL_PLAN_ID}
-                onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
               />
               {form.planId === FREE_TRIAL_PLAN_ID ? (
-                <div className="text-xs text-muted-foreground">
-                  Free trial invoices are always ₹0.
-                </div>
+                <div className="text-xs text-muted-foreground">Free trial invoices are always ₹0.</div>
               ) : form.planId && form.planId !== CUSTOM_PLAN_ID && (
                 <div className="text-xs text-muted-foreground">
                   Auto-filled from the selected plan — edit if you need a custom amount.
@@ -821,7 +1005,7 @@ function Billing() {
               <Input
                 placeholder="Auto-generated if left blank"
                 value={form.invoiceNumber}
-                onChange={(e) => setForm(f => ({ ...f, invoiceNumber: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, invoiceNumber: e.target.value }))}
               />
             </div>
 
@@ -831,7 +1015,7 @@ function Billing() {
                 <Input
                   type="date"
                   value={form.issuedAt}
-                  onChange={(e) => setForm(f => ({ ...f, issuedAt: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, issuedAt: e.target.value }))}
                 />
               </div>
               <div className="space-y-1.5">
@@ -839,21 +1023,29 @@ function Billing() {
                 {form.planId === FREE_TRIAL_PLAN_ID ? (
                   <Input value="Free Trial" disabled readOnly />
                 ) : (
-                  <Select
-                    value={form.status}
-                    onValueChange={(v) => setForm(f => ({ ...f, status: v }))}
-                  >
+                  <Select value={form.status} onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
+                      {(originalStatus === PENDING_APPROVAL || originalStatus === REJECTED) && (
+                        <>
+                          <SelectItem value={PENDING_APPROVAL}>Awaiting approval</SelectItem>
+                          <SelectItem value={REJECTED}>Rejected</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 )}
               </div>
             </div>
+            {originalStatus === PENDING_APPROVAL && (
+              <div className="text-xs text-muted-foreground">
+                This is a QR payment awaiting review. Use Approve payment from the actions menu to activate the plan.
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
@@ -864,9 +1056,108 @@ function Billing() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation — controlled independently so it isn't nested
-          inside the dropdown menu's trigger (that combination is flaky with
-          Radix, since the menu closing can race with the alert opening). */}
+      {/* Approve payment dialog */}
+      <AlertDialog open={!!approveTarget} onOpenChange={(o) => { if (!o && !actingId) setApproveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve this payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Check your bank or UPI app for this payment before approving.{" "}
+              {approvePeriod?.scheduled
+                ? "This restaurant has a running plan, so the new plan will be scheduled to start when it ends."
+                : "Approving activates the plan immediately."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {approveTarget && approvePeriod && (
+            <div className="rounded-lg border divide-y text-sm">
+              {[
+                ["Restaurant", tenants[approveTarget.tenant_id]?.name || "—"],
+                ["Plan", `${approveTarget.plan} (${approveTarget.billing_cycle})`],
+                ["Amount", money(Number(approveTarget.amount))],
+                ["UTR", approveTarget.utr || "—"],
+                ["Submitted", format(new Date(approveTarget.issued_at), "PPp")],
+                ["Starts", approvePeriod.scheduled ? format(approvePeriod.start, "PP") : "Immediately"],
+                ["Active until", format(approvePeriod.end, "PP")],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between px-3 py-2">
+                  <span className="text-muted-foreground">{k}</span>
+                  <span className={k === "UTR" ? "font-mono" : "font-medium"}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!actingId}>Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              className="text-destructive"
+              disabled={!!actingId}
+              onClick={() => {
+                const t = approveTarget;
+                setApproveTarget(null);
+                setRejectReason("");
+                setRejectTarget(t);
+              }}
+            >
+              Reject
+            </Button>
+            <AlertDialogAction
+              disabled={!!actingId}
+              onClick={(e) => {
+                e.preventDefault(); // keep dialog open until the request finishes
+                if (approveTarget) approvePayment(approveTarget);
+              }}
+            >
+              {actingId === approveTarget?.id
+                ? "Approving..."
+                : approvePeriod?.scheduled
+                  ? "Approve & schedule"
+                  : "Approve & activate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reject payment dialog */}
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o && !actingId) { setRejectTarget(null); setRejectReason(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject payment</DialogTitle>
+            <DialogDescription>
+              {rejectTarget && (
+                <>
+                  {tenants[rejectTarget.tenant_id]?.name || "Restaurant"} · {rejectTarget.plan} ·{" "}
+                  {money(Number(rejectTarget.amount))} · UTR <span className="font-mono">{rejectTarget.utr}</span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="reject-reason">Reason (shown to the restaurant)</Label>
+            <Textarea
+              id="reject-reason"
+              rows={3}
+              placeholder="e.g. No payment found for this transaction ID"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={!!actingId} onClick={() => { setRejectTarget(null); setRejectReason(""); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!!actingId || !rejectReason.trim()}
+              onClick={() => rejectTarget && rejectPayment(rejectTarget, rejectReason.trim())}
+            >
+              {actingId === rejectTarget?.id ? "Rejecting..." : "Reject payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
