@@ -11,7 +11,7 @@ import {
 import {
   LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound,
   LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet,
-  AlertTriangle, MessageCircle,
+  AlertTriangle, MessageCircle, ShoppingCart,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ const SECTIONS = [
     label: "Business",
     items: [
       { to: "/app/staff", label: "Staff", icon: UsersRound },
+      { to: "/app/products", label: "Shop", icon: ShoppingCart },
       { to: "/app/subscription", label: "Subscription", icon: CreditCard },
       { to: "/app/settings", label: "Settings", icon: Settings },
     ],
