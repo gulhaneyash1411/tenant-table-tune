@@ -32,6 +32,7 @@ import { Route as AuthenticatedAppStaffRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/app.settings'
 import { Route as AuthenticatedAppReviewsRouteImport } from './routes/_authenticated/app.reviews'
 import { Route as AuthenticatedAppRevenueRouteImport } from './routes/_authenticated/app.revenue'
+import { Route as AuthenticatedAppProductsRouteImport } from './routes/_authenticated/app.products'
 import { Route as AuthenticatedAppPrintersRouteImport } from './routes/_authenticated/app.printers'
 import { Route as AuthenticatedAppPosRouteImport } from './routes/_authenticated/app.pos'
 import { Route as AuthenticatedAppPluginsRouteImport } from './routes/_authenticated/app.plugins'
@@ -53,6 +54,7 @@ import { Route as AuthenticatedAdminTicketsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminRestaurantsRouteImport } from './routes/_authenticated/admin.restaurants'
 import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
+import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
 import { Route as AuthenticatedAdminBillingRouteImport } from './routes/_authenticated/admin.billing'
 import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
@@ -176,6 +178,12 @@ const AuthenticatedAppRevenueRoute = AuthenticatedAppRevenueRouteImport.update({
   path: '/revenue',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppProductsRoute =
+  AuthenticatedAppProductsRouteImport.update({
+    id: '/products',
+    path: '/products',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppPrintersRoute =
   AuthenticatedAppPrintersRouteImport.update({
     id: '/printers',
@@ -291,6 +299,12 @@ const AuthenticatedAdminReportsRoute =
     path: '/reports',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminProductsRoute =
+  AuthenticatedAdminProductsRouteImport.update({
+    id: '/products',
+    path: '/products',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
   id: '/plans',
   path: '/plans',
@@ -330,6 +344,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
@@ -351,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/app/plugins': typeof AuthenticatedAppPluginsRoute
   '/app/pos': typeof AuthenticatedAppPosRoute
   '/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/app/products': typeof AuthenticatedAppProductsRoute
   '/app/revenue': typeof AuthenticatedAppRevenueRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
@@ -377,6 +393,7 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
@@ -398,6 +415,7 @@ export interface FileRoutesByTo {
   '/app/plugins': typeof AuthenticatedAppPluginsRoute
   '/app/pos': typeof AuthenticatedAppPosRoute
   '/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/app/products': typeof AuthenticatedAppProductsRoute
   '/app/revenue': typeof AuthenticatedAppRevenueRoute
   '/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/app/settings': typeof AuthenticatedAppSettingsRoute
@@ -428,6 +446,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
   '/_authenticated/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
+  '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
@@ -449,6 +468,7 @@ export interface FileRoutesById {
   '/_authenticated/app/plugins': typeof AuthenticatedAppPluginsRoute
   '/_authenticated/app/pos': typeof AuthenticatedAppPosRoute
   '/_authenticated/app/printers': typeof AuthenticatedAppPrintersRoute
+  '/_authenticated/app/products': typeof AuthenticatedAppProductsRoute
   '/_authenticated/app/revenue': typeof AuthenticatedAppRevenueRoute
   '/_authenticated/app/reviews': typeof AuthenticatedAppReviewsRoute
   '/_authenticated/app/settings': typeof AuthenticatedAppSettingsRoute
@@ -479,6 +499,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/billing'
     | '/admin/plans'
+    | '/admin/products'
     | '/admin/reports'
     | '/admin/restaurants'
     | '/admin/settings'
@@ -500,6 +521,7 @@ export interface FileRouteTypes {
     | '/app/plugins'
     | '/app/pos'
     | '/app/printers'
+    | '/app/products'
     | '/app/revenue'
     | '/app/reviews'
     | '/app/settings'
@@ -526,6 +548,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/billing'
     | '/admin/plans'
+    | '/admin/products'
     | '/admin/reports'
     | '/admin/restaurants'
     | '/admin/settings'
@@ -547,6 +570,7 @@ export interface FileRouteTypes {
     | '/app/plugins'
     | '/app/pos'
     | '/app/printers'
+    | '/app/products'
     | '/app/revenue'
     | '/app/reviews'
     | '/app/settings'
@@ -576,6 +600,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/audit'
     | '/_authenticated/admin/billing'
     | '/_authenticated/admin/plans'
+    | '/_authenticated/admin/products'
     | '/_authenticated/admin/reports'
     | '/_authenticated/admin/restaurants'
     | '/_authenticated/admin/settings'
@@ -597,6 +622,7 @@ export interface FileRouteTypes {
     | '/_authenticated/app/plugins'
     | '/_authenticated/app/pos'
     | '/_authenticated/app/printers'
+    | '/_authenticated/app/products'
     | '/_authenticated/app/revenue'
     | '/_authenticated/app/reviews'
     | '/_authenticated/app/settings'
@@ -788,6 +814,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppRevenueRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/app/products': {
+      id: '/_authenticated/app/products'
+      path: '/products'
+      fullPath: '/app/products'
+      preLoaderRoute: typeof AuthenticatedAppProductsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/app/printers': {
       id: '/_authenticated/app/printers'
       path: '/printers'
@@ -935,6 +968,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/products': {
+      id: '/_authenticated/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AuthenticatedAdminProductsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/plans': {
       id: '/_authenticated/admin/plans'
       path: '/plans'
@@ -971,6 +1011,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
   AuthenticatedAdminBillingRoute: typeof AuthenticatedAdminBillingRoute
   AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
+  AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
   AuthenticatedAdminRestaurantsRoute: typeof AuthenticatedAdminRestaurantsRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
@@ -983,6 +1024,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
   AuthenticatedAdminBillingRoute: AuthenticatedAdminBillingRoute,
   AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
+  AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
   AuthenticatedAdminRestaurantsRoute: AuthenticatedAdminRestaurantsRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
@@ -1011,6 +1053,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppPluginsRoute: typeof AuthenticatedAppPluginsRoute
   AuthenticatedAppPosRoute: typeof AuthenticatedAppPosRoute
   AuthenticatedAppPrintersRoute: typeof AuthenticatedAppPrintersRoute
+  AuthenticatedAppProductsRoute: typeof AuthenticatedAppProductsRoute
   AuthenticatedAppRevenueRoute: typeof AuthenticatedAppRevenueRoute
   AuthenticatedAppReviewsRoute: typeof AuthenticatedAppReviewsRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
@@ -1039,6 +1082,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppPluginsRoute: AuthenticatedAppPluginsRoute,
   AuthenticatedAppPosRoute: AuthenticatedAppPosRoute,
   AuthenticatedAppPrintersRoute: AuthenticatedAppPrintersRoute,
+  AuthenticatedAppProductsRoute: AuthenticatedAppProductsRoute,
   AuthenticatedAppRevenueRoute: AuthenticatedAppRevenueRoute,
   AuthenticatedAppReviewsRoute: AuthenticatedAppReviewsRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
