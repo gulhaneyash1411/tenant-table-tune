@@ -8,7 +8,7 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText } from "lucide-react";
+import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 
@@ -29,6 +29,7 @@ const SECTIONS = [
     items: [
       { to: "/admin/plans", label: "Plans", icon: CreditCard },
       { to: "/admin/billing", label: "Billing", icon: Receipt },
+      { to: "/admin/products", label: "Products", icon: Package },
     ],
   },
   {
