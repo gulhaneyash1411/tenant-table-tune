@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  AlertCircle, CheckCircle2, Loader2, Minus, Package, Plus, QrCode, RefreshCw,
+  AlertCircle, CheckCircle2, Download, Eye, Loader2, Minus, Package, Plus, QrCode, RefreshCw,
   Search, ShoppingBag, ShoppingCart, Smartphone, Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,6 +107,11 @@ const title = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const unitPrice = (p: Product) => Number(p.discount_price ?? p.price);
 
+const discountOff = (p: Product) =>
+  p.discount_price != null && Number(p.price) > 0
+    ? Math.round(((Number(p.price) - Number(p.discount_price)) / Number(p.price)) * 100)
+    : 0;
+
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 const toneCls: Record<Tone, string> = {
   neutral: "bg-muted text-muted-foreground",
@@ -177,6 +182,34 @@ function QuantityStepper({ value, min = 1, max, onChange, label, disabled }: {
         onClick={() => onChange(clamp(value + 1))} disabled={disabled || value >= max} aria-label={`Increase ${label}`}>
         <Plus className="h-3.5 w-3.5" />
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Product photo in a fixed-height frame.
+ *
+ * `object-contain` shows the whole photo instead of cropping into it, so tall
+ * or wide images no longer look zoomed in. The frame height is fixed (not an
+ * aspect ratio) so every card in the grid lines up whatever the source size is.
+ */
+function ProductImage({ src, alt, className, padding = "p-3", icon = "h-8 w-8" }: {
+  src: string | null; alt: string; className?: string; padding?: string; icon?: string;
+}) {
+  return (
+    <div className={cn("relative w-full overflow-hidden bg-muted/40", className)}>
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className={cn("absolute inset-0 h-full w-full object-contain", padding)}
+        />
+      ) : (
+        <div className="grid h-full w-full place-items-center">
+          <Package className={cn("text-muted-foreground", icon)} aria-hidden />
+        </div>
+      )}
     </div>
   );
 }
@@ -363,6 +396,7 @@ function BrowseTab({ products, loading, error, reload, cartCounts, onAddToCart, 
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("newest");
   const [picking, setPicking] = useState<{ product: Product; intent: "cart" | "buy"; quantity: number } | null>(null);
+  const [detail, setDetail] = useState<Product | null>(null);
 
   const categories = useMemo(() => Array.from(new Set(products.map((p) => p.category))).sort(), [products]);
 
@@ -384,12 +418,16 @@ function BrowseTab({ products, loading, error, reload, cartCounts, onAddToCart, 
     unit_price: unitPrice(p), quantity, stock: p.stock,
   });
 
+  const commit = (p: Product, variant: string | null, quantity: number, intent: "cart" | "buy") => {
+    const line = toLine(p, variant, quantity);
+    if (intent === "cart") { onAddToCart(line); toast.success(`${quantity} × ${p.name} added to cart`); }
+    else onBuyNow(line);
+  };
+
   // Products with variants need a choice first; the rest go straight in.
   const handle = (p: Product, intent: "cart" | "buy", quantity: number) => {
     if (p.variants?.length) { setPicking({ product: p, intent, quantity }); return; }
-    const line = toLine(p, null, quantity);
-    if (intent === "cart") { onAddToCart(line); toast.success(`${quantity} × ${p.name} added to cart`); }
-    else onBuyNow(line);
+    commit(p, null, quantity, intent);
   };
 
   return (
@@ -424,13 +462,17 @@ function BrowseTab({ products, loading, error, reload, cartCounts, onAddToCart, 
           action={<Button variant="outline" onClick={reload} className="gap-2"><RefreshCw className="h-4 w-4" aria-hidden />Try again</Button>}
         /></Card>
       ) : loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i}><CardContent className="space-y-3 p-4">
-              <Skeleton className="aspect-[4/3] w-full rounded-lg" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/3" />
-            </CardContent></Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <Skeleton className="h-40 w-full rounded-none" />
+              <CardContent className="space-y-2 p-3">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-8 w-full" />
+              </CardContent>
+            </Card>
           ))}
         </div>
       ) : products.length === 0 ? (
@@ -441,113 +483,257 @@ function BrowseTab({ products, loading, error, reload, cartCounts, onAddToCart, 
           action={hasFilters && <Button variant="outline" onClick={() => { setQ(""); setCategory("all"); }}>Clear filters</Button>}
         /></Card>
       ) : (
-        <ul className="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <ul className="grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((p) => (
             <ProductCard key={p.id} product={p} inCart={cartCounts[p.id] ?? 0}
+              onOpen={() => setDetail(p)}
               onAdd={(qty) => handle(p, "cart", qty)} onBuy={(qty) => handle(p, "buy", qty)} />
           ))}
         </ul>
       )}
 
+      <ProductDetailDialog
+        product={detail}
+        inCart={detail ? cartCounts[detail.id] ?? 0 : 0}
+        onOpenChange={(o) => !o && setDetail(null)}
+        onConfirm={(product, variant, quantity, intent) => {
+          setDetail(null);
+          commit(product, variant, quantity, intent);
+        }}
+      />
+
       <VariantPickerDialog
         picking={picking}
         onOpenChange={(o) => !o && setPicking(null)}
         onConfirm={(product, variant, quantity, intent) => {
-          const line = toLine(product, variant, quantity);
           setPicking(null);
-          if (intent === "cart") { onAddToCart(line); toast.success(`${quantity} × ${product.name} added to cart`); }
-          else onBuyNow(line);
+          commit(product, variant, quantity, intent);
         }}
       />
     </div>
   );
 }
 
-function ProductCard({ product, inCart, onAdd, onBuy }: {
-  product: Product; inCart: number; onAdd: (quantity: number) => void; onBuy: (quantity: number) => void;
+/**
+ * Storefront tile.
+ *
+ * The photo gets the full width of the card with no border under it, the
+ * description moves to the detail view, and price sits directly under the name.
+ * Quantity is chosen on the tile itself, so a shopper can pick a count and add
+ * or buy without opening the product. The count resets after each add.
+ */
+function ProductCard({ product, inCart, onOpen, onAdd, onBuy }: {
+  product: Product; inCart: number; onOpen: () => void;
+  onAdd: (quantity: number) => void; onBuy: (quantity: number) => void;
 }) {
   const [qty, setQty] = useState(1);
   const out = product.stock <= 0;
   const max = Math.max(1, Math.min(product.stock, 99));
-  const off = product.discount_price != null
-    ? Math.round(((product.price - product.discount_price) / product.price) * 100)
-    : 0;
+  const off = discountOff(product);
 
   const add = () => { onAdd(qty); setQty(1); };
 
   return (
     <li>
-      <Card className="flex h-full flex-col overflow-hidden">
-        {/* Fixed height, not aspect-ratio: as a flex child the box would otherwise
-            stretch to a tall photo's intrinsic height and break the grid. */}
-        <div className="relative h-48 w-full shrink-0 overflow-hidden bg-muted">
-          {product.image_url ? (
-            <img src={product.image_url} alt={product.name} loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover" />
-          ) : (
-            <div className="grid h-full w-full place-items-center">
-              <Package className="h-8 w-8 text-muted-foreground" aria-hidden />
-            </div>
-          )}
-          {off > 0 && !out && (
-            <span className="absolute left-2 top-2 rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-medium text-white">
-              {off}% off
-            </span>
-          )}
-          {inCart > 0 && (
-            <span className="absolute right-2 top-2 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
-              {inCart} in cart
-            </span>
-          )}
-          {out && (
-            <div className="absolute inset-0 grid place-items-center bg-background/70">
-              <Pill tone="danger">Out of stock</Pill>
-            </div>
-          )}
-        </div>
+      <Card className="flex h-full flex-col overflow-hidden transition-[box-shadow,border-color] duration-150 hover:border-primary/40 hover:shadow-md motion-reduce:transition-none">
+        {/* The photo and the name open the detail view. The actions sit outside
+            this button so interactive controls are never nested. The overlay and
+            the title colour both react to hover and keyboard focus, so the card
+            reads as clickable either way. */}
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`View details for ${product.name}`}
+          className="group block w-full cursor-pointer rounded-t-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          <div className="relative">
+            <ProductImage src={product.image_url} alt={product.name}
+              className="h-40 shrink-0" padding="p-4" icon="h-8 w-8" />
 
-        <CardContent className="flex flex-1 flex-col p-4">
-          {/* Fixed heights on each block so every card lines up, whatever the content. */}
-          <p className="truncate text-xs text-muted-foreground">{product.category}</p>
+            {off > 0 && !out && (
+              <span className="absolute left-2.5 top-2.5 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+                Save {off}%
+              </span>
+            )}
+            {inCart > 0 && (
+              <span className="absolute right-2.5 top-2.5 rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                {inCart} in cart
+              </span>
+            )}
 
-          <h3 className="mt-1 line-clamp-2 min-h-[2.75rem] font-medium leading-snug">{product.name}</h3>
-
-          <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm text-muted-foreground">
-            {product.description || "\u00A0"}
-          </p>
-
-          <div className="mt-3 flex items-end justify-between gap-2">
-            <div className="min-h-[2.5rem]">
-              <div className="font-semibold tabular-nums">{money(unitPrice(product))}</div>
-              <div className="text-xs text-muted-foreground line-through tabular-nums">
-                {product.discount_price != null ? money(Number(product.price)) : "\u00A0"}
+            {!out && (
+              <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-foreground/55 via-foreground/5 to-transparent p-2.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none">
+                <span className="inline-flex items-center gap-1 rounded-full bg-background px-2.5 py-1 text-[11px] font-medium shadow-sm">
+                  <Eye className="h-3.5 w-3.5" aria-hidden />
+                  Click to see details
+                </span>
               </div>
-            </div>
-            <span className="min-h-[1rem] text-right text-xs text-amber-600 dark:text-amber-400">
-              {out ? "\u00A0" : product.stock <= 5 ? `Only ${product.stock} left` : "\u00A0"}
-            </span>
+            )}
+
+            {out && (
+              <div className="absolute inset-0 grid place-items-center bg-background/75">
+                <Pill tone="danger">Out of stock</Pill>
+              </div>
+            )}
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Quantity</span>
+          <div className="space-y-1.5 px-3 pt-3">
+            <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug transition-colors group-hover:text-primary group-focus-visible:text-primary motion-reduce:transition-none">
+              {product.name}
+            </h3>
+
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-base font-semibold tabular-nums">{money(unitPrice(product))}</span>
+              {product.discount_price != null && (
+                <span className="text-xs text-muted-foreground line-through tabular-nums">
+                  {money(Number(product.price))}
+                </span>
+              )}
+            </div>
+
+            <p className="min-h-[1rem] truncate text-[11px] text-muted-foreground">
+              {out
+                ? "Currently unavailable"
+                : product.stock <= 5
+                  ? `Only ${product.stock} left`
+                  : product.category}
+            </p>
+          </div>
+        </button>
+
+        <div className="mt-auto space-y-2 p-3 pt-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-muted-foreground">Quantity</span>
             <QuantityStepper value={qty} max={max} onChange={setQty} disabled={out}
               label={`quantity of ${product.name}`} />
           </div>
 
-          <div className="mt-3 flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={add} disabled={out}>
-              <ShoppingCart className="h-4 w-4" aria-hidden />
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="h-8 flex-1 gap-1.5 text-xs" onClick={add} disabled={out}>
+              <ShoppingCart className="h-3.5 w-3.5" aria-hidden />
               Add
               <span className="sr-only"> {qty} {product.name} to cart</span>
             </Button>
-            <Button size="sm" className="flex-1" onClick={() => onBuy(qty)} disabled={out}>
+            <Button size="sm" className="h-8 flex-1 text-xs" onClick={() => onBuy(qty)} disabled={out}>
               {out ? "Unavailable" : "Buy now"}
               <span className="sr-only">, {product.name}</span>
             </Button>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </li>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Product detail                                                      */
+/* ------------------------------------------------------------------ */
+
+function ProductDetailDialog({ product, inCart, onOpenChange, onConfirm }: {
+  product: Product | null;
+  inCart: number;
+  onOpenChange: (o: boolean) => void;
+  onConfirm: (product: Product, variant: string | null, quantity: number, intent: "cart" | "buy") => void;
+}) {
+  const [variant, setVariant] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [error, setError] = useState<string | undefined>();
+
+  useEffect(() => { setVariant(""); setQuantity(1); setError(undefined); }, [product]);
+
+  if (!product) return null;
+
+  const out = product.stock <= 0;
+  const max = Math.max(1, Math.min(product.stock, 99));
+  const off = discountOff(product);
+  const options = (product.variants ?? []).map((v) => `${v.name}: ${v.value}`);
+
+  const confirm = (intent: "cart" | "buy") => {
+    if (options.length && !variant) { setError("Choose an option."); return; }
+    onConfirm(product, options.length ? variant : null, quantity, intent);
+  };
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl p-5 sm:max-w-md">
+        <DialogHeader className="space-y-1 text-left">
+          <p className="text-xs text-muted-foreground">{product.category}</p>
+          <DialogTitle className="text-base leading-snug">{product.name}</DialogTitle>
+          <DialogDescription className="text-xs">Item code {product.sku}</DialogDescription>
+        </DialogHeader>
+
+        <div className="relative">
+          <ProductImage src={product.image_url} alt={product.name}
+            className="h-56 rounded-xl border" padding="p-4" icon="h-10 w-10" />
+          {off > 0 && !out && (
+            <span className="absolute left-2 top-2 rounded-md bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white">
+              Save {off}%
+            </span>
+          )}
+          {inCart > 0 && (
+            <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+              {inCart} in cart
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xl font-semibold tabular-nums">{money(unitPrice(product))}</span>
+            {product.discount_price != null && (
+              <span className="text-sm text-muted-foreground line-through tabular-nums">{money(Number(product.price))}</span>
+            )}
+          </div>
+          {out ? (
+            <Pill tone="danger">Out of stock</Pill>
+          ) : product.stock <= 5 ? (
+            <Pill tone="warning">Only {product.stock} left</Pill>
+          ) : (
+            <Pill tone="success">In stock</Pill>
+          )}
+        </div>
+
+        {product.description && (
+          <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{product.description}</p>
+        )}
+
+        {options.length > 0 && (
+          <div className="space-y-1.5">
+            <Label htmlFor="pd-variant">Option <span className="text-destructive" aria-hidden>*</span></Label>
+            <Select value={variant || undefined} onValueChange={(v) => { setVariant(v); setError(undefined); }}>
+              <SelectTrigger id="pd-variant" disabled={out} aria-invalid={!!error || undefined}
+                aria-describedby={error ? "pd-variant-error" : undefined}>
+                <SelectValue placeholder="Choose an option" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {error && <p id="pd-variant-error" role="alert" className="text-xs text-destructive">{error}</p>}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <Label>Quantity</Label>
+          <QuantityStepper value={quantity} max={max} onChange={setQuantity} disabled={out} label="quantity" />
+        </div>
+
+        <div className="flex justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm">
+          <span>Subtotal</span>
+          <span className="font-semibold tabular-nums">{money(unitPrice(product) * quantity)}</span>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" className="gap-1" onClick={() => confirm("cart")} disabled={out}>
+            <ShoppingCart className="h-4 w-4" aria-hidden />
+            Add to cart
+          </Button>
+          <Button onClick={() => confirm("buy")} disabled={out}>
+            {out ? "Unavailable" : "Buy now"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -643,13 +829,8 @@ function CartDialog({ open, onOpenChange, cart, onCheckout }: {
                 const key = lineKey(l);
                 return (
                   <li key={key} className="flex gap-3 rounded-lg border p-3">
-                    {l.image_url ? (
-                      <img src={l.image_url} alt="" className="h-14 w-14 shrink-0 rounded-md border object-cover" />
-                    ) : (
-                      <div className="grid h-14 w-14 shrink-0 place-items-center rounded-md border bg-muted">
-                        <Package className="h-5 w-5 text-muted-foreground" aria-hidden />
-                      </div>
-                    )}
+                    <ProductImage src={l.image_url} alt="" className="h-14 w-14 shrink-0 rounded-md border"
+                      padding="p-1" icon="h-5 w-5" />
                     <div className="min-w-0 flex-1 space-y-1">
                       <p className="truncate text-sm font-medium">{l.name}</p>
                       {l.variant && <p className="text-xs text-muted-foreground">{l.variant}</p>}
@@ -992,6 +1173,161 @@ function UpiPayPanel({ amount, reference, label, utr, onUtrChange, error }: {
 }
 
 /* ------------------------------------------------------------------ */
+/* Receipt                                                             */
+/* ------------------------------------------------------------------ */
+
+/** A receipt is only meaningful once the goods arrived and the money cleared. */
+const canDownloadReceipt = (o: MyOrder) =>
+  o.order_status === "delivered" && o.payment_status === "paid";
+
+const fetchOrderItems = async (orderId: string): Promise<OrderItem[]> => {
+  const { data, error } = await db
+    .from("product_order_items").select("*").eq("order_id", orderId).order("created_at");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as OrderItem[];
+};
+
+const esc = (v: string | null | undefined) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+
+/**
+ * A self-contained HTML receipt.
+ *
+ * Everything is inlined so the saved file opens correctly offline, and the
+ * print stylesheet means the customer can turn it into a PDF from the browser
+ * without any extra dependency in the app.
+ */
+function receiptHtml(order: MyOrder, items: OrderItem[]): string {
+  const rows = items.length
+    ? items.map((it) => `
+      <tr>
+        <td>
+          ${esc(it.product_name)}
+          ${it.variant ? `<span class="muted"> · ${esc(it.variant)}</span>` : ""}
+        </td>
+        <td class="num">${esc(money(Number(it.unit_price)))}</td>
+        <td class="num">${it.quantity}</td>
+        <td class="num">${esc(money(Number(it.line_total)))}</td>
+      </tr>`).join("")
+    : `<tr>
+        <td>${esc(order.product_name)}${order.variant ? `<span class="muted"> · ${esc(order.variant)}</span>` : ""}</td>
+        <td class="num">${order.unit_price != null ? esc(money(Number(order.unit_price))) : "—"}</td>
+        <td class="num">${order.quantity}</td>
+        <td class="num">${esc(money(Number(order.total_amount)))}</td>
+      </tr>`;
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Receipt ${esc(order.order_number)}</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px; background: #f5f5f5; color: #171717;
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .sheet { max-width: 720px; margin: 0 auto; background: #fff; padding: 40px; border-radius: 12px; }
+  header { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+           border-bottom: 2px solid #171717; padding-bottom: 16px; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+  h2 { font-size: 13px; margin: 28px 0 8px; text-transform: none; }
+  .muted { color: #6b7280; }
+  .right { text-align: right; }
+  .paid { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 999px;
+          background: #ecfdf5; color: #047857; font-size: 12px; font-weight: 600; }
+  .cols { display: flex; gap: 40px; flex-wrap: wrap; margin-top: 24px; }
+  .cols section { flex: 1 1 220px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { padding: 9px 0; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  th { text-align: left; font-size: 12px; color: #6b7280; font-weight: 600; }
+  th.num, td.num { text-align: right; white-space: nowrap; padding-left: 12px; }
+  tfoot td { border-bottom: none; border-top: 2px solid #171717; font-weight: 700; font-size: 15px; padding-top: 12px; }
+  dl { margin: 0; }
+  dt { font-size: 12px; color: #6b7280; margin-top: 8px; }
+  dd { margin: 2px 0 0; white-space: pre-line; }
+  footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb;
+           font-size: 12px; color: #6b7280; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .sheet { max-width: none; padding: 0; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <header>
+      <div>
+        <h1>${esc(UPI_PAYEE_NAME)}</h1>
+        <p class="muted" style="margin:4px 0 0">${esc(UPI_ID)}</p>
+      </div>
+      <div class="right">
+        <strong>Receipt ${esc(order.order_number)}</strong>
+        <p class="muted" style="margin:4px 0 0">Ordered ${esc(dateTime(order.created_at))}</p>
+        <span class="paid">Paid${order.paid_at ? ` · ${esc(dateTime(order.paid_at))}` : ""}</span>
+      </div>
+    </header>
+
+    <div class="cols">
+      <section>
+        <h2>Billed to</h2>
+        <dl>
+          <dt>Name</dt><dd>${esc(order.customer_name)}</dd>
+          <dt>Phone</dt><dd>${esc(order.customer_phone) || "Not provided"}</dd>
+          <dt>Email</dt><dd>${esc(order.customer_email) || "Not provided"}</dd>
+        </dl>
+      </section>
+      <section>
+        <h2>Delivered to</h2>
+        <dl>
+          <dt>Address</dt><dd>${esc(order.delivery_address)}</dd>
+          ${order.notes ? `<dt>Notes</dt><dd>${esc(order.notes)}</dd>` : ""}
+        </dl>
+      </section>
+    </div>
+
+    <h2>Items</h2>
+    <table>
+      <thead>
+        <tr><th>Item</th><th class="num">Unit price</th><th class="num">Qty</th><th class="num">Amount</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr><td colspan="3">Total paid</td><td class="num">${esc(money(Number(order.total_amount)))}</td></tr>
+      </tfoot>
+    </table>
+
+    <h2>Payment</h2>
+    <dl>
+      <dt>Method</dt><dd>${order.payment_method === "cod" ? "Paid on delivery" : "UPI"}</dd>
+      ${order.utr ? `<dt>Transaction ID (UTR)</dt><dd>${esc(order.utr)}</dd>` : ""}
+      ${order.paid_at ? `<dt>Confirmed on</dt><dd>${esc(dateTime(order.paid_at))}</dd>` : ""}
+    </dl>
+
+    <footer>
+      This receipt is generated from your order record. Print it or save it as PDF from your browser.
+    </footer>
+  </div>
+</body>
+</html>`;
+}
+
+function downloadReceipt(order: MyOrder, items: OrderItem[]) {
+  const blob = new Blob([receiptHtml(order, items)], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `receipt-${order.order_number}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ------------------------------------------------------------------ */
 /* My orders                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -1002,6 +1338,19 @@ function MyOrdersTab({ orders, loading, error, reload, onShop }: {
   const [cancelling, setCancelling] = useState(false);
   const [paying, setPaying] = useState<MyOrder | null>(null);
   const [viewing, setViewing] = useState<MyOrder | null>(null);
+  const [receiptFor, setReceiptFor] = useState<string | null>(null);
+
+  // The list rows don't hold line items, so they're pulled on demand.
+  const getReceipt = async (o: MyOrder) => {
+    setReceiptFor(o.id);
+    try {
+      downloadReceipt(o, await fetchOrderItems(o.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "The receipt couldn't be generated.");
+    } finally {
+      setReceiptFor(null);
+    }
+  };
 
   const cancelOrder = async () => {
     if (!toCancel) return;
@@ -1059,13 +1408,8 @@ function MyOrdersTab({ orders, loading, error, reload, onShop }: {
           >
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 gap-3">
-                {o.product_image_url ? (
-                  <img src={o.product_image_url} alt="" className="h-14 w-14 shrink-0 rounded-md border object-cover" />
-                ) : (
-                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-md border bg-muted">
-                    <Package className="h-5 w-5 text-muted-foreground" aria-hidden />
-                  </div>
-                )}
+                <ProductImage src={o.product_image_url} alt="" className="h-14 w-14 shrink-0 rounded-md border"
+                  padding="p-1" icon="h-5 w-5" />
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{o.order_number}</span>
@@ -1096,6 +1440,17 @@ function MyOrdersTab({ orders, loading, error, reload, onShop }: {
               <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
                 <span className="font-semibold tabular-nums">{money(Number(o.total_amount))}</span>
                 <div className="flex gap-2">
+                  {canDownloadReceipt(o) && (
+                    <Button variant="outline" size="sm" className="gap-1.5"
+                      disabled={receiptFor === o.id}
+                      onClick={(e) => { e.stopPropagation(); getReceipt(o); }}>
+                      {receiptFor === o.id
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        : <Download className="h-3.5 w-3.5" aria-hidden />}
+                      Receipt
+                      <span className="sr-only"> for order {o.order_number}</span>
+                    </Button>
+                  )}
                   {needsPayment && (
                     <Button size="sm" onClick={(e) => { e.stopPropagation(); setPaying(o); }}>
                       {o.payment_status === "rejected" ? "Pay again" : "Pay now"}
@@ -1160,12 +1515,10 @@ function OrderDetailDialog({ order, onOpenChange, onPay, onCancel }: {
     if (!order) { setItems([]); return; }
     let live = true;
     setLoadingItems(true);
-    db.from("product_order_items").select("*").eq("order_id", order.id).order("created_at")
-      .then(({ data }: { data: OrderItem[] | null }) => {
-        if (!live) return;
-        setItems(data ?? []);
-        setLoadingItems(false);
-      });
+    fetchOrderItems(order.id)
+      .then((data) => { if (live) setItems(data); })
+      .catch(() => { if (live) setItems([]); })
+      .finally(() => { if (live) setLoadingItems(false); });
     return () => { live = false; };
   }, [order]);
 
@@ -1193,14 +1546,8 @@ function OrderDetailDialog({ order, onOpenChange, onPay, onCancel }: {
             <ul className="space-y-2">
               {items.map((it) => (
                 <li key={it.id} className="flex gap-3 rounded-lg border p-3">
-                  {it.product_image_url ? (
-                    <img src={it.product_image_url} alt={it.product_name}
-                      className="h-16 w-16 shrink-0 rounded-md border object-cover" />
-                  ) : (
-                    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md border bg-muted">
-                      <Package className="h-5 w-5 text-muted-foreground" aria-hidden />
-                    </div>
-                  )}
+                  <ProductImage src={it.product_image_url} alt={it.product_name}
+                    className="h-16 w-16 shrink-0 rounded-md border" padding="p-1" icon="h-5 w-5" />
                   <div className="min-w-0 flex-1 space-y-0.5 text-sm">
                     <p className="font-medium">{it.product_name}</p>
                     {it.variant && <p className="text-muted-foreground">{it.variant}</p>}
@@ -1281,6 +1628,13 @@ function OrderDetailDialog({ order, onOpenChange, onPay, onCancel }: {
             </Button>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          {canDownloadReceipt(order) && (
+            <Button variant="outline" className="gap-1.5" disabled={loadingItems}
+              onClick={() => downloadReceipt(order, items)}>
+              <Download className="h-4 w-4" aria-hidden />
+              Download receipt
+            </Button>
+          )}
           {canPay && (
             <Button onClick={() => onPay(order)}>
               {order.payment_status === "rejected" ? "Pay again" : "Pay now"}
