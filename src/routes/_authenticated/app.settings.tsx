@@ -90,9 +90,117 @@ function SettingsPage() {
         </div>
       </Card>
       <Button onClick={save} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
+
+      <SectionPasswordCard tenantId={t.id} />
     </div>
   );
 }
+
+const PIN_RE = /^\d{4}$/;
+
+/** Masked input that accepts digits only, max 4. */
+function PinInput({ id, value, onChange, autoComplete }: {
+  id: string; value: string; onChange: (v: string) => void; autoComplete: string;
+}) {
+  return (
+    <Input
+      id={id}
+      type="password"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      maxLength={4}
+      autoComplete={autoComplete}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
+      className="text-center text-lg tracking-[0.5em]"
+    />
+  );
+}
+
+/**
+ * 4-digit PIN for the locked pages (marked with a lock in the sidebar).
+ * Separate from the login password and saved on its own — not by "Save changes".
+ */
+function SectionPasswordCard({ tenantId }: { tenantId: string }) {
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("has_section_password", { p_tenant: tenantId });
+      if (cancelled) return;
+      if (error) { toast.error(error.message); return; }
+      setHasPassword(!!data);
+    })();
+    return () => { cancelled = true; };
+  }, [tenantId]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (hasPassword && current && !PIN_RE.test(current)) return toast.error("Current PIN must be 4 digits");
+    if (!PIN_RE.test(next)) return toast.error("PIN must be exactly 4 digits");
+    if (next !== confirm) return toast.error("New PINs don't match");
+
+    setSaving(true);
+    const { data, error } = await supabase.rpc("set_section_password", {
+      p_tenant: tenantId,
+      p_current: current,
+      p_new: next,
+    });
+    setSaving(false);
+
+    if (error) return toast.error(error.message);
+    const res = data as unknown as { ok: boolean; error?: string };
+    if (!res.ok) return toast.error(res.error ?? "Couldn't update the section PIN");
+
+    toast.success(hasPassword ? "Section PIN changed" : "Section PIN set");
+    setCurrent(""); setNext(""); setConfirm("");
+    setHasPassword(true);
+  }
+
+  return (
+    <Card className="p-5 space-y-4">
+      <div>
+        <div className="font-medium">Section lock PIN</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A 4-digit PIN that unlocks the pages marked with a lock in the sidebar. It's separate
+          from your login password, so staff using a signed-in device can't open them.
+        </p>
+      </div>
+
+      {hasPassword === null ? (
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      ) : (
+        <form onSubmit={save} className="space-y-3">
+          {hasPassword && (
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-current">Current PIN</Label>
+              <PinInput id="sp-current" value={current} onChange={setCurrent} autoComplete="off" />
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-new">New PIN</Label>
+              <PinInput id="sp-new" value={next} onChange={setNext} autoComplete="new-password" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-confirm">Confirm new PIN</Label>
+              <PinInput id="sp-confirm" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+            </div>
+          </div>
+          <Button type="submit" variant="outline" disabled={saving || next.length !== 4 || confirm.length !== 4}>
+            {saving ? "Saving…" : hasPassword ? "Change PIN" : "Set PIN"}
+          </Button>
+        </form>
+      )}
+    </Card>
+  );
+}
+
 function Field({ label, v, on, type = "text" }: { label: string; v: any; on: (v: string)=>void; type?: string }) {
   return <div><Label>{label}</Label><Input type={type} value={v} onChange={e=>on(e.target.value)}/></div>;
 }

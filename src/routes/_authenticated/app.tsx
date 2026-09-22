@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext, TenantContextProvider, type Tenant } from "@/hooks/use-session";
 import { BrandedLoader } from "@/components/branded-loader";
@@ -11,19 +11,33 @@ import {
 import {
   LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound,
   LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet,
-  AlertTriangle, MessageCircle, ShoppingCart,
+  AlertTriangle, MessageCircle, ShoppingCart, LockKeyhole, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { SignOutButton } from "@/components/sign-out-button";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/app")({ component: AppLayout });
 
+// Single source for the lock icon. Change it here to swap it everywhere.
+const LockIcon = LockKeyhole;
+
+type NavItem = {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+  secure?: boolean; // needs owner password
+};
+
 // Fifteen destinations in one list is unscannable. The groups follow how a
 // restaurant actually runs: service first, then the menu, then everything
 // that can wait until the shift is over.
-const SECTIONS = [
+const SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "Service",
     items: [
@@ -51,26 +65,35 @@ const SECTIONS = [
   {
     label: "Money",
     items: [
-      { to: "/app/revenue", label: "Revenue", icon: TrendingUp },
-      { to: "/app/expenses", label: "Expenses", icon: Wallet },
-      { to: "/app/analytics", label: "Analytics", icon: LineChart },
+      { to: "/app/revenue", label: "Revenue", icon: TrendingUp, secure: true },
+      { to: "/app/expenses", label: "Expenses", icon: Wallet, secure: true },
+      { to: "/app/analytics", label: "Analytics", icon: LineChart, secure: true },
     ],
   },
   {
     label: "Business",
     items: [
-      { to: "/app/staff", label: "Staff", icon: UsersRound },
+      { to: "/app/staff", label: "Staff", icon: UsersRound, secure: true },
       { to: "/app/products", label: "Shop", icon: ShoppingCart },
       { to: "/app/subscription", label: "Subscription", icon: CreditCard },
-      { to: "/app/settings", label: "Settings", icon: Settings },
+      { to: "/app/settings", label: "Settings", icon: Settings, secure: true },
     ],
   },
 ];
+
+const SECURE_ROUTES = SECTIONS.flatMap((s) => s.items).filter((i) => i.secure).map((i) => i.to);
+
+// Lock again when the user switches tab/app (like banking apps)
+const RELOCK_ON_TAB_HIDE = true;
 
 const isActive = (
   pathname: string,
   it: { to: string; exact?: boolean },
 ) => (it.exact ? pathname === it.to : pathname === it.to || pathname.startsWith(it.to + "/"));
+
+// Which secure page (if any) the current path belongs to
+const getSecureRoute = (pathname: string) =>
+  SECURE_ROUTES.find((p) => pathname === p || pathname.startsWith(p + "/")) ?? null;
 
 // The blue marker is the one loud thing in here; everything else stays quiet.
 const navCls = [
@@ -92,6 +115,25 @@ function AppLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { isSuperAdmin, tenant, loading, setTenant } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
+
+  // Password lock for secure pages
+  // Only ONE page is unlocked at a time: the page where the password was entered.
+  const secureRoute = getSecureRoute(pathname);
+  const onSecurePage = secureRoute !== null;
+  const [unlockedRoute, setUnlockedRoute] = useState<string | null>(null);
+  const secureUnlocked = onSecurePage && unlockedRoute === secureRoute;
+
+  // Leaving the unlocked page locks it again (including moving to another secure page).
+  useEffect(() => {
+    if (unlockedRoute && unlockedRoute !== secureRoute) setUnlockedRoute(null);
+  }, [secureRoute, unlockedRoute]);
+
+  useEffect(() => {
+    if (!RELOCK_ON_TAB_HIDE) return;
+    const onVisibility = () => { if (document.hidden) setUnlockedRoute(null); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   // Super admins operate from /admin, not the tenant portal.
   useEffect(() => {
@@ -128,6 +170,7 @@ function AppLayout() {
   const profileIncomplete = missing.length > 0;
   const onSettings = pathname === "/app/settings";
   const locked = profileIncomplete && !onSettings;
+  const passwordLocked = !locked && onSecurePage && !secureUnlocked;
 
   const current = SECTIONS.flatMap((s) => s.items).find((it) => isActive(pathname, it));
 
@@ -165,12 +208,18 @@ function AppLayout() {
                           <SidebarMenuButton
                             asChild
                             isActive={isActive(pathname, it)}
-                            tooltip={it.label}
+                            tooltip={it.secure ? `${it.label} (password protected)` : it.label}
                             className={navCls}
                           >
                             <Link to={it.to}>
                               <it.icon className="h-4 w-4" />
                               <span>{it.label}</span>
+                              {it.secure && unlockedRoute !== it.to && (
+                                <LockIcon
+                                  className="ml-auto h-3 w-3 opacity-60 group-data-[collapsible=icon]:hidden"
+                                  aria-label="Password protected"
+                                />
+                              )}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -191,6 +240,16 @@ function AppLayout() {
                 <span className="hidden md:inline">{current?.label ?? "Dashboard"}</span>
               </h1>
               <div className="ml-auto flex items-center gap-2">
+                {onSecurePage && secureUnlocked && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setUnlockedRoute(null)}
+                    aria-label="Lock this section"
+                  >
+                    <LockIcon className="mr-1 h-3.5 w-3.5" />Lock
+                  </Button>
+                )}
                 <Link
                   to="/app/subscription"
                   className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs hover:bg-accent/40 md:flex"
@@ -231,6 +290,14 @@ function AppLayout() {
                     <Link to="/app/settings"><Button className="mt-6">Go to Settings</Button></Link>
                   </div>
                 </div>
+              ) : passwordLocked ? (
+                <PasswordGate
+                  key={pathname}
+                  tenantId={tenant?.id ?? ""}
+                  email={user?.email ?? ""}
+                  title={`${current?.label ?? "This section"} is locked`}
+                  onUnlock={() => setUnlockedRoute(secureRoute)}
+                />
               ) : (
                 <Outlet />
               )}
@@ -314,6 +381,212 @@ function NoTenant() {
           Sign out & register
         </Button>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Password lock screen for secure pages                               */
+/* ------------------------------------------------------------------ */
+const MAX_ATTEMPTS = 5;       // wrong account-password tries before cooldown
+const COOLDOWN_SECONDS = 30;  // wait after too many wrong tries
+
+type Props = {
+  tenantId: string;
+  email: string;
+  onUnlock: () => void;
+  title?: string;
+};
+
+type VerifyResult = { ok: boolean; attempts_left?: number; retry_after?: number; not_set?: boolean };
+
+/**
+ * Asks for the 4-digit section PIN set in Settings (checked server-side, hashed,
+ * with its own attempt limit that grows on repeated lockouts). Until a PIN is set,
+ * the account login password is accepted instead.
+ */
+function PasswordGate({ tenantId, email, onUnlock, title = "This section is locked" }: Props) {
+  const [hasSection, setHasSection] = useState<boolean | null>(null);
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [attempts, setAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Account password is used only until a section PIN has been set.
+  const accountMode = hasSection === false;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.rpc("has_section_password", { p_tenant: tenantId });
+      // On error, fall back to the account password — still a password, never open.
+      if (!cancelled) setHasSection(error ? false : !!data);
+    })();
+    return () => { cancelled = true; };
+  }, [tenantId]);
+
+  useEffect(() => { if (hasSection !== null) inputRef.current?.focus(); }, [hasSection, accountMode]);
+
+  useEffect(() => {
+    if (lockedUntil <= Date.now()) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [lockedUntil]);
+
+  const secondsLeft = Math.max(0, Math.ceil((lockedUntil - now) / 1000));
+  const coolingDown = secondsLeft > 0;
+
+  useEffect(() => {
+    if (!coolingDown && lockedUntil) {
+      setError("");
+      inputRef.current?.focus();
+    }
+  }, [coolingDown, lockedUntil]);
+
+  function startCooldown(seconds: number) {
+    setAttempts(0);
+    setLockedUntil(Date.now() + seconds * 1000);
+    setNow(Date.now());
+  }
+
+  // Input is disabled while checking, so focus it again once it's usable.
+  useEffect(() => {
+    if (!loading && !coolingDown && hasSection !== null) inputRef.current?.focus();
+  }, [loading, coolingDown, hasSection]);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    check(password);
+  }
+
+  async function check(value: string) {
+    if (coolingDown || loading) return;
+    if (!accountMode && !/^\d{4}$/.test(value)) { setError("Enter your 4-digit PIN"); return; }
+    if (!value) { setError("Enter your password"); return; }
+
+    setLoading(true);
+    setError("");
+
+    if (accountMode) {
+      if (!email) { setLoading(false); setError("Session expired. Please sign in again."); return; }
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password: value });
+      setLoading(false);
+      setPassword("");
+      if (authError) {
+        const next = attempts + 1;
+        if (next >= MAX_ATTEMPTS) { startCooldown(COOLDOWN_SECONDS); return; }
+        setAttempts(next);
+        const left = MAX_ATTEMPTS - next;
+        setError(`Incorrect password. ${left} attempt${left === 1 ? "" : "s"} left.`);
+        inputRef.current?.focus();
+        return;
+      }
+      setAttempts(0);
+      onUnlock();
+      return;
+    }
+
+    const { data, error: rpcError } = await supabase.rpc("verify_section_password", {
+      p_tenant: tenantId,
+      p_password: value,
+    });
+    setLoading(false);
+    setPassword("");
+
+    if (rpcError) { setError("Couldn't check the PIN. Try again."); return; }
+    const res = data as unknown as VerifyResult;
+    if (res.ok) { onUnlock(); return; }
+    if (res.not_set) {
+      setHasSection(false);
+      setError("No section PIN is set. Use your account password.");
+      return;
+    }
+    if (res.retry_after) { startCooldown(res.retry_after); return; }
+    const left = res.attempts_left ?? 0;
+    setError(`Incorrect PIN. ${left} attempt${left === 1 ? "" : "s"} left.`);
+    inputRef.current?.focus();
+  }
+
+  if (hasSection === null) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-4">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading" />
+      </div>
+    );
+  }
+
+  const hint = accountMode
+    ? "No section PIN is set yet. Enter your account password, then set one in Settings."
+    : "Enter your 4-digit PIN and press Enter or Unlock.";
+
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center p-4">
+      <Card className="w-full max-w-sm p-6">
+        <form onSubmit={submit} className="space-y-4" aria-labelledby="lock-title">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <LockIcon className="h-6 w-6 text-primary" aria-hidden="true" />
+            </div>
+            <h1 id="lock-title" className="text-xl font-semibold">{title}</h1>
+            <p className="text-sm text-muted-foreground">{hint}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="lock-password">{accountMode ? "Account password" : "Section PIN"}</Label>
+            <div className="relative">
+              <Input
+                id="lock-password"
+                ref={inputRef}
+                type={show ? "text" : "password"}
+                autoComplete={accountMode ? "current-password" : "off"}
+                inputMode={accountMode ? undefined : "numeric"}
+                pattern={accountMode ? undefined : "[0-9]*"}
+                maxLength={accountMode ? undefined : 4}
+                value={password}
+                onChange={(e) => {
+                  const v = accountMode ? e.target.value : e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setPassword(v);
+                  if (error) setError("");
+                }}
+                disabled={coolingDown || loading}
+                aria-invalid={!!error}
+                aria-describedby="lock-error"
+                className={accountMode ? "pr-10" : "pr-10 text-center text-lg tracking-[0.5em]"}
+              />
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={show ? (accountMode ? "Hide password" : "Hide PIN") : (accountMode ? "Show password" : "Show PIN")}
+                aria-pressed={show}
+              >
+                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <p
+              id="lock-error"
+              role="alert"
+              aria-live="assertive"
+              className="text-sm text-destructive"
+            >
+              {coolingDown ? `Too many wrong attempts. Try again in ${secondsLeft}s.` : error}
+            </p>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={coolingDown || loading || (!accountMode && password.length !== 4)}
+          >
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking…</> : "Unlock"}
+          </Button>
+
+        </form>
+      </Card>
     </div>
   );
 }
