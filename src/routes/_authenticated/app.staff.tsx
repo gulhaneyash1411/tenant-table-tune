@@ -369,9 +369,19 @@ function Pager({ page, total, onChange }: { page: number; total: number; onChang
   );
 }
 
-function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+function SearchBox({
+  value,
+  onChange,
+  placeholder,
+  className = "w-full sm:w-64",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  className?: string;
+}) {
   return (
-    <div className="relative w-full sm:w-64">
+    <div className={`relative ${className}`}>
       <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-8 pl-8" />
     </div>
@@ -635,7 +645,7 @@ function MonthlyRegister({
             max={thisMonth()}
             value={month}
             onChange={(e) => changeMonth(e.target.value || thisMonth())}
-            className="h-8 w-40"
+            className="h-8 w-36 sm:w-40"
             aria-label="Month"
           />
           <Button
@@ -671,7 +681,7 @@ function MonthlyRegister({
                 <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find staff" className="h-8 pl-8" />
               </div>
             </div>
-            <ul className="max-h-[52vh] divide-y overflow-y-auto">
+            <ul className="max-h-[38vh] divide-y overflow-y-auto md:max-h-[52vh]">
               {visible.map((s) => {
                 const row = map[s.id] || {};
                 const c = countMarks(row);
@@ -725,18 +735,18 @@ function MonthlyRegister({
                     {selected.role || "Staff"} · {money(Number(selected.monthly_salary || 0))} / month
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" disabled={saving || selUnmarked === 0} onClick={fillUnmarkedPresent}>
+                <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                  <Button size="sm" variant="outline" className="flex-1 sm:flex-none" disabled={saving || selUnmarked === 0} onClick={fillUnmarkedPresent}>
                     Mark {selUnmarked} unmarked present
                   </Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" disabled={saving || !Object.keys(selRow).length} onClick={clearMonth}>
+                  <Button size="sm" variant="ghost" className="flex-1 text-destructive sm:flex-none" disabled={saving || !Object.keys(selRow).length} onClick={clearMonth}>
                     Clear month
                   </Button>
                 </div>
               </div>
 
               {/* Summary strip */}
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-center sm:grid-cols-3 md:grid-cols-6">
                 {ATT_KEYS.map((k) => (
                   <div key={k} className={`rounded-md border px-2 py-1.5 ${ATT[k].cls}`}>
                     <div className="text-lg font-semibold leading-none">{selCount[k]}</div>
@@ -784,7 +794,7 @@ function MonthlyRegister({
                         aria-haspopup="menu"
                         aria-expanded={open}
                         aria-label={`${format(new Date(yy, mm - 1, d), "EEEE d MMMM")}: ${st ? ATT[st].label : "not marked"}`}
-                        className={`flex h-14 w-full flex-col justify-between rounded-md border p-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                        className={`flex h-12 w-full flex-col justify-between rounded-md border p-1 text-left sm:h-14 sm:p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                           st
                             ? ATT[st].cls
                             : `border-dashed border-muted-foreground/30 ${sunday ? "bg-red-50/60 dark:bg-red-950/20" : ""}`
@@ -847,7 +857,7 @@ function MonthlyRegister({
 
       {/* Save bar: fixed at the bottom-right of the modal */}
       {staff.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t pt-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t pt-3 sm:justify-end">
           <span className={`text-xs ${dirtyCount ? "font-medium text-foreground" : "text-muted-foreground"}`}>
             {dirtyCount ? `${dirtyCount} unsaved change(s)` : "All changes saved"}
           </span>
@@ -926,9 +936,9 @@ function AttendanceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="flex max-h-[90vh] max-w-5xl flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Staff attendance</DialogTitle>
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col overflow-hidden rounded-lg p-4 sm:w-full sm:p-6">
+        <DialogHeader className="text-left">
+          <DialogTitle className="pr-6 text-base sm:text-lg">Staff attendance</DialogTitle>
         </DialogHeader>
 
         <div className="inline-flex w-fit rounded-md border p-0.5 text-sm">
@@ -954,7 +964,7 @@ function AttendanceDialog({
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
                 <Label>Date</Label>
-                <Input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value || today())} className="h-8 w-44" />
+                <Input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value || today())} className="h-8 w-full sm:w-44" />
               </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setMarks(Object.fromEntries(active.map((s) => [s.id, "present" as AttStatus])))}>
@@ -996,7 +1006,7 @@ function AttendanceDialog({
 
           </div>
 
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t pt-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t pt-3 sm:justify-end">
               <span className="text-xs text-muted-foreground">
                 {markedCount} of {active.length} marked
               </span>
@@ -1013,6 +1023,157 @@ function AttendanceDialog({
   );
 }
 
+/* ---------- Leave details: which dates were absent / half day / paid leave for a paid salary month ---------- */
+function LeaveDetailsDialog({
+  payment,
+  staffName,
+  onClose,
+}: {
+  payment: any | null;
+  staffName: string;
+  onClose: () => void;
+}) {
+  const [rows, setRows] = useState<{ attendance_date: string; status: AttStatus }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const ym = payment?.salary_month ? String(payment.salary_month).slice(0, 7) : "";
+
+  useEffect(() => {
+    setRows([]);
+    if (!payment || !ym) return;
+    const { start, end } = monthBounds(ym);
+    setLoading(true);
+    (supabase as any)
+      .from("staff_attendance")
+      .select("attendance_date,status")
+      .eq("staff_id", payment.staff_id)
+      .gte("attendance_date", start)
+      .lte("attendance_date", end)
+      .in("status", ["absent", "half_day", "leave"])
+      .order("attendance_date")
+      .then(({ data, error }: any) => {
+        setLoading(false);
+        if (error) return toast.error(error.message);
+        setRows(data || []);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payment?.id, ym]);
+
+  const counts = useMemo(() => {
+    const c = { absent: 0, half_day: 0, leave: 0 };
+    rows.forEach((r) => {
+      if (r.status in c) c[r.status as keyof typeof c]++;
+    });
+    return c;
+  }, [rows]);
+  const registerDeductible = deductibleDays(counts);
+  const recordedAbsent = Number(payment?.absent_days || 0);
+  const mismatch = !loading && payment && recordedAbsent !== registerDeductible;
+
+  return (
+    <Dialog open={!!payment} onOpenChange={(o) => !o && onClose()}>
+      {/* Mobile: fills the screen width with a small gutter; desktop: max-w-md */}
+      <DialogContent className="flex max-h-[85dvh] w-[calc(100vw-1.5rem)] max-w-md flex-col gap-3 overflow-hidden rounded-lg p-4 sm:w-full sm:p-5">
+        <DialogHeader className="text-left">
+          <DialogTitle className="flex flex-wrap items-baseline gap-x-1 pr-6 text-base sm:text-lg">
+            <span>Leaves · {staffName}</span>
+            {ym && <span className="font-normal text-muted-foreground">· {format(new Date(`${ym}-01T00:00:00`), "MMMM yyyy")}</span>}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+          {(["absent", "half_day", "leave"] as const).map((k) => (
+            <div key={k} className={`rounded-md border px-2 py-1.5 ${ATT[k].cls}`}>
+              <div className="text-base font-semibold leading-tight">{counts[k]}</div>
+              <div>{ATT[k].label}</div>
+            </div>
+          ))}
+        </div>
+        {payment && (
+          <div className="space-y-1 rounded bg-muted/40 p-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Deducted days</span>
+              <span>{recordedAbsent}d</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Deduction</span>
+              <span className="font-medium text-destructive">−{money(Number(payment.deduction_amount || 0))}</span>
+            </div>
+            {mismatch && (
+              <div className="pt-1 text-[11px] text-amber-700 dark:text-amber-400">
+                Attendance register shows {registerDeductible}d deductible (absent = 1d, half day = 0.5d); this payment deducted {recordedAbsent}d.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dates */}
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
+          {loading ? (
+            <div className="p-4 text-center text-xs text-muted-foreground">Loading…</div>
+          ) : rows.length === 0 ? (
+            <div className="p-4 text-center text-xs text-muted-foreground">No absences or leaves marked in attendance for this month.</div>
+          ) : (
+            <ul className="divide-y">
+              {rows.map((r) => (
+                <li key={r.attendance_date} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-1.5">
+                  <span className="text-xs sm:text-sm">{format(new Date(`${r.attendance_date}T00:00:00`), "EEE, dd MMM yyyy")}</span>
+                  <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${ATT[r.status]?.cls ?? ""}`}>
+                    {ATT[r.status]?.label ?? r.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---------- Yes / No confirmation dialog (mobile friendly) ---------- */
+function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmLabel = "Yes, delete",
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  description?: React.ReactNode;
+  confirmLabel?: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && !busy && onCancel()}>
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm rounded-lg p-4 sm:w-full sm:p-5">
+        <DialogHeader className="text-left">
+          <DialogTitle className="pr-6 text-base sm:text-lg">{title}</DialogTitle>
+        </DialogHeader>
+        {description && <div className="text-sm text-muted-foreground">{description}</div>}
+        <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={onCancel} disabled={busy} autoFocus>
+            No
+          </Button>
+          <Button variant="destructive" className="w-full sm:w-auto" onClick={onConfirm} disabled={busy}>
+            {busy ? "Deleting…" : confirmLabel}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function StaffPage() {
   const [tenantId, setTenantId] = useState<string>("");
   const [business, setBusiness] = useState<{ name: string; address?: string; phone?: string }>({ name: "" });
@@ -1024,6 +1185,10 @@ function StaffPage() {
   const [f, setF] = useState<any>({ name: "", role: "waiter", phone: "", monthly_salary: 0, join_date: today() });
   const [payForm, setPayForm] = useState<any>(newPayForm());
   const [openAttendance, setOpenAttendance] = useState(false);
+  const [leavePay, setLeavePay] = useState<any>(null); // payment whose leave details are open
+  const [deletePay, setDeletePay] = useState<any>(null); // payment pending deletion
+  const [deleteStaffRow, setDeleteStaffRow] = useState<any>(null); // staff pending deletion
+  const [deleting, setDeleting] = useState(false);
   const [staffOpen, setStaffOpen] = useState(true);
   const [paysOpen, setPaysOpen] = useState(true);
 
@@ -1072,6 +1237,7 @@ function StaffPage() {
   const [payQ, setPayQ] = useState("");
   const [payMode, setPayMode] = useState("all");
   const [payStaff, setPayStaff] = useState("all");
+  const [payRole, setPayRole] = useState("all");
   const [payFrom, setPayFrom] = useState("");
   const [payTo, setPayTo] = useState("");
   const [payPage, setPayPage] = useState(1);
@@ -1141,11 +1307,14 @@ function StaffPage() {
     load();
   }
 
-  async function remove(id: string) {
-    if (!confirm("Remove this staff member?")) return;
-    const { error } = await (supabase as any).from("staff_members").delete().eq("id", id);
+  async function confirmRemoveStaff() {
+    if (!deleteStaffRow) return;
+    setDeleting(true);
+    const { error } = await (supabase as any).from("staff_members").delete().eq("id", deleteStaffRow.id);
+    setDeleting(false);
     if (error) return toast.error(error.message);
     toast.success("Staff removed");
+    setDeleteStaffRow(null);
     load();
   }
 
@@ -1186,6 +1355,17 @@ function StaffPage() {
     load();
   }
 
+  async function confirmRemovePayment() {
+    if (!deletePay) return;
+    setDeleting(true);
+    const { error } = await (supabase as any).from("salary_payments").delete().eq("id", deletePay.id);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Payment deleted");
+    setDeletePay(null);
+    load();
+  }
+
   /* ---------- Derived data ---------- */
   const staffById = useMemo(() => Object.fromEntries(staff.map((s) => [s.id, s])), [staff]);
   const roles = useMemo(() => Array.from(new Set(staff.map((s) => (s.role || "").toLowerCase()).filter(Boolean))).sort(), [staff]);
@@ -1214,24 +1394,25 @@ function StaffPage() {
     return pays.filter((p) => {
       if (payMode !== "all" && p.payment_mode !== payMode) return false;
       if (payStaff !== "all" && p.staff_id !== payStaff) return false;
+      if (payRole !== "all" && (staffById[p.staff_id]?.role || "").toLowerCase() !== payRole) return false;
       if (payFrom && p.paid_on < payFrom) return false;
       if (payTo && p.paid_on > payTo) return false;
       if (!q) return true;
       const name = staffById[p.staff_id]?.name || "";
       return [name, p.notes].some((v) => (v || "").toLowerCase().includes(q));
     });
-  }, [pays, payQ, payMode, payStaff, payFrom, payTo, staffById]);
+  }, [pays, payQ, payMode, payStaff, payRole, payFrom, payTo, staffById]);
 
   const filteredPaysTotal = filteredPays.reduce((a, b) => a + Number(b.amount || 0), 0);
 
   // Reset to page 1 when filters change
   useEffect(() => setStaffPage(1), [staffQ, staffRole, staffStatus]);
-  useEffect(() => setPayPage(1), [payQ, payMode, payStaff, payFrom, payTo]);
+  useEffect(() => setPayPage(1), [payQ, payMode, payStaff, payRole, payFrom, payTo]);
 
   const staffRows = filteredStaff.slice((staffPage - 1) * PAGE_SIZE, staffPage * PAGE_SIZE);
   const payRows = filteredPays.slice((payPage - 1) * PAGE_SIZE, payPage * PAGE_SIZE);
 
-  const payFiltersActive = payQ || payMode !== "all" || payStaff !== "all" || payFrom || payTo;
+  const payFiltersActive = payQ || payMode !== "all" || payStaff !== "all" || payRole !== "all" || payFrom || payTo;
 
   function slipFor(p: any) {
     const s = staffById[p.staff_id];
@@ -1256,41 +1437,42 @@ function StaffPage() {
     setPayQ("");
     setPayMode("all");
     setPayStaff("all");
+    setPayRole("all");
     setPayFrom("");
     setPayTo("");
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          <UsersRound className="h-6 w-6" />
-          <h1 className="text-2xl font-semibold">Staff</h1>
+          <UsersRound className="h-5 w-5 sm:h-6 sm:w-6" />
+          <h1 className="text-xl font-semibold sm:text-2xl">Staff</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setOpenAttendance(true)}>
+          <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setOpenAttendance(true)}>
             <CalendarCheck className="mr-1 h-4 w-4" />
             Attendance
           </Button>
-          <Button onClick={openAddStaff}>
+          <Button className="flex-1 sm:flex-none" onClick={openAddStaff}>
             <Plus className="mr-1 h-4 w-4" />
             Add staff
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card className="p-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <Card className="p-3 sm:p-4">
           <div className="text-xs text-muted-foreground">Active staff</div>
-          <div className="text-2xl font-semibold">{staff.filter((s) => s.status === "active").length}</div>
+          <div className="text-xl font-semibold sm:text-2xl">{staff.filter((s) => s.status === "active").length}</div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-3 sm:p-4">
           <div className="text-xs text-muted-foreground">Monthly payroll</div>
-          <div className="text-2xl font-semibold">{money(totalMonthly)}</div>
+          <div className="truncate text-xl font-semibold sm:text-2xl">{money(totalMonthly)}</div>
         </Card>
-        <Card className="p-4">
+        <Card className="col-span-2 p-3 sm:p-4 md:col-span-1">
           <div className="text-xs text-muted-foreground">Paid this month</div>
-          <div className="text-2xl font-semibold">{money(totalPaidThisMonth)}</div>
+          <div className="truncate text-xl font-semibold sm:text-2xl">{money(totalPaidThisMonth)}</div>
         </Card>
       </div>
 
@@ -1306,9 +1488,9 @@ function StaffPage() {
         <div id="staff-list-body">
         <div className="flex flex-col gap-2 border-b p-3 sm:flex-row sm:items-center sm:justify-between">
           <SearchBox value={staffQ} onChange={setStaffQ} placeholder="Search name, phone, role" />
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Select value={staffRole} onValueChange={setStaffRole}>
-              <SelectTrigger className="h-8 w-36 capitalize"><SelectValue placeholder="Role" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-full capitalize sm:w-36"><SelectValue placeholder="Role" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All roles</SelectItem>
                 {roles.map((r) => (
@@ -1317,7 +1499,7 @@ function StaffPage() {
               </SelectContent>
             </Select>
             <Select value={staffStatus} onValueChange={setStaffStatus}>
-              <SelectTrigger className="h-8 w-32"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-full sm:w-32"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
@@ -1331,23 +1513,32 @@ function StaffPage() {
             <thead className="bg-muted/40 text-left">
               <tr>
                 <th className="p-3">Name</th>
-                <th className="p-3">Role</th>
-                <th className="p-3">Phone</th>
+                <th className="hidden p-3 sm:table-cell">Role</th>
+                <th className="hidden p-3 md:table-cell">Phone</th>
                 <th className="p-3">Salary</th>
-                <th className="p-3">Joined</th>
-                <th className="p-3">Status</th>
+                <th className="hidden p-3 md:table-cell">Joined</th>
+                <th className="hidden p-3 sm:table-cell">Status</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
             <tbody>
               {staffRows.map((s) => (
                 <tr key={s.id} className="border-t">
-                  <td className="p-3 font-medium">{s.name}</td>
-                  <td className="p-3 capitalize">{s.role}</td>
-                  <td className="p-3">{s.phone || "—"}</td>
-                  <td className="p-3">{money(Number(s.monthly_salary || 0))}</td>
-                  <td className="p-3">{s.join_date}</td>
-                  <td className="p-3">
+                  <td className="p-3 font-medium">
+                    <div>{s.name}</div>
+                    {/* Details folded in on small screens, where their columns are hidden */}
+                    <div className="mt-0.5 text-xs font-normal capitalize text-muted-foreground sm:hidden">
+                      {[s.role, s.phone, (s.status ?? "active") === "active" ? "Active" : "Inactive"].filter(Boolean).join(" · ")}
+                    </div>
+                    <div className="mt-0.5 hidden text-xs font-normal text-muted-foreground sm:block md:hidden">
+                      {[s.phone, s.join_date].filter(Boolean).join(" · ")}
+                    </div>
+                  </td>
+                  <td className="hidden p-3 capitalize sm:table-cell">{s.role}</td>
+                  <td className="hidden p-3 md:table-cell">{s.phone || "—"}</td>
+                  <td className="whitespace-nowrap p-3">{money(Number(s.monthly_salary || 0))}</td>
+                  <td className="hidden whitespace-nowrap p-3 md:table-cell">{s.join_date}</td>
+                  <td className="hidden p-3 sm:table-cell">
                     {(s.status ?? "active") === "active" ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
@@ -1364,13 +1555,14 @@ function StaffPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      className="px-2 sm:px-3"
                       onClick={() => {
                         setOpenPay(s);
                         setPayForm(newPayForm(Number(s.monthly_salary || 0)));
                       }}
                     >
-                      <Wallet className="mr-1 h-3 w-3" />
-                      Pay
+                      <Wallet className="h-3 w-3 sm:mr-1" />
+                      <span className="hidden sm:inline">Pay</span>
                     </Button>
                     <Button
                       size="sm"
@@ -1382,7 +1574,7 @@ function StaffPage() {
                     >
                       <Pencil className="h-3 w-3" />
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => remove(s.id)} aria-label={`Remove ${s.name}`}>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteStaffRow(s)} aria-label={`Remove ${s.name}`}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </td>
@@ -1405,27 +1597,29 @@ function StaffPage() {
 
       {/* ---------- Salary payments ---------- */}
       <Card className="overflow-hidden p-0">
-        <div className={`flex items-center justify-between px-3 ${paysOpen ? "pt-3" : "py-2"}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-x-2 gap-y-2 px-3 sm:flex-nowrap ${paysOpen ? "pt-3" : "py-2"}`}>
           <div className="font-medium">Salary payments</div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>
+          {/* Total + slips drop to their own row on small screens */}
+          <div className="order-last flex w-full items-center justify-between gap-3 text-xs text-muted-foreground sm:order-none sm:ml-auto sm:w-auto sm:justify-end">
+            <span className="whitespace-nowrap">
               Total: <span className="font-semibold text-foreground">{money(filteredPaysTotal)}</span>
             </span>
-            <Button size="sm" variant="outline" className="h-7" onClick={slipsForFiltered} disabled={!filteredPays.length}>
+            <Button size="sm" variant="outline" className="h-7 shrink-0" onClick={slipsForFiltered} disabled={!filteredPays.length}>
               <FileDown className="mr-1 h-3 w-3" />
-              Download slips ({filteredPays.length})
+              <span className="hidden sm:inline">Download slips</span>
+              <span className="sm:hidden">Slips</span> ({filteredPays.length})
             </Button>
-            <SectionToggle open={paysOpen} onToggle={() => setPaysOpen((o) => !o)} controls="salary-payments-body" label="salary payments" />
           </div>
+          <SectionToggle open={paysOpen} onToggle={() => setPaysOpen((o) => !o)} controls="salary-payments-body" label="salary payments" />
         </div>
 
         {paysOpen && (
         <div id="salary-payments-body">
 
-        <div className="flex flex-col gap-2 border-b p-3 lg:flex-row lg:flex-wrap lg:items-center">
-          <SearchBox value={payQ} onChange={setPayQ} placeholder="Search staff or notes" />
+        <div className="flex flex-col gap-2 border-b p-3 lg:flex-row lg:flex-nowrap lg:items-center">
+          <SearchBox value={payQ} onChange={setPayQ} placeholder="Search staff or notes" className="w-full lg:min-w-0 lg:flex-1" />
           <Select value={payStaff} onValueChange={setPayStaff}>
-            <SelectTrigger className="h-8 w-full lg:w-40"><SelectValue placeholder="Staff" /></SelectTrigger>
+            <SelectTrigger className="h-8 w-full shrink-0 lg:w-32"><SelectValue placeholder="Staff" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All staff</SelectItem>
               {staff.map((s) => (
@@ -1433,8 +1627,17 @@ function StaffPage() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={payRole} onValueChange={setPayRole}>
+            <SelectTrigger className="h-8 w-full shrink-0 capitalize lg:w-32"><SelectValue placeholder="Role" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All roles</SelectItem>
+              {roles.map((r) => (
+                <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={payMode} onValueChange={setPayMode}>
-            <SelectTrigger className="h-8 w-full lg:w-44"><SelectValue placeholder="Mode" /></SelectTrigger>
+            <SelectTrigger className="h-8 w-full shrink-0 lg:w-36"><SelectValue placeholder="Mode" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All modes</SelectItem>
               {PAYMENT_MODES.map((m) => (
@@ -1442,13 +1645,13 @@ function StaffPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-1">
-            <Input type="date" value={payFrom} onChange={(e) => setPayFrom(e.target.value)} className="h-8 w-36" aria-label="From date" />
+          <div className="flex shrink-0 items-center gap-1">
+            <Input type="date" value={payFrom} onChange={(e) => setPayFrom(e.target.value)} className="h-8 w-full lg:w-[8.5rem]" aria-label="From date" />
             <span className="text-xs text-muted-foreground">to</span>
-            <Input type="date" value={payTo} onChange={(e) => setPayTo(e.target.value)} className="h-8 w-36" aria-label="To date" />
+            <Input type="date" value={payTo} onChange={(e) => setPayTo(e.target.value)} className="h-8 w-full lg:w-[8.5rem]" aria-label="To date" />
           </div>
           {payFiltersActive && (
-            <Button size="sm" variant="ghost" className="h-8" onClick={clearPayFilters}>
+            <Button size="sm" variant="ghost" className="h-8 shrink-0 px-2" onClick={clearPayFilters}>
               <X className="mr-1 h-3 w-3" />
               Clear
             </Button>
@@ -1456,42 +1659,57 @@ function StaffPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[720px] table-fixed text-xs">
             <thead className="bg-muted/40 text-left text-muted-foreground">
               <tr>
                 <th className="px-3 py-1.5 font-medium">Date</th>
                 <th className="px-3 py-1.5 font-medium">Staff</th>
                 <th className="px-3 py-1.5 font-medium">Mode</th>
                 <th className="px-3 py-1.5 font-medium">Notes</th>
+                <th className="px-3 py-1.5 text-right font-medium">Absent</th>
                 <th className="px-3 py-1.5 text-right font-medium">Amount</th>
-                <th className="px-3 py-1.5 text-right font-medium">Slip</th>
+                <th className="px-3 py-1.5 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {payRows.map((p) => (
                 <tr key={p.id} className="border-t hover:bg-muted/30">
                   <td className="whitespace-nowrap px-3 py-1.5">{format(new Date(p.paid_on), "dd MMM yyyy")}</td>
-                  <td className="px-3 py-1.5 font-medium">{staffById[p.staff_id]?.name || "—"}</td>
+                  <td className="truncate px-3 py-1.5 font-medium" title={staffById[p.staff_id]?.name || ""}>
+                    {staffById[p.staff_id]?.name || "—"}
+                  </td>
                   <td className="px-3 py-1.5">
                     <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
                       {modeLabel(p.payment_mode)}
                     </Badge>
                   </td>
-                  <td className="max-w-[240px] truncate px-3 py-1.5 text-muted-foreground" title={p.notes || ""}>
+                  <td className="truncate px-3 py-1.5 text-muted-foreground" title={p.notes || ""}>
                     {p.notes || "—"}
+                  </td>
+                  {/* Absent: click to view the leave dates for this salary month */}
+                  <td className="whitespace-nowrap px-3 py-1.5 text-right">
+                    {Number(p.deduction_amount) > 0 ? (
+                      <button
+                        type="button"
+                        className="text-right text-destructive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        onClick={() => setLeavePay(p)}
+                        aria-label={`View leave dates for ${staffById[p.staff_id]?.name || "staff"}`}
+                        title="View leave dates"
+                      >
+                        <div className="font-medium">{p.absent_days}d</div>
+                        <div className="text-[10px]">−{money(Number(p.deduction_amount))}</div>
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 py-1.5 text-right">
                     <div className="font-semibold">{money(Number(p.amount || 0))}</div>
-                    {Number(p.deduction_amount) > 0 && (
-                      <div className="text-[10px] text-destructive">
-                        −{money(Number(p.deduction_amount))} · {p.absent_days}d absent
-                      </div>
-                    )}
                     {p.salary_month && (
                       <div className="text-[10px] text-muted-foreground">for {format(new Date(p.salary_month), "MMM yyyy")}</div>
                     )}
                   </td>
-                  <td className="px-3 py-1.5 text-right">
+                  <td className="whitespace-nowrap px-3 py-1.5 text-right">
                     <Button
                       size="icon"
                       variant="ghost"
@@ -1502,12 +1720,22 @@ function StaffPage() {
                     >
                       <Download className="h-3.5 w-3.5" />
                     </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive"
+                      onClick={() => setDeletePay(p)}
+                      aria-label={`Delete payment to ${staffById[p.staff_id]?.name || "staff"}`}
+                      title="Delete payment"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </td>
                 </tr>
               ))}
               {filteredPays.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                  <td colSpan={7} className="p-4 text-center text-muted-foreground">
                     {pays.length === 0 ? "No payments recorded." : "No payments match your filters."}
                   </td>
                 </tr>
@@ -1521,6 +1749,50 @@ function StaffPage() {
       </Card>
 
       <AttendanceDialog open={openAttendance} onOpenChange={setOpenAttendance} tenantId={tenantId} staff={staff} />
+      <LeaveDetailsDialog payment={leavePay} staffName={staffById[leavePay?.staff_id]?.name || "Staff"} onClose={() => setLeavePay(null)} />
+
+      <ConfirmDialog
+        open={!!deletePay}
+        title="Delete this payment?"
+        busy={deleting}
+        onCancel={() => setDeletePay(null)}
+        onConfirm={confirmRemovePayment}
+        description={
+          deletePay && (
+            <div className="space-y-1">
+              <div className="flex justify-between gap-2">
+                <span>Staff</span>
+                <span className="font-medium text-foreground">{staffById[deletePay.staff_id]?.name || "—"}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Amount</span>
+                <span className="font-medium text-foreground">{money(Number(deletePay.amount || 0))}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Paid on</span>
+                <span className="text-foreground">{format(new Date(deletePay.paid_on), "dd MMM yyyy")}</span>
+              </div>
+              {deletePay.salary_month && (
+                <div className="flex justify-between gap-2">
+                  <span>Salary month</span>
+                  <span className="text-foreground">{format(new Date(deletePay.salary_month), "MMMM yyyy")}</span>
+                </div>
+              )}
+              <p className="pt-1 text-xs">This cannot be undone.</p>
+            </div>
+          )
+        }
+      />
+
+      <ConfirmDialog
+        open={!!deleteStaffRow}
+        title={`Remove ${deleteStaffRow?.name || "staff"}?`}
+        confirmLabel="Yes, remove"
+        busy={deleting}
+        onCancel={() => setDeleteStaffRow(null)}
+        onConfirm={confirmRemoveStaff}
+        description="The staff record will be removed. This cannot be undone."
+      />
 
       {/* ---------- Add / edit staff dialog ---------- */}
       <Dialog
@@ -1530,16 +1802,16 @@ function StaffPage() {
           if (!o) setEditingId(null);
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingId ? `Edit ${f.name || "staff"}` : "Add staff"}</DialogTitle>
+        <DialogContent className="max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-lg p-4 sm:w-full sm:p-5">
+          <DialogHeader className="text-left">
+            <DialogTitle className="pr-6 text-base sm:text-lg">{editingId ? `Edit ${f.name || "staff"}` : "Add staff"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Name</Label>
               <Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>Role</Label>
                 <Input value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })} placeholder="waiter, chef…" />
@@ -1576,19 +1848,21 @@ function StaffPage() {
             )}
           </div>
           <DialogFooter>
-            <Button onClick={saveStaff}>{editingId ? "Save changes" : "Add staff"}</Button>
+            <Button className="w-full sm:w-auto" onClick={saveStaff}>
+              {editingId ? "Save changes" : "Add staff"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ---------- Pay dialog ---------- */}
       <Dialog open={!!openPay} onOpenChange={(o) => !o && setOpenPay(null)}>
-        <DialogContent className="flex max-h-[85vh] max-w-md flex-col gap-3 overflow-hidden p-5">
-          <DialogHeader>
-            <DialogTitle>Pay {openPay?.name}</DialogTitle>
+        <DialogContent className="flex max-h-[90dvh] w-[calc(100vw-1.5rem)] max-w-md flex-col gap-3 overflow-hidden rounded-lg p-4 sm:w-full sm:p-5">
+          <DialogHeader className="text-left">
+            <DialogTitle className="pr-6 text-base sm:text-lg">Pay {openPay?.name}</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>Salary month</Label>
                 <Input
@@ -1666,7 +1940,7 @@ function StaffPage() {
 
               {payForm.deduct && (
                 <div className="mt-3 space-y-2">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <Label>Absent days</Label>
                       <Input
@@ -1709,7 +1983,7 @@ function StaffPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Label>Amount paid</Label>
                 <Input
@@ -1745,14 +2019,14 @@ function StaffPage() {
             </div>
           </div>
           <div className="flex shrink-0 justify-end border-t pt-3">
-            <Button onClick={requestPay} disabled={calc.eligible === 0 || confirmPay}>
+            <Button className="w-full sm:w-auto" onClick={requestPay} disabled={calc.eligible === 0 || confirmPay}>
               Record payment
             </Button>
           </div>
 
           {/* Yes / No confirmation */}
           {confirmPay && openPay && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center rounded-lg bg-background/85 p-5 backdrop-blur-sm">
+            <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto rounded-lg bg-background/85 p-4 backdrop-blur-sm sm:p-5">
               <div
                 role="alertdialog"
                 aria-labelledby="confirm-pay-title"
@@ -1789,11 +2063,11 @@ function StaffPage() {
                     {openPay.name} has {payAtt.deductible} deductible day(s) in attendance, but no deduction is applied.
                   </div>
                 )}
-                <div className="mt-4 flex justify-end gap-2">
-                  <Button variant="outline" autoFocus onClick={() => setConfirmPay(false)} disabled={paying}>
+                <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button variant="outline" className="w-full sm:w-auto" autoFocus onClick={() => setConfirmPay(false)} disabled={paying}>
                     No
                   </Button>
-                  <Button onClick={paySalary} disabled={paying}>
+                  <Button className="w-full sm:w-auto" onClick={paySalary} disabled={paying}>
                     {paying ? "Saving…" : "Yes, record"}
                   </Button>
                 </div>
