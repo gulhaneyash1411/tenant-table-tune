@@ -6,10 +6,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
-import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { format } from "date-fns";
+import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin, UtensilsCrossed, X, ChevronLeft, ChevronRight, CalendarClock, Ban } from "lucide-react";
 import { BrandedLoader } from "@/components/branded-loader";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
+
+/**
+ * Whether a table is being held for a booking right now.
+ *
+ * This lives here rather than in public-orders.functions because it needs no
+ * privileged client: table_reservation_hold is a security definer function in
+ * the database, so it reads the reservation rows itself and hands back nothing
+ * but timing. No guest name, phone, party size or notes ever reaches this page,
+ * and table_reservations itself stays unreadable to the anonymous role.
+ *
+ * The 60-minute lead lives in the SQL function. It must match HOLD_LEAD_MINUTES
+ * on the floor plan, or a guest and the host see different answers about the
+ * same table.
+ */
+async function loadReservationHold(tableId: string) {
+  const { data, error } = await supabase
+    .rpc("table_reservation_hold", { p_table_id: tableId })
+    .maybeSingle();
+
+  // A lookup failure must not lock guests out of a table that may well be
+  // free — fail open and let the order through.
+  if (error || !data) return null;
+  return data as { reserved_for: string; held_until: string };
+}
 
 // Everything the page needs, resolved before the component ever mounts.
 // TanStack Router won't render `component` until this promise settles — for
@@ -20,18 +45,29 @@ import { getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.funct
 // always already has real data.
 async function loadTableData(tableId: string) {
   const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
-  if (!t) return { table: null as any, tenant: null as any, cats: [] as any[], items: [] as any[], activeOrder: null as any };
+  if (!t) {
+    return {
+      table: null as any, tenant: null as any, cats: [] as any[], items: [] as any[],
+      activeOrder: null as any, hold: null as any,
+    };
+  }
   // Everything below only depends on t.tenant_id/t.id, so fetch it all in
   // parallel instead of a chain of sequential round trips.
-  const [{ data: ten }, { data: c }, { data: i }, ao] = await Promise.all([
+  const [{ data: ten }, { data: c }, { data: i }, ao, hold] = await Promise.all([
     supabase.from("tenants").select("*").eq("id", t.tenant_id).single(),
     supabase.from("menu_categories").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
     supabase.from("menu_items").select("*").eq("tenant_id", t.tenant_id).order("sort_order"),
     // An active-order lookup failure shouldn't block the whole page — treat
     // it as "no active order" rather than failing the entire loader.
     getActiveTableOrder({ data: { table_id: t.id } }).catch(() => null),
+    // Returns a row only while a booking is actually holding the table, so
+    // its mere presence is the answer.
+    loadReservationHold(t.id).catch(() => null),
   ]);
-  return { table: t, tenant: ten ?? null, cats: c ?? [], items: i ?? [], activeOrder: ao ?? null };
+  return {
+    table: t, tenant: ten ?? null, cats: c ?? [], items: i ?? [],
+    activeOrder: ao ?? null, hold: hold ?? null,
+  };
 }
 
 // The ONE loading screen for this route. Deliberately generic/unbranded —
@@ -116,6 +152,51 @@ function Stepper({ qty, onDec, onInc, className = "" }: { qty: number; onDec: ()
       <button aria-label="Add one" onClick={onInc} className="h-8 w-8 grid place-items-center rounded-full">
         <Plus className="h-3.5 w-3.5" />
       </button>
+    </div>
+  );
+}
+
+// Shown when the table can't take an order right now. Uses the same phone-width
+// column, page tint and 32px card as the menu and cart, so a blocked scan reads
+// as the same place rather than an error page from somewhere else. The copy
+// tells the guest what to do next — staff are the resolution here, not a retry.
+function TableNotice({
+  tenant,
+  table,
+  icon,
+  title,
+  body,
+}: { tenant: any; table: any; icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 grid place-items-center p-4 shadow-xl shadow-black/5">
+        <div className="w-full max-w-md rounded-[32px] bg-background p-6 shadow-xl shadow-black/5 text-center">
+          {tenant?.logo_url
+            ? <img src={tenant.logo_url} alt="" className="h-16 w-16 rounded-2xl object-cover mx-auto" />
+            : <div className="h-16 w-16 rounded-2xl bg-primary/10 text-primary grid place-items-center text-xl font-bold mx-auto">{(tenant?.name || "R").slice(0, 1)}</div>}
+
+          <div className="h-12 w-12 rounded-full bg-muted grid place-items-center mx-auto mt-5 text-muted-foreground">
+            {icon}
+          </div>
+
+          <h1 className="text-xl font-bold tracking-tight mt-4">{title}</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mt-2">{body}</p>
+
+          {table?.label && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-muted rounded-full pl-2.5 pr-3 py-1.5 mt-5">
+              <MapPin className="h-3.5 w-3.5" />Table {table.label}
+            </span>
+          )}
+
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-full font-semibold border-2 mt-6"
+            onClick={() => window.location.reload()}
+          >
+            Check again
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -235,7 +316,7 @@ function ItemDetail({ item, qty, onAdd, onDec, onClose }: { item: any; qty: numb
 
 function TableOrder() {
   const loaderData = Route.useLoaderData();
-  const { table, tenant, cats, items } = loaderData;
+  const { table, tenant, cats, items, hold } = loaderData;
   const [cart, setCart] = useState<Record<string, number>>({});
   const [showCart, setShowCart] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -307,6 +388,48 @@ function TableOrder() {
     </div>
   );
 
+  // ---- Can this table take an order right now? ------------------------------
+  // Three gates, in order of how final they are. Each one stops the menu from
+  // rendering at all, so there is no path where a guest builds a cart and only
+  // finds out at submit time that the table was never available.
+
+  // 1. Retired or out of service. The QR may still be stuck to the table, so
+  //    this has to say something better than "invalid code".
+  if (table.is_active === false) {
+    return (
+      <TableNotice
+        tenant={tenant}
+        table={table}
+        icon={<Ban className="h-5 w-5" />}
+        title="This table isn't in service"
+        body="Please ask a member of staff to seat you at another table, or scan the code there."
+      />
+    );
+  }
+
+  // 2. Held for a booking. The database function only returns a row while the
+  //    hold is live, so its presence is the whole test — and it carries a time,
+  //    never who the booking is for. Resolution here is a person, not a retry,
+  //    but the button is there in case staff free it while this screen is open.
+  if (hold && !activeOrder) {
+    return (
+      <TableNotice
+        tenant={tenant}
+        table={table}
+        icon={<CalendarClock className="h-5 w-5" />}
+        title="This table is reserved"
+        body={
+          hold.reserved_for
+            ? `It's being held for a booking at ${format(new Date(hold.reserved_for), "p")}. Please speak to a member of staff and they'll seat you.`
+            : "It's being held for a booking. Please speak to a member of staff and they'll seat you."
+        }
+      />
+    );
+  }
+
+  // 3. Busy — an order on this table is still unpaid. The party who placed it
+  //    should be able to follow it, so this screen asks for their details
+  //    rather than refusing outright. Anyone else gets turned away below.
   if (activeOrder) {
     return (
       // Same phone-width column and page tint as the menu, so this screen is
@@ -348,7 +471,7 @@ function TableOrder() {
               if (activeOrder.customer_phone === phone) {
                 window.location.href = `/status?phone=${encodeURIComponent(phone)}`;
               } else {
-                toast.error("This table is already booked. Please wait until it's free.");
+                toast.error("This table is already occupied. Please ask staff for another table.");
               }
             }}>Continue</Button>
           </div>
@@ -356,6 +479,8 @@ function TableOrder() {
       </div>
     );
   }
+
+  // ---- Free: the menu ------------------------------------------------------
 
   const q = search.trim().toLowerCase();
   // While searching, look across the whole menu rather than only the open tab —
