@@ -15,6 +15,42 @@ export const Route = createFileRoute("/_authenticated/app/revenue")({ component:
 // daily bars and the event list can't disagree about what's included.
 const EARNING_EVENT_STATUSES = ["confirmed", "completed"];
 
+// One list drives the stack order, the legend and the channel totals, so adding
+// a channel later means editing this array and nothing else.
+const CHANNELS = [
+  { key: "dine_in", label: "Dine-in", bar: "bg-sky-500", swatch: "bg-sky-500" },
+  { key: "takeaway", label: "Takeaway", bar: "bg-amber-500", swatch: "bg-amber-500" },
+  { key: "delivery", label: "Home delivery", bar: "bg-violet-500", swatch: "bg-violet-500" },
+  { key: "booking", label: "Table bookings", bar: "bg-rose-500", swatch: "bg-rose-500" },
+  { key: "event", label: "Events", bar: "bg-emerald-500", swatch: "bg-emerald-500" },
+  { key: "other", label: "Other", bar: "bg-slate-400", swatch: "bg-slate-400" },
+] as const;
+
+type ChannelKey = (typeof CHANNELS)[number]["key"];
+
+// order_type is written differently in different parts of the app ("dine-in",
+// "DINE_IN", "Home Delivery"), so match on the stem instead of an exact value.
+// Anything unrecognised lands in "other" rather than silently disappearing.
+function channelOf(orderType?: string | null): ChannelKey {
+  const t = (orderType || "").toLowerCase();
+  if (t.includes("dine")) return "dine_in";
+  if (t.includes("take") || t.includes("pick") || t.includes("counter")) return "takeaway";
+  if (t.includes("deliver")) return "delivery";
+  if (t.includes("book") || t.includes("reserv")) return "booking";
+  return "other";
+}
+
+const emptySplit = () =>
+  Object.fromEntries(CHANNELS.map(c => [c.key, 0])) as Record<ChannelKey, number>;
+
+type DayBucket = {
+  revenue: number;
+  paid: number;
+  orders: number;
+  events: number;
+  split: Record<ChannelKey, number>;
+};
+
 function Revenue() {
   const [from, setFrom] = useState(format(subDays(new Date(), 29), "yyyy-MM-dd"));
   const [to, setTo] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -47,25 +83,40 @@ function Revenue() {
   }, [from, to]);
 
   const byDay = useMemo(() => {
-    const m: Record<string, { revenue: number; paid: number; orders: number; events: number }> = {};
-    const bucket = (d: string) => (m[d] ||= { revenue: 0, paid: 0, orders: 0, events: 0 });
+    const m: Record<string, DayBucket> = {};
+    const bucket = (d: string) =>
+      (m[d] ||= { revenue: 0, paid: 0, orders: 0, events: 0, split: emptySplit() });
 
     for (const o of rows) {
       const v = bucket(format(new Date(o.created_at), "yyyy-MM-dd"));
-      v.revenue += Number(o.total || 0);
-      if (o.payment_status === "paid") v.paid += Number(o.total || 0);
+      const amount = Number(o.total || 0);
+      v.revenue += amount;
+      if (o.payment_status === "paid") v.paid += amount;
       v.orders += 1;
+      v.split[channelOf(o.order_type)] += amount;
     }
     for (const e of events) {
       const v = bucket(format(new Date(e.starts_at), "yyyy-MM-dd"));
-      v.revenue += Number(e.amount || 0);
+      const amount = Number(e.amount || 0);
+      v.revenue += amount;
       // Only the advance actually received counts as collected; the balance is
       // still owed even on a confirmed booking.
       v.paid += Number(e.amount_paid || 0);
       v.events += 1;
+      v.split.event += amount;
     }
     return Object.entries(m).sort(([a], [b]) => a.localeCompare(b));
   }, [rows, events]);
+
+  // Range totals per channel, used for the legend so each colour carries a
+  // number rather than only a name.
+  const byChannel = useMemo(() => {
+    const totals = emptySplit();
+    for (const [, v] of byDay) {
+      for (const c of CHANNELS) totals[c.key] += v.split[c.key];
+    }
+    return totals;
+  }, [byDay]);
 
   const orderTotal = rows.reduce((a, b) => a + Number(b.total || 0), 0);
   const orderPaid = rows
@@ -78,6 +129,10 @@ function Revenue() {
   const paid = orderPaid + eventPaid;
   const outstanding = total - paid;
   const maxDay = Math.max(1, ...byDay.map(([, v]) => v.revenue));
+
+  // Channels that never appear in the selected range are dropped from the
+  // legend, so a quiet week doesn't show five colours it never used.
+  const activeChannels = CHANNELS.filter(c => byChannel[c.key] > 0);
 
   return (
     <div className="space-y-4">
@@ -121,23 +176,59 @@ function Revenue() {
       </div>
 
       <Card className="p-4">
-        <div className="font-medium mb-3">Daily revenue</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="font-medium">Daily revenue</div>
+          {activeChannels.length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {activeChannels.map(c => (
+                <div key={c.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className={`h-2.5 w-2.5 rounded-sm ${c.swatch}`} aria-hidden="true" />
+                  <span>{c.label}</span>
+                  <span className="font-medium text-foreground">{money(byChannel[c.key])}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {byDay.length === 0 && (
           <div className="text-sm text-muted-foreground py-8 text-center">Nothing in this range.</div>
         )}
+
         <div className="space-y-2">
-          {byDay.map(([d, v]) => (
-            <div key={d} className="flex items-center gap-3 text-sm">
-              <div className="w-24 text-muted-foreground">{format(new Date(d), "PP")}</div>
-              <div className="flex-1 h-2 bg-muted rounded overflow-hidden">
-                <div className="h-full bg-primary" style={{ width: `${(v.revenue / maxDay) * 100}%` }} />
+          {byDay.map(([d, v]) => {
+            const parts = CHANNELS.filter(c => v.split[c.key] > 0);
+            // Read out as one sentence so the split isn't colour-only.
+            const breakdown = parts
+              .map(c => `${c.label} ${money(v.split[c.key])}`)
+              .join(", ");
+            return (
+              <div key={d} className="flex items-center gap-3 text-sm">
+                <div className="w-24 text-muted-foreground">{format(new Date(d), "PP")}</div>
+                <div className="flex-1 h-2.5 bg-muted rounded overflow-hidden">
+                  {/* Outer width keeps days comparable; the segments inside
+                      divide that day's own total between channels. */}
+                  <div className="flex h-full" style={{ width: `${(v.revenue / maxDay) * 100}%` }}>
+                    {parts.map(c => (
+                      <div
+                        key={c.key}
+                        className={`h-full ${c.bar}`}
+                        style={{ width: `${(v.split[c.key] / v.revenue) * 100}%` }}
+                        title={`${c.label}: ${money(v.split[c.key])}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="w-24 text-right font-medium">{money(v.revenue)}</div>
+                <div className="w-20 text-right text-xs text-muted-foreground">
+                  {v.orders} ord{v.events > 0 ? ` · ${v.events} ev` : ""}
+                </div>
+                <span className="sr-only">
+                  {format(new Date(d), "PP")}: {money(v.revenue)} — {breakdown}
+                </span>
               </div>
-              <div className="w-24 text-right font-medium">{money(v.revenue)}</div>
-              <div className="w-20 text-right text-xs text-muted-foreground">
-                {v.orders} ord{v.events > 0 ? ` · ${v.events} ev` : ""}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 

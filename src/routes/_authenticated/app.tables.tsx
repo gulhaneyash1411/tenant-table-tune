@@ -117,6 +117,12 @@ function whenLabel(iso: string) {
   return format(d, "d MMM, p");
 }
 
+/** "Sat 4 Oct" from a yyyy-mm-dd key. Parsed at local midnight, because a bare
+ *  yyyy-mm-dd is read as UTC and can print the day before. */
+function dayLabel(key: string) {
+  return format(new Date(`${key}T00:00`), "EEE d MMM");
+}
+
 // Bookings are taken on the quarter hour, so the form works in 15-minute steps
 // rather than to the minute.
 const SLOT_MINUTES = 15;
@@ -218,6 +224,16 @@ function TablesPage() {
   const [eventForm, setEventForm] = useState(emptyEventForm());
   const [eventTouched, setEventTouched] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  // Set once the date clash has been shown and the save re-attempted: the first
+  // tap raises the question, the second answers it.
+  const [clashAck, setClashAck] = useState(false);
+
+  // Narrows the Bookings tab — the table bookings and the events below them —
+  // to one day. "" means no filter, i.e. the whole lookahead window. A single
+  // date rather than a range: the question staff actually ask is "what's on
+  // tomorrow", and a range picker is two more taps for the same answer.
+  const [filterDate, setFilterDate] = useState("");
+
   // Re-renders on a timer so a booking's hold window opens and closes on its
   // own — no data changes when a reservation simply becomes due.
   // The value is used, not just the setter: `floor` and `bookingList` are
@@ -531,6 +547,27 @@ function TablesPage() {
     && paidValid
     && eventWhenValid;
 
+  // What else is already on the chosen date. Cancelled events don't count —
+  // the room is free again — and an event being edited can't clash with itself.
+  // This is a warning, not a rule: whether two functions fit is a call for
+  // staff, so the save is gated on an acknowledgement rather than blocked.
+  const sameDayEvents = useMemo(
+    () => (eventForm.date
+      ? events.filter(e =>
+          e.id !== editingEventId
+          && e.status !== "cancelled"
+          && dateKey(new Date(e.starts_at)) === eventForm.date)
+      : []),
+    [events, eventForm.date, editingEventId],
+  );
+
+  /** Any date change puts the question back — the new day may be clear, or may
+   *  clash with something else entirely. */
+  function onEventDateChange(next: string) {
+    setEventForm({ ...eventForm, date: next });
+    setClashAck(false);
+  }
+
   function openEventDialog(e?: any) {
     if (e) {
       const at = new Date(e.starts_at);
@@ -553,6 +590,7 @@ function TablesPage() {
       setEditingEventId(null);
     }
     setEventTouched(false);
+    setClashAck(false);
     setEventOpen(true);
   }
 
@@ -560,6 +598,15 @@ function TablesPage() {
     if (!tenant) return;
     setEventTouched(true);
     if (!eventValid) return toast.error("Fill in the required fields");
+
+    // Stops here the first time only. The panel in the dialog names what's
+    // already booked; this turns the button into an explicit "yes, anyway".
+    if (sameDayEvents.length > 0 && !clashAck) {
+      setClashAck(true);
+      return toast.warning(
+        `${sameDayEvents.length === 1 ? "An event is" : `${sameDayEvents.length} events are`} already booked on ${dayLabel(eventForm.date)} — tap Book anyway to continue.`,
+      );
+    }
 
     const payload = {
       contact_name: eventForm.contact_name.trim(),
@@ -593,6 +640,7 @@ function TablesPage() {
     setEventOpen(false);
     setEditingEventId(null);
     setEventTouched(false);
+    setClashAck(false);
     await loadEvents(tenant.id);
   }
 
@@ -692,6 +740,33 @@ function TablesPage() {
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservations, tables, tick]);
+
+  // ---- Date filter ---------------------------------------------------------
+  // One filter drives both lists on this tab: "what's on Saturday" means the
+  // tables and the function room together, and two separate filters would let
+  // the two halves of the answer disagree.
+
+  // Recomputed from `tick` so the Today button and the picker's floor stay
+  // correct on a screen left open overnight — at 00:30, Today is the new day.
+  const todayKey = useMemo(() => dateKey(new Date()), [tick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Matched on the local calendar date, not on the ISO string: an 8pm booking
+  // is stored as UTC and a string prefix would put it on the following day.
+  const visibleBookings = useMemo(
+    () => (filterDate
+      ? bookingList.filter(r => dateKey(new Date(r.reserved_for)) === filterDate)
+      : bookingList),
+    [bookingList, filterDate],
+  );
+
+  const visibleEvents = useMemo(
+    () => (filterDate
+      ? events.filter(e => dateKey(new Date(e.starts_at)) === filterDate)
+      : events),
+    [events, filterDate],
+  );
+
+  const filterLabel = filterDate ? dayLabel(filterDate) : null;
 
   // Kept in sync with the floor so the dialog reflects a save without being
   // handed fresh props — it's opened with a table, not a snapshot.
@@ -860,30 +935,67 @@ function TablesPage() {
 
         {/* ---------------------------------------------------- Bookings tab */}
         <TabsContent value="bookings" className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
+          {/* The filter sits with the count it changes, and covers the events
+              list further down too — staff ask about a day, not about a list. */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              {bookingList.length} table {bookingList.length === 1 ? "booking" : "bookings"} in the next{" "}
-              {LOOKAHEAD_DAYS} days, in arrival order.
+              {filterDate ? (
+                <>
+                  {visibleBookings.length} table{" "}
+                  {visibleBookings.length === 1 ? "booking" : "bookings"} on {filterLabel}, in arrival
+                  order.
+                </>
+              ) : (
+                <>
+                  {bookingList.length} table {bookingList.length === 1 ? "booking" : "bookings"} in the
+                  next {LOOKAHEAD_DAYS} days, in arrival order.
+                </>
+              )}
             </p>
-            <div className="flex gap-2">
+
+            <div className="flex flex-wrap gap-2">
+              <Input
+                type="date"
+                aria-label="Show bookings and events on this date"
+                value={filterDate}
+                min={todayKey}
+                onChange={e => setFilterDate(e.target.value)}
+                className={`h-9 w-[9.5rem] relative ${PICKER_ICON}`}
+              />
+              {/* Today is the day asked for constantly, so it gets a button
+                  rather than three taps of the picker. Tapping it again clears. */}
+              <Button
+                size="sm"
+                variant={filterDate === todayKey ? "default" : "outline"}
+                onClick={() => setFilterDate(filterDate === todayKey ? "" : todayKey)}
+              >
+                Today
+              </Button>
+              {filterDate && (
+                <Button size="sm" variant="ghost" onClick={() => setFilterDate("")}>
+                  Clear
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={refreshFloor} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+                
+              </Button>
               <Button size="sm" onClick={() => openEventDialog()}>
                 <PartyPopper className="h-4 w-4 mr-1" />
                 New event
-              </Button>
-              <Button variant="outline" size="sm" onClick={refreshFloor} disabled={refreshing}>
-                <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
+              </Button>              
             </div>
           </div>
 
-          {bookingList.length === 0 ? (
+          {visibleBookings.length === 0 ? (
             <Card className="p-8 text-center text-sm text-muted-foreground">
-              Nothing booked. Tap a table on the floor plan to take a reservation.
+              {filterDate
+                ? `Nothing booked for ${filterLabel}.`
+                : "Nothing booked. Tap a table on the floor plan to take a reservation."}
             </Card>
           ) : (
             <div className="space-y-2">
-              {bookingList.map(r => (
+              {visibleBookings.map(r => (
                 <Card key={r.id} className={`p-3 ${r.holdingNow ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
                   {/* Stacks on a phone, one row from sm up: a host takes
                       bookings standing at the door, so this has to be usable
@@ -935,19 +1047,23 @@ function TablesPage() {
               the table list many times a service but the event list once. */}
           <div className="pt-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-medium">Events</h2>
+              <h2 className="text-sm font-medium">
+                Events{filterLabel ? ` · ${filterLabel}` : ""}
+              </h2>
               <span className="text-xs text-muted-foreground">
-                {events.filter(e => e.status === "enquiry").length} awaiting confirmation
+                {visibleEvents.filter(e => e.status === "enquiry").length} awaiting confirmation
               </span>
             </div>
 
-            {events.length === 0 ? (
+            {visibleEvents.length === 0 ? (
               <Card className="p-6 text-center text-sm text-muted-foreground">
-                No events booked. Use New event for a birthday, party or function.
+                {filterDate
+                  ? `No events on ${filterLabel}.`
+                  : "No events booked. Use New event for a birthday, party or function."}
               </Card>
             ) : (
               <div className="space-y-2">
-                {events.map(e => {
+                {visibleEvents.map(e => {
                   const badge = EVENT_STATUSES.find(s => s.value === e.status);
                   const typeLabel = EVENT_TYPES.find(t => t.value === e.event_type)?.label ?? e.event_type;
                   return (
@@ -1392,7 +1508,7 @@ function TablesPage() {
                 type="date"
                 value={eventForm.date}
                 min={minDate}
-                onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
+                onChange={e => onEventDateChange(e.target.value)}
                 aria-required="true"
                 className={`h-11 w-full relative ${PICKER_ICON}`}
               />
@@ -1414,6 +1530,38 @@ function TablesPage() {
                 <p className="text-[11px] text-red-500">Pick a date and time in the future</p>
               )}
             </div>
+
+            {/* Sits directly under the date that caused it, and lists what's
+                there rather than just saying the day is taken — whether both
+                fit depends on the times and the head counts. */}
+            {sameDayEvents.length > 0 && (
+              <div
+                className={`sm:col-span-2 rounded-md border p-3 text-sm space-y-2 ${
+                  clashAck ? "border-red-500/50 bg-red-500/5" : "border-amber-500/50 bg-amber-500/5"
+                }`}
+                role="status"
+              >
+                <p className="font-medium">
+                  {sameDayEvents.length === 1
+                    ? "An event is already booked"
+                    : `${sameDayEvents.length} events are already booked`}{" "}
+                  on {dayLabel(eventForm.date)}
+                </p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {sameDayEvents.map(e => (
+                    <li key={e.id}>
+                      {format(new Date(e.starts_at), "p")} · {e.contact_name} · {e.guest_count} guests ·{" "}
+                      {EVENT_TYPES.find(t => t.value === e.event_type)?.label ?? e.event_type}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs">
+                  {clashAck
+                    ? "Still want this one on the same day? Tap Book anyway."
+                    : "Check the room and the kitchen can take both before saving."}
+                </p>
+              </div>
+            )}
 
             <div className="sm:col-span-2 space-y-1">
               <Label htmlFor="ev-food">Food requirements</Label>
@@ -1444,8 +1592,14 @@ function TablesPage() {
             <Button variant="outline" className="h-11 sm:h-10" onClick={() => setEventOpen(false)} disabled={saving}>
               Close
             </Button>
+            {/* The label carries the confirmation: the same button that was
+                refused a moment ago now says exactly what it will do. */}
             <Button className="h-11 sm:h-10" onClick={saveEvent} disabled={saving}>
-              {saving ? "Saving…" : editingEventId ? "Save changes" : "Book event"}
+              {saving
+                ? "Saving…"
+                : clashAck && sameDayEvents.length > 0
+                  ? editingEventId ? "Save anyway" : "Book anyway"
+                  : editingEventId ? "Save changes" : "Book event"}
             </Button>
           </div>
         </DialogContent>
