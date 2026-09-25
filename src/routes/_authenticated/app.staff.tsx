@@ -388,6 +388,38 @@ function SearchBox({
   );
 }
 
+/* ---------- Role filter (shared by both attendance tabs) ---------- */
+const rolesOf = (list: any[]) =>
+  Array.from(new Set(list.map((s) => (s.role || "").toLowerCase()).filter(Boolean))).sort();
+
+function RoleFilter({
+  value,
+  onChange,
+  roles,
+  className = "h-8 w-full sm:w-40",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  roles: string[];
+  className?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className={`${className} capitalize`} aria-label="Filter by role">
+        <SelectValue placeholder="Role" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All roles</SelectItem>
+        {roles.map((r) => (
+          <SelectItem key={r} value={r} className="capitalize">
+            {r}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function SectionToggle({ open, onToggle, controls, label }: { open: boolean; onToggle: () => void; controls: string; label: string }) {
   return (
     <Button
@@ -457,11 +489,17 @@ const countMarks = (row: Record<number, AttStatus>) => {
 function MonthlyRegister({
   tenantId,
   staff,
+  role,
+  onRoleChange,
+  roles,
   onDirtyChange,
   onSaved,
 }: {
   tenantId: string;
   staff: any[];
+  role: string;
+  onRoleChange: (v: string) => void;
+  roles: string[];
   onDirtyChange?: (dirty: boolean) => void;
   onSaved?: () => void;
 }) {
@@ -493,10 +531,20 @@ function MonthlyRegister({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month, tenantId]);
 
-  // Keep a valid selection
+  // Staff shown in the list: role filter + name search
+  const visible = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return staff.filter(
+      (s) =>
+        (role === "all" || (s.role || "").toLowerCase() === role) &&
+        (!needle || (s.name || "").toLowerCase().includes(needle)),
+    );
+  }, [staff, q, role]);
+
+  // Keep a valid selection within the visible list
   useEffect(() => {
-    if (!staff.some((s) => s.id === selectedId)) setSelectedId(staff[0]?.id ?? "");
-  }, [staff, selectedId]);
+    if (!visible.some((s) => s.id === selectedId)) setSelectedId(visible[0]?.id ?? "");
+  }, [visible, selectedId]);
 
   // Close the day picker when month/staff changes, on outside click or Escape
   useEffect(() => setPickDay(null), [month, selectedId]);
@@ -548,7 +596,6 @@ function MonthlyRegister({
   const isCurrentOrLater = month >= thisMonth();
   const totalRows = Math.ceil((lead + days) / 7);
 
-  const visible = staff.filter((s) => !q.trim() || (s.name || "").toLowerCase().includes(q.trim().toLowerCase()));
   const selected = staff.find((s) => s.id === selectedId);
   const selRow = map[selectedId] || {};
   const selDraft = draft[selectedId] || {};
@@ -675,11 +722,12 @@ function MonthlyRegister({
         <div className="grid gap-3 md:grid-cols-[260px_1fr]">
           {/* Staff list */}
           <div className="flex flex-col rounded-md border">
-            <div className="border-b p-2">
+            <div className="space-y-2 border-b p-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find staff" className="h-8 pl-8" />
               </div>
+              <RoleFilter value={role} onChange={onRoleChange} roles={roles} className="h-8 w-full" />
             </div>
             <ul className="max-h-[38vh] divide-y overflow-y-auto md:max-h-[52vh]">
               {visible.map((s) => {
@@ -721,7 +769,9 @@ function MonthlyRegister({
                   </li>
                 );
               })}
-              {visible.length === 0 && <li className="p-4 text-center text-xs text-muted-foreground">No staff match "{q}"</li>}
+              {visible.length === 0 && (
+                <li className="p-4 text-center text-xs text-muted-foreground">No staff match the current filters</li>
+              )}
             </ul>
           </div>
 
@@ -903,7 +953,11 @@ function AttendanceDialog({
     onOpenChange(o);
   };
 
+  // Role filter shared by both tabs
+  const [role, setRole] = useState("all");
   const active = staff.filter((s) => (s.status ?? "active") === "active");
+  const roles = rolesOf(active);
+  const visibleActive = role === "all" ? active : active.filter((s) => (s.role || "").toLowerCase() === role);
   const table = (supabase as any).from.bind(supabase);
 
   // Daily: load marks for the selected date
@@ -962,22 +1016,40 @@ function AttendanceDialog({
           <div className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3 pr-1">
             <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <Label>Date</Label>
-                <Input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value || today())} className="h-8 w-full sm:w-44" />
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <Label>Date</Label>
+                  <Input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value || today())} className="h-8 w-full sm:w-44" />
+                </div>
+                <div>
+                  <Label>Role</Label>
+                  <RoleFilter value={role} onChange={setRole} roles={roles} />
+                </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => setMarks(Object.fromEntries(active.map((s) => [s.id, "present" as AttStatus])))}>
-                  Mark all present
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setMarks({ ...marks, ...Object.fromEntries(visibleActive.map((s) => [s.id, "present" as AttStatus])) })
+                  }
+                >
+                  Mark {role === "all" ? "all" : "listed"} present
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setMarks({})}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setMarks(Object.fromEntries(Object.entries(marks).filter(([id]) => !visibleActive.some((s) => s.id === id))))
+                  }
+                >
                   Clear
                 </Button>
               </div>
             </div>
 
             <div className="divide-y rounded-md border">
-              {active.map((s) => (
+              {visibleActive.map((s) => (
                 <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                   <div>
                     <div className="text-sm font-medium">{s.name}</div>
@@ -1001,7 +1073,11 @@ function AttendanceDialog({
                   </div>
                 </div>
               ))}
-              {active.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No active staff</div>}
+              {visibleActive.length === 0 && (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  {active.length === 0 ? "No active staff" : "No staff match this role"}
+                </div>
+              )}
             </div>
 
           </div>
@@ -1016,7 +1092,15 @@ function AttendanceDialog({
             </div>
           </div>
         ) : (
-          <MonthlyRegister tenantId={tenantId} staff={active} onDirtyChange={setMonthDirty} onSaved={closeAfterSave} />
+          <MonthlyRegister
+            tenantId={tenantId}
+            staff={active}
+            role={role}
+            onRoleChange={setRole}
+            roles={roles}
+            onDirtyChange={setMonthDirty}
+            onSaved={closeAfterSave}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -1368,7 +1452,7 @@ function StaffPage() {
 
   /* ---------- Derived data ---------- */
   const staffById = useMemo(() => Object.fromEntries(staff.map((s) => [s.id, s])), [staff]);
-  const roles = useMemo(() => Array.from(new Set(staff.map((s) => (s.role || "").toLowerCase()).filter(Boolean))).sort(), [staff]);
+  const roles = useMemo(() => rolesOf(staff), [staff]);
 
   const totalMonthly = staff.filter((s) => s.status === "active").reduce((a, b) => a + Number(b.monthly_salary || 0), 0);
   const now = new Date();
