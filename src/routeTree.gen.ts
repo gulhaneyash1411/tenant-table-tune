@@ -22,6 +22,7 @@ import { Route as KitchenLoginRouteImport } from './routes/kitchen.login'
 import { Route as DeliveryTenantIdRouteImport } from './routes/delivery.$tenantId'
 import { Route as ApiSalesAccountRouteImport } from './routes/api/sales-account'
 import { Route as ApiKitchenAccountRouteImport } from './routes/api/kitchen-account'
+import { Route as ApiAdminDeleteRestaurantRouteImport } from './routes/api/admin-delete-restaurant'
 import { Route as AdminAuthRouteImport } from './routes/admin.auth'
 import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/sales'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
@@ -132,6 +133,12 @@ const ApiKitchenAccountRoute = ApiKitchenAccountRouteImport.update({
   path: '/api/kitchen-account',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminDeleteRestaurantRoute =
+  ApiAdminDeleteRestaurantRouteImport.update({
+    id: '/api/admin-delete-restaurant',
+    path: '/api/admin-delete-restaurant',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminAuthRoute = AdminAuthRouteImport.update({
   id: '/admin/auth',
   path: '/admin/auth',
@@ -388,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
@@ -445,6 +453,7 @@ export interface FileRoutesByTo {
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
@@ -506,6 +515,7 @@ export interface FileRoutesById {
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/_authenticated/sales': typeof AuthenticatedSalesRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
@@ -567,6 +577,7 @@ export interface FileRouteTypes {
     | '/kitchen'
     | '/sales'
     | '/admin/auth'
+    | '/api/admin-delete-restaurant'
     | '/api/kitchen-account'
     | '/api/sales-account'
     | '/delivery/$tenantId'
@@ -624,6 +635,7 @@ export interface FileRouteTypes {
     | '/kitchen'
     | '/sales'
     | '/admin/auth'
+    | '/api/admin-delete-restaurant'
     | '/api/kitchen-account'
     | '/api/sales-account'
     | '/delivery/$tenantId'
@@ -684,6 +696,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kitchen'
     | '/_authenticated/sales'
     | '/admin/auth'
+    | '/api/admin-delete-restaurant'
     | '/api/kitchen-account'
     | '/api/sales-account'
     | '/delivery/$tenantId'
@@ -741,6 +754,7 @@ export interface RootRouteChildren {
   ReviewRoute: typeof ReviewRoute
   StatusRoute: typeof StatusRoute
   AdminAuthRoute: typeof AdminAuthRoute
+  ApiAdminDeleteRestaurantRoute: typeof ApiAdminDeleteRestaurantRoute
   ApiKitchenAccountRoute: typeof ApiKitchenAccountRoute
   ApiSalesAccountRoute: typeof ApiSalesAccountRoute
   DeliveryTenantIdRoute: typeof DeliveryTenantIdRoute
@@ -843,6 +857,13 @@ declare module '@tanstack/react-router' {
       path: '/api/kitchen-account'
       fullPath: '/api/kitchen-account'
       preLoaderRoute: typeof ApiKitchenAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin-delete-restaurant': {
+      id: '/api/admin-delete-restaurant'
+      path: '/api/admin-delete-restaurant'
+      fullPath: '/api/admin-delete-restaurant'
+      preLoaderRoute: typeof ApiAdminDeleteRestaurantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/auth': {
@@ -1282,6 +1303,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRoute: ReviewRoute,
   StatusRoute: StatusRoute,
   AdminAuthRoute: AdminAuthRoute,
+  ApiAdminDeleteRestaurantRoute: ApiAdminDeleteRestaurantRoute,
   ApiKitchenAccountRoute: ApiKitchenAccountRoute,
   ApiSalesAccountRoute: ApiSalesAccountRoute,
   DeliveryTenantIdRoute: DeliveryTenantIdRoute,
