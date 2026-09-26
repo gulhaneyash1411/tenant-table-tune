@@ -27,6 +27,8 @@ type UserContextState = {
   isKitchenUser: boolean;
   /** The hotel this Kitchen User is scoped to — set only when isKitchenUser is true. */
   kitchenTenantId: string | null;
+  /** Signed in as platform Sales staff (created by a Super Admin), not a hotel account. */
+  isSalesUser: boolean;
 };
 
 /**
@@ -50,6 +52,9 @@ export function useUserContext(user: User | null) {
       if (cancelled) return;
       const isSuperAdmin = (roles ?? []).some((r) => r.role === "super_admin");
       const kitchenRole = (roles ?? []).find((r) => r.role === "kitchen");
+      // "sales_user" predates the generated Database types (see the comment
+      // in src/routes/api/sales-account.ts) — compared as a string.
+      const isSalesUser = (roles ?? []).some((r) => (r.role as string) === "sales_user");
       const tenant = tenants?.[0] ?? null;
       setCtx({
         isSuperAdmin,
@@ -57,6 +62,7 @@ export function useUserContext(user: User | null) {
         approvalStatus: tenant?.status ?? null,
         isKitchenUser: !!kitchenRole,
         kitchenTenantId: kitchenRole?.tenant_id ?? null,
+        isSalesUser,
       });
       setLoading(false);
     })();
@@ -73,7 +79,14 @@ export function useUserContext(user: User | null) {
   return {
     loading,
     setTenant,
-    ...(ctx ?? { isSuperAdmin: false, tenant: null, approvalStatus: null, isKitchenUser: false, kitchenTenantId: null }),
+    ...(ctx ?? {
+      isSuperAdmin: false,
+      tenant: null,
+      approvalStatus: null,
+      isKitchenUser: false,
+      kitchenTenantId: null,
+      isSalesUser: false,
+    }),
   };
 }
 
