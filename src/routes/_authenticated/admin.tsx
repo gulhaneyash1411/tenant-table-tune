@@ -8,8 +8,7 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package, Briefcase } from "lucide-react";
-import { NotificationBell } from "@/components/notification-bell";
+import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package, Briefcase, SlidersHorizontal } from "lucide-react";import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminLayout });
@@ -43,6 +42,8 @@ const SECTIONS = [
   {
     label: "System",
     items: [
+
+      { to: "/admin/navigation", label: "Owner navigation", icon: SlidersHorizontal }, // Controls what restaurant owners see in /app — see admin.navigation.tsx.
       { to: "/admin/audit", label: "Audit logs", icon: Activity },
       { to: "/admin/reports", label: "Reports", icon: FileText },
       { to: "/admin/settings", label: "Platform settings", icon: Settings },
