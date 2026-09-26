@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { clearOfflineBanner, showOfflineBanner } from "@/lib/offline-banner";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -16,13 +16,18 @@ export const Route = createFileRoute("/_authenticated")({
         : "/auth";
 
     const { data, error } = await supabase.auth.getUser();
-    if (data.user) return { user: data.user };
+    if (data.user) {
+      // Back on the normal (online) path — dismiss any offline banner a
+      // previous navigation left showing.
+      clearOfflineBanner();
+      return { user: data.user };
+    }
     if (error && isAuthRetryableFetchError(error)) {
       const { data: local } = await supabase.auth.getSession();
       if (local.session?.user) {
-        toast.error("You're offline. We're showing your available data until your connection is restored.", {
-          id: "offline",
-        });
+        showOfflineBanner(
+          "You're offline. We're showing your available data until your connection is restored.",
+        );
         return { user: local.session.user };
       }
     }
