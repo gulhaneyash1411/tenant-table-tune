@@ -9,9 +9,7 @@ import {
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
-  LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound,
-  LineChart, Settings, CreditCard, Cpu, Rocket, TrendingUp, History, Wallet,
-  AlertTriangle, MessageCircle, ShoppingCart, LockKeyhole, Eye, EyeOff, Loader2,
+  CreditCard, Rocket, AlertTriangle, LockKeyhole, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
@@ -20,76 +18,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SignOutButton } from "@/components/sign-out-button";
 import { format } from "date-fns";
+import {
+  ALL_ITEMS, MOBILE_TAB_KEYS, findItemByPath, isActivePath, sectionOfItem,
+  type NavItem, type NavSection,
+} from "@/config/nav-registry";
+import { useNavConfig } from "@/hooks/use-nav-config";
 
 export const Route = createFileRoute("/_authenticated/app")({ component: AppLayout });
 
 // Single source for the lock icon. Change it here to swap it everywhere.
 const LockIcon = LockKeyhole;
 
-type NavItem = {
-  to: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  exact?: boolean;
-  secure?: boolean; // needs owner password
-};
-
-// Fifteen destinations in one list is unscannable. The groups follow how a
-// restaurant actually runs: service first, then the menu, then everything
-// that can wait until the shift is over.
-const SECTIONS: { label: string; items: NavItem[] }[] = [
-  {
-    label: "Service",
-    items: [
-      { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
-      { to: "/app/orders", label: "Live orders", icon: ListOrdered },
-      { to: "/app/kds", label: "Kitchen Display", icon: Cpu },
-      { to: "/app/history", label: "Order history", icon: History },
-    ],
-  },
-  {
-    label: "Menu & tables",
-    items: [
-      { to: "/app/menu", label: "Menu", icon: Utensils },
-      { to: "/app/tables", label: "Tables & QR", icon: QrCode },
-    ],
-  },
-  {
-    label: "Customers",
-    items: [
-      { to: "/app/customers", label: "Customers", icon: Users },
-      { to: "/app/whatsapp", label: "WhatsApp", icon: MessageCircle },
-      { to: "/app/reviews", label: "Reviews", icon: Star },
-    ],
-  },
-  {
-    label: "Money",
-    items: [
-      { to: "/app/revenue", label: "Revenue", icon: TrendingUp, secure: true },
-      { to: "/app/expenses", label: "Expenses", icon: Wallet, secure: true },
-      { to: "/app/analytics", label: "Analytics", icon: LineChart, secure: true },
-    ],
-  },
-  {
-    label: "Business",
-    items: [
-      { to: "/app/staff", label: "Staff", icon: UsersRound, secure: true },
-      { to: "/app/products", label: "Shop", icon: ShoppingCart },
-      { to: "/app/subscription", label: "Subscription", icon: CreditCard },
-      { to: "/app/settings", label: "Settings", icon: Settings, secure: true },
-    ],
-  },
-];
-
-const SECURE_ROUTES = SECTIONS.flatMap((s) => s.items).filter((i) => i.secure).map((i) => i.to);
+// The nav itself now lives in src/config/nav-registry.ts, because the super
+// admin console needs the same list to decide what each owner may see.
+const SECURE_ROUTES = ALL_ITEMS.filter((i) => i.secure).map((i) => i.to);
 
 // Lock again when the user switches tab/app (like banking apps)
 const RELOCK_ON_TAB_HIDE = true;
 
-const isActive = (
-  pathname: string,
-  it: { to: string; exact?: boolean },
-) => (it.exact ? pathname === it.to : pathname === it.to || pathname.startsWith(it.to + "/"));
+const isActive = isActivePath;
 
 // Which secure page (if any) the current path belongs to
 const getSecureRoute = (pathname: string) =>
@@ -115,6 +62,13 @@ function AppLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { isSuperAdmin, tenant, loading, setTenant, isKitchenUser, isSalesUser } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
+
+  // What the super admin has switched on for this restaurant.
+  const {
+    sections: visibleSections,
+    isVisible,
+    loading: navLoading,
+  } = useNavConfig(tenant?.id);
 
   // Password lock for secure pages
   // Only ONE page is unlocked at a time: the page where the password was entered.
@@ -173,6 +127,9 @@ function AppLayout() {
   if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
+  // Wait for the visibility rules before painting a sidebar we may have to
+  // redraw a frame later.
+  if (navLoading) return <BrandedLoader label="Loading your dashboard…" />;
 
   const missing: string[] = [];
   if (!tenant?.address) missing.push("address");
@@ -182,9 +139,22 @@ function AppLayout() {
   const profileIncomplete = missing.length > 0;
   const onSettings = pathname === "/app/settings";
   const locked = profileIncomplete && !onSettings;
-  const passwordLocked = !locked && onSecurePage && !secureUnlocked;
 
-  const current = SECTIONS.flatMap((s) => s.items).find((it) => isActive(pathname, it));
+  // A page the super admin switched off must not be reachable by URL either —
+  // hiding the link is presentation, this is the actual gate.
+  const registryItem = findItemByPath(pathname);
+  const parentSection = registryItem ? sectionOfItem(registryItem.key) : null;
+  const pageDisabled =
+    !!registryItem &&
+    (!isVisible(registryItem.key) || (parentSection ? !isVisible(parentSection.key) : false));
+
+  const passwordLocked = !locked && !pageDisabled && onSecurePage && !secureUnlocked;
+
+  const visibleItems = visibleSections.flatMap((s) => s.items);
+  const current = visibleItems.find((it) => isActive(pathname, it)) ?? registryItem ?? null;
+  const mobileTabs = MOBILE_TAB_KEYS
+    .map((k) => visibleItems.find((it) => it.key === k))
+    .filter(Boolean) as NavItem[];
 
   return (
     <TenantContextProvider value={{ tenant, setTenant }}>
@@ -208,15 +178,15 @@ function AppLayout() {
                 </div>
               </div>
 
-              {SECTIONS.map((section) => (
-                <SidebarGroup key={section.label} className="px-2 py-2">
+              {visibleSections.map((section: NavSection) => (
+                <SidebarGroup key={section.key} className="px-2 py-2">
                   <SidebarGroupLabel className="px-2 text-[11px] font-medium tracking-wide text-sidebar-foreground/70">
                     {section.label}
                   </SidebarGroupLabel>
                   <SidebarGroupContent>
                     <SidebarMenu>
                       {section.items.map((it) => (
-                        <SidebarMenuItem key={it.to}>
+                        <SidebarMenuItem key={it.key}>
                           <SidebarMenuButton
                             asChild
                             isActive={isActive(pathname, it)}
@@ -252,7 +222,7 @@ function AppLayout() {
                 <span className="hidden md:inline">{current?.label ?? "Dashboard"}</span>
               </h1>
               <div className="ml-auto flex items-center gap-2">
-                {onSecurePage && secureUnlocked && (
+                {onSecurePage && secureUnlocked && !pageDisabled && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -280,7 +250,7 @@ function AppLayout() {
             </header>
 
             <main className="flex-1 overflow-auto p-3 pb-20 md:p-6 md:pb-6">
-              {profileIncomplete && (
+              {profileIncomplete && !pageDisabled && (
                 <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-warning/50 bg-warning/5 p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-warning" />
@@ -289,7 +259,9 @@ function AppLayout() {
                   <Link to="/app/settings"><Button size="sm">Complete profile</Button></Link>
                 </div>
               )}
-              {locked ? (
+              {pageDisabled ? (
+                <PageUnavailable label={registryItem?.label} />
+              ) : locked ? (
                 <div className="grid min-h-[50vh] place-items-center">
                   <div className="max-w-md text-center">
                     <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-warning/10 text-warning">
@@ -315,7 +287,7 @@ function AppLayout() {
               )}
             </main>
 
-            {!locked && <MobileNav />}
+            {!locked && <MobileNav tabs={mobileTabs} />}
           </div>
         </div>
       </SidebarProvider>
@@ -323,24 +295,37 @@ function AppLayout() {
   );
 }
 
-const MOBILE_TABS = [
-  { to: "/app", label: "Home", icon: LayoutDashboard, exact: true },
-  { to: "/app/orders", label: "Orders", icon: ListOrdered },
-  { to: "/app/kds", label: "Kitchen", icon: Cpu },
-  { to: "/app/menu", label: "Menu", icon: Utensils },
-  { to: "/app/settings", label: "Settings", icon: Settings },
-];
+/** Shown when the page exists but the platform has switched it off. */
+function PageUnavailable({ label }: { label?: string }) {
+  return (
+    <div className="grid min-h-[50vh] place-items-center">
+      <div className="max-w-md text-center">
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-muted text-muted-foreground">
+          <EyeOff className="h-6 w-6" />
+        </div>
+        <h1 className="text-xl font-semibold">
+          {label ? `${label} isn't available` : "This page isn't available"}
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          This section has been turned off for your account. Contact support if you need it enabled.
+        </p>
+        <Link to="/app"><Button className="mt-6" variant="outline">Back to dashboard</Button></Link>
+      </div>
+    </div>
+  );
+}
 
-function MobileNav() {
+function MobileNav({ tabs }: { tabs: NavItem[] }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  if (tabs.length === 0) return null;
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-      <div className="grid grid-cols-5">
-        {MOBILE_TABS.map((t) => {
+      <div className="grid" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map((t) => {
           const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
           return (
             <Link
-              key={t.to}
+              key={t.key}
               to={t.to}
               className={`relative flex flex-col items-center gap-0.5 py-2 text-[10px] ${
                 active ? "font-medium text-primary" : "text-muted-foreground"
