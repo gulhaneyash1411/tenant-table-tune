@@ -113,7 +113,7 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { isSuperAdmin, tenant, loading, setTenant } = useUserContext(user);
+  const { isSuperAdmin, tenant, loading, setTenant, isKitchenUser, isSalesUser } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
 
   // Password lock for secure pages
@@ -140,6 +140,15 @@ function AppLayout() {
     if (!loading && isSuperAdmin) navigate({ to: "/admin" });
   }, [loading, isSuperAdmin, navigate]);
 
+  // Kitchen Users and Sales Users only ever see their own portal — neither
+  // owns a tenant, so without this they'd otherwise fall through to the
+  // "No restaurant on this account" screen below.
+  useEffect(() => {
+    if (loading || isSuperAdmin || tenant) return;
+    if (isKitchenUser) { navigate({ to: "/kitchen" }); return; }
+    if (isSalesUser) navigate({ to: "/sales" });
+  }, [loading, isSuperAdmin, tenant, isKitchenUser, isSalesUser, navigate]);
+
   useEffect(() => {
     if (!tenant) { setSub(null); return; }
     let cancelled = false;
@@ -156,7 +165,10 @@ function AppLayout() {
     return () => { cancelled = true; };
   }, [tenant?.id]);
 
-  const status = loading || isSuperAdmin ? "loading" : (tenant?.status ?? "none");
+  const status =
+    loading || isSuperAdmin || ((isKitchenUser || isSalesUser) && !tenant)
+      ? "loading"
+      : (tenant?.status ?? "none");
 
   if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
   if (status === "none") return <NoTenant />;

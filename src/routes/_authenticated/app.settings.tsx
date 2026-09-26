@@ -1,11 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/app/settings")({ component: SettingsPage });
@@ -92,6 +106,7 @@ function SettingsPage() {
       <Button onClick={save} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
 
       <SectionPasswordCard tenantId={t.id} />
+      <KitchenAccountCard tenantId={t.id} />
     </div>
   );
 }
@@ -194,6 +209,215 @@ function SectionPasswordCard({ tenantId }: { tenantId: string }) {
           </div>
           <Button type="submit" variant="outline" disabled={saving || next.length !== 4 || confirm.length !== 4}>
             {saving ? "Saving…" : hasPassword ? "Change PIN" : "Set PIN"}
+          </Button>
+        </form>
+      )}
+    </Card>
+  );
+}
+
+type KitchenAccount = { login_email: string; is_active: boolean };
+
+/**
+ * One dedicated Kitchen User login per hotel — sign-in is at /kitchen/login,
+ * scoped to /kitchen only (see src/routes/_authenticated/kitchen.tsx). All
+ * writes (create / rotate password / enable-disable) go through the
+ * server-side /api/kitchen-account route: it uses the Supabase admin API to
+ * create and manage that login without ever touching the owner's own
+ * session in this tab.
+ */
+function KitchenAccountCard({ tenantId }: { tenantId: string }) {
+  const [account, setAccount] = useState<KitchenAccount | null | undefined>(undefined);
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    // kitchen_accounts predates the generated Database types — see the
+    // comment in src/routes/api/kitchen-account.ts for why it's queried
+    // untyped here rather than through the generated `supabase` client.
+    const { data } = await (supabase as unknown as SupabaseClient)
+      .from("kitchen_accounts")
+      .select("login_email,is_active")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    setAccount((data as KitchenAccount | null) ?? null);
+  }
+  useEffect(() => {
+    load();
+  }, [tenantId]);
+
+  async function call(body: Record<string, unknown>) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      toast.error("Session expired. Please sign in again.");
+      return null;
+    }
+    const res = await fetch("/api/kitchen-account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(json.error || "Something went wrong");
+      return null;
+    }
+    return json;
+  }
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    if (!login.trim()) return toast.error("Enter a login name");
+    if (password.length < 6) return toast.error("Password must be at least 6 characters");
+    setBusy(true);
+    const res = await call({ action: "create", login, password });
+    setBusy(false);
+    if (!res) return;
+    toast.success("Kitchen account created");
+    setLogin("");
+    setPassword("");
+    load();
+  }
+
+  async function rotate(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword.length < 6) return toast.error("Password must be at least 6 characters");
+    setBusy(true);
+    const res = await call({ action: "update_password", password: newPassword });
+    setBusy(false);
+    if (!res) return;
+    toast.success("Kitchen account password updated");
+    setNewPassword("");
+  }
+
+  async function toggleActive(next: boolean) {
+    setBusy(true);
+    const res = await call({ action: "set_active", is_active: next });
+    setBusy(false);
+    if (!res) return;
+    toast.success(next ? "Kitchen account enabled" : "Kitchen account disabled");
+    load();
+  }
+
+  async function copyLogin() {
+    if (!account) return;
+    await navigator.clipboard.writeText(account.login_email);
+    toast.success("Login ID copied");
+  }
+
+  async function deleteAccount() {
+    setBusy(true);
+    const res = await call({ action: "delete" });
+    setBusy(false);
+    if (!res) return;
+    toast.success("Kitchen account deleted");
+    // Frees the tenant back up to create a new kitchen account — same "one
+    // at a time" rule the create check and the DB's unique index enforce.
+    load();
+  }
+
+  return (
+    <Card className="p-5 space-y-4">
+      <div>
+        <div className="font-medium">Kitchen account</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          One dedicated login for kitchen staff. It only opens the Kitchen Display — nothing else in
+          your dashboard, settings, staff or billing.
+        </p>
+      </div>
+
+      {account === undefined ? (
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      ) : account ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+            <div className="min-w-0">
+              <div className="text-xs text-muted-foreground">Login ID</div>
+              <div className="font-mono text-sm truncate">{account.login_email}</div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Button type="button" size="sm" variant="outline" onClick={copyLogin}>
+                Copy
+              </Button>
+              <Switch
+                checked={account.is_active}
+                onCheckedChange={toggleActive}
+                disabled={busy}
+                aria-label="Kitchen account enabled"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {account.is_active
+              ? "Active — share this Login ID and the account password with your kitchen staff."
+              : "Disabled — this login can't sign in until you turn it back on."}
+          </p>
+          <form onSubmit={rotate} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1.5">
+              <Label htmlFor="kitchen-new-password">New password</Label>
+              <PasswordInput
+                id="kitchen-new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={busy || newPassword.length < 6}>
+              Update password
+            </Button>
+          </form>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="destructive" size="sm" disabled={busy}>
+                Delete kitchen account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this kitchen account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes the login <b>{account.login_email}</b> — kitchen staff
+                  using it will be signed out immediately and won't be able to sign back in. You can
+                  create a new kitchen account afterwards.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={deleteAccount}>Yes, delete it</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      ) : (
+        <form onSubmit={create} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="kitchen-login">Login name</Label>
+              <Input
+                id="kitchen-login"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                placeholder="e.g. kitchen"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="kitchen-password">Password</Label>
+              <PasswordInput
+                id="kitchen-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                required
+              />
+            </div>
+          </div>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Creating…" : "Create kitchen account"}
           </Button>
         </form>
       )}

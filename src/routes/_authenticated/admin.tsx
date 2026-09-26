@@ -8,7 +8,7 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package } from "lucide-react";
+import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package, Briefcase } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 
@@ -22,6 +22,7 @@ const SECTIONS = [
     items: [
       { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { to: "/admin/restaurants", label: "Restaurants", icon: Building2 },
+      { to: "/admin/sales", label: "Sales Team", icon: Briefcase },
     ],
   },
   {
@@ -100,10 +101,16 @@ function AdminLayout() {
   // already known to be signed in — no need to re-verify with getUser() here.
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
-  const { isSuperAdmin, loading } = useUserContext(user);
+  const { isSuperAdmin, loading, isKitchenUser, isSalesUser } = useUserContext(user);
   useEffect(() => {
-    if (!loading && !isSuperAdmin) navigate({ to: "/app" });
-  }, [loading, isSuperAdmin, navigate]);
+    if (loading || isSuperAdmin) return;
+    // A Kitchen User or Sales User landing here (e.g. by typing the URL)
+    // goes to their own portal, not the admin console — same "bounce to
+    // your own home" rule AppLayout uses for a super admin who lands on /app.
+    if (isKitchenUser) { navigate({ to: "/kitchen" }); return; }
+    if (isSalesUser) { navigate({ to: "/sales" }); return; }
+    navigate({ to: "/app" });
+  }, [loading, isSuperAdmin, isKitchenUser, isSalesUser, navigate]);
 
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   if (loading || !isSuperAdmin) return <BrandedLoader label="Loading admin console…" />;
