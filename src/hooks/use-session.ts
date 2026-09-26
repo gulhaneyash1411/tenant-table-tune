@@ -19,7 +19,15 @@ export function useSession() {
   return { session, user: session?.user ?? null, loading };
 }
 
-type UserContextState = { isSuperAdmin: boolean; tenant: Tenant | null; approvalStatus: string | null };
+type UserContextState = {
+  isSuperAdmin: boolean;
+  tenant: Tenant | null;
+  approvalStatus: string | null;
+  /** Signed in as a hotel's Kitchen User rather than its owner. */
+  isKitchenUser: boolean;
+  /** The hotel this Kitchen User is scoped to — set only when isKitchenUser is true. */
+  kitchenTenantId: string | null;
+};
 
 /**
  * Fetches the signed-in user's role + owned tenant in a single pass.
@@ -41,8 +49,15 @@ export function useUserContext(user: User | null) {
       ]);
       if (cancelled) return;
       const isSuperAdmin = (roles ?? []).some((r) => r.role === "super_admin");
+      const kitchenRole = (roles ?? []).find((r) => r.role === "kitchen");
       const tenant = tenants?.[0] ?? null;
-      setCtx({ isSuperAdmin, tenant, approvalStatus: tenant?.status ?? null });
+      setCtx({
+        isSuperAdmin,
+        tenant,
+        approvalStatus: tenant?.status ?? null,
+        isKitchenUser: !!kitchenRole,
+        kitchenTenantId: kitchenRole?.tenant_id ?? null,
+      });
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -55,7 +70,11 @@ export function useUserContext(user: User | null) {
     setCtx((prev) => (prev ? { ...prev, tenant, approvalStatus: tenant.status ?? null } : prev));
   }, []);
 
-  return { loading, setTenant, ...(ctx ?? { isSuperAdmin: false, tenant: null, approvalStatus: null }) };
+  return {
+    loading,
+    setTenant,
+    ...(ctx ?? { isSuperAdmin: false, tenant: null, approvalStatus: null, isKitchenUser: false, kitchenTenantId: null }),
+  };
 }
 
 type TenantContextValue = { tenant: Tenant | null; setTenant: (tenant: Tenant) => void };

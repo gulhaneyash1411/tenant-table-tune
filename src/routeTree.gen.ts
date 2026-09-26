@@ -17,8 +17,11 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TakeawayTenantIdRouteImport } from './routes/takeaway.$tenantId'
 import { Route as TTableIdRouteImport } from './routes/t.$tableId'
+import { Route as KitchenLoginRouteImport } from './routes/kitchen.login'
 import { Route as DeliveryTenantIdRouteImport } from './routes/delivery.$tenantId'
+import { Route as ApiKitchenAccountRouteImport } from './routes/api/kitchen-account'
 import { Route as AdminAuthRouteImport } from './routes/admin.auth'
+import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/app'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticated/app.index'
@@ -99,15 +102,30 @@ const TTableIdRoute = TTableIdRouteImport.update({
   path: '/t/$tableId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KitchenLoginRoute = KitchenLoginRouteImport.update({
+  id: '/kitchen/login',
+  path: '/kitchen/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeliveryTenantIdRoute = DeliveryTenantIdRouteImport.update({
   id: '/delivery/$tenantId',
   path: '/delivery/$tenantId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKitchenAccountRoute = ApiKitchenAccountRouteImport.update({
+  id: '/api/kitchen-account',
+  path: '/api/kitchen-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAuthRoute = AdminAuthRouteImport.update({
   id: '/admin/auth',
   path: '/admin/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedKitchenRoute = AuthenticatedKitchenRouteImport.update({
+  id: '/kitchen',
+  path: '/kitchen',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
   id: '/app',
@@ -336,8 +354,11 @@ export interface FileRoutesByFullPath {
   '/status': typeof StatusRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
+  '/kitchen': typeof AuthenticatedKitchenRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
+  '/kitchen/login': typeof KitchenLoginRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
@@ -385,8 +406,11 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
+  '/kitchen': typeof AuthenticatedKitchenRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
+  '/kitchen/login': typeof KitchenLoginRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
@@ -438,8 +462,11 @@ export interface FileRoutesById {
   '/status': typeof StatusRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
+  '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
+  '/kitchen/login': typeof KitchenLoginRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
@@ -491,8 +518,11 @@ export interface FileRouteTypes {
     | '/status'
     | '/admin'
     | '/app'
+    | '/kitchen'
     | '/admin/auth'
+    | '/api/kitchen-account'
     | '/delivery/$tenantId'
+    | '/kitchen/login'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/admin/announcements'
@@ -540,8 +570,11 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/review'
     | '/status'
+    | '/kitchen'
     | '/admin/auth'
+    | '/api/kitchen-account'
     | '/delivery/$tenantId'
+    | '/kitchen/login'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/admin/announcements'
@@ -592,8 +625,11 @@ export interface FileRouteTypes {
     | '/status'
     | '/_authenticated/admin'
     | '/_authenticated/app'
+    | '/_authenticated/kitchen'
     | '/admin/auth'
+    | '/api/kitchen-account'
     | '/delivery/$tenantId'
+    | '/kitchen/login'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/_authenticated/admin/announcements'
@@ -644,7 +680,9 @@ export interface RootRouteChildren {
   ReviewRoute: typeof ReviewRoute
   StatusRoute: typeof StatusRoute
   AdminAuthRoute: typeof AdminAuthRoute
+  ApiKitchenAccountRoute: typeof ApiKitchenAccountRoute
   DeliveryTenantIdRoute: typeof DeliveryTenantIdRoute
+  KitchenLoginRoute: typeof KitchenLoginRoute
   TTableIdRoute: typeof TTableIdRoute
   TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
   ApiPublicWhatsappDispatchRoute: typeof ApiPublicWhatsappDispatchRoute
@@ -709,11 +747,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TTableIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kitchen/login': {
+      id: '/kitchen/login'
+      path: '/kitchen/login'
+      fullPath: '/kitchen/login'
+      preLoaderRoute: typeof KitchenLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/delivery/$tenantId': {
       id: '/delivery/$tenantId'
       path: '/delivery/$tenantId'
       fullPath: '/delivery/$tenantId'
       preLoaderRoute: typeof DeliveryTenantIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kitchen-account': {
+      id: '/api/kitchen-account'
+      path: '/api/kitchen-account'
+      fullPath: '/api/kitchen-account'
+      preLoaderRoute: typeof ApiKitchenAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/auth': {
@@ -722,6 +774,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/auth'
       preLoaderRoute: typeof AdminAuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/kitchen': {
+      id: '/_authenticated/kitchen'
+      path: '/kitchen'
+      fullPath: '/kitchen'
+      preLoaderRoute: typeof AuthenticatedKitchenRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/app': {
       id: '/_authenticated/app'
@@ -1099,11 +1158,13 @@ const AuthenticatedAppRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedAppRoute: typeof AuthenticatedAppRouteWithChildren
+  AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedAppRoute: AuthenticatedAppRouteWithChildren,
+  AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -1117,7 +1178,9 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRoute: ReviewRoute,
   StatusRoute: StatusRoute,
   AdminAuthRoute: AdminAuthRoute,
+  ApiKitchenAccountRoute: ApiKitchenAccountRoute,
   DeliveryTenantIdRoute: DeliveryTenantIdRoute,
+  KitchenLoginRoute: KitchenLoginRoute,
   TTableIdRoute: TTableIdRoute,
   TakeawayTenantIdRoute: TakeawayTenantIdRoute,
   ApiPublicWhatsappDispatchRoute: ApiPublicWhatsappDispatchRoute,

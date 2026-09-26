@@ -100,10 +100,14 @@ function AdminLayout() {
   // already known to be signed in — no need to re-verify with getUser() here.
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
-  const { isSuperAdmin, loading } = useUserContext(user);
+  const { isSuperAdmin, loading, isKitchenUser } = useUserContext(user);
   useEffect(() => {
-    if (!loading && !isSuperAdmin) navigate({ to: "/app" });
-  }, [loading, isSuperAdmin, navigate]);
+    if (loading || isSuperAdmin) return;
+    // A Kitchen User landing here (e.g. by typing the URL) goes to their own
+    // portal, not the owner dashboard — same "bounce to your own home" rule
+    // AppLayout uses for a super admin who lands on /app.
+    navigate({ to: isKitchenUser ? "/kitchen" : "/app" });
+  }, [loading, isSuperAdmin, isKitchenUser, navigate]);
 
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   if (loading || !isSuperAdmin) return <BrandedLoader label="Loading admin console…" />;

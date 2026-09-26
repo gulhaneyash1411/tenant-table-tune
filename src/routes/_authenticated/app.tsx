@@ -113,7 +113,7 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { isSuperAdmin, tenant, loading, setTenant } = useUserContext(user);
+  const { isSuperAdmin, tenant, loading, setTenant, isKitchenUser } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
 
   // Password lock for secure pages
@@ -140,6 +140,13 @@ function AppLayout() {
     if (!loading && isSuperAdmin) navigate({ to: "/admin" });
   }, [loading, isSuperAdmin, navigate]);
 
+  // Kitchen Users only ever see the Kitchen Display, at its own route — not
+  // this dashboard (they own no tenant, so this would otherwise fall through
+  // to the "No restaurant on this account" screen below).
+  useEffect(() => {
+    if (!loading && !isSuperAdmin && !tenant && isKitchenUser) navigate({ to: "/kitchen" });
+  }, [loading, isSuperAdmin, tenant, isKitchenUser, navigate]);
+
   useEffect(() => {
     if (!tenant) { setSub(null); return; }
     let cancelled = false;
@@ -156,7 +163,7 @@ function AppLayout() {
     return () => { cancelled = true; };
   }, [tenant?.id]);
 
-  const status = loading || isSuperAdmin ? "loading" : (tenant?.status ?? "none");
+  const status = loading || isSuperAdmin || (isKitchenUser && !tenant) ? "loading" : (tenant?.status ?? "none");
 
   if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
   if (status === "none") return <NoTenant />;

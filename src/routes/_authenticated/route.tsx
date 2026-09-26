@@ -5,7 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
+    // Kitchen Users have their own login page and must never be sent to the
+    // Hotel Owner sign-in screen — everything else (owner + super admin)
+    // keeps going to /auth exactly as before.
+    const loginPath = location.pathname.startsWith("/kitchen") ? "/kitchen/login" : "/auth";
+
     const { data, error } = await supabase.auth.getUser();
     if (data.user) return { user: data.user };
     if (error && isAuthRetryableFetchError(error)) {
@@ -18,7 +23,7 @@ export const Route = createFileRoute("/_authenticated")({
       }
     }
 
-    throw redirect({ to: "/auth" });
+    throw redirect({ to: loginPath });
   },
   component: () => <Outlet />,
 });
