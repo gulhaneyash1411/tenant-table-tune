@@ -37,7 +37,9 @@ const STATUSES: Status[] = ["pending", "approved", "suspended", "rejected"];
 // (children before parents). Missing tables are skipped silently, so it is safe
 // to leave entries here for tables this deployment does not have.
 // If your foreign keys already use ON DELETE CASCADE, this loop is a no-op.
-const CHILD_TABLES = [
+// Typed as string[] on purpose: some of these may not exist in the generated
+// Supabase types, and a literal union would fail to type-check against them.
+const CHILD_TABLES: string[] = [
   "order_items",
   "orders",
   "menu_items",
@@ -46,7 +48,7 @@ const CHILD_TABLES = [
   "staff",
   "notifications",
   "subscriptions",
-] as const;
+];
 
 // Postgres/PostgREST codes we treat as "nothing to do here"
 const MISSING_TABLE = "42P01";
@@ -159,8 +161,11 @@ function Restaurants() {
     setDeleting(true);
     try {
       // 1. Remove dependent rows first. Harmless if FKs already cascade.
+      // Cast scoped to this loop: table names are dynamic and may sit outside
+      // the generated types. The tenants delete below stays fully typed.
+      const db = supabase as any;
       for (const table of CHILD_TABLES) {
-        const { error } = await supabase.from(table).delete().eq("tenant_id", deleteTarget.id);
+        const { error } = await db.from(table).delete().eq("tenant_id", deleteTarget.id);
         if (error && ![MISSING_TABLE, MISSING_COLUMN, NOT_FOUND].includes(error.code as string)) {
           throw error;
         }
