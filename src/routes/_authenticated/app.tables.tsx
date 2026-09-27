@@ -123,6 +123,16 @@ function dayLabel(key: string) {
   return format(new Date(`${key}T00:00`), "EEE d MMM");
 }
 
+// Durations are stored in minutes but taken and shown in hours — staff quote
+// "three hours", not "180 minutes". Half-hour steps cover every real booking.
+const DURATION_STEP_HOURS = 0.5;
+const DEFAULT_DURATION_HOURS = 3;
+
+function hoursLabel(minutes: number) {
+  const h = (minutes || 0) / 60;
+  return `${Number.isInteger(h) ? h : h.toFixed(1)} ${h === 1 ? "hour" : "hours"}`;
+}
+
 // Bookings are taken on the quarter hour, so the form works in 15-minute steps
 // rather than to the minute.
 const SLOT_MINUTES = 15;
@@ -191,7 +201,7 @@ const emptyEventForm = () => ({
   amount_paid: "",
   date: defaultDate(),
   time: defaultTime(),
-  duration_minutes: 180,
+  duration_hours: DEFAULT_DURATION_HOURS,
   food_requirements: "",
   notes: "",
 });
@@ -221,7 +231,7 @@ function TablesPage() {
 
   const [events, setEvents] = useState<any[]>([]);
   const [eventOpen, setEventOpen] = useState(false);
-  const [eventForm, setEventForm] = useState(emptyEventForm());
+  const [eventForm, setEventForm] = useState<any>(emptyEventForm());
   const [eventTouched, setEventTouched] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   // Set once the date clash has been shown and the save re-attempted: the first
@@ -539,12 +549,18 @@ function TablesPage() {
   const amountValid = eventForm.amount !== "" && Number.isFinite(amountNum) && amountNum > 0;
   const paidValid = Number.isFinite(paidNum) && paidNum >= 0 && (!amountValid || paidNum <= amountNum);
 
+  // Taken in hours, stored in minutes. The field holds whatever is typed, so
+  // this is what turns it into a number worth saving.
+  const durationHours = Number(eventForm.duration_hours);
+  const durationValid = Number.isFinite(durationHours) && durationHours >= DURATION_STEP_HOURS;
+
   const eventValid =
     eventForm.contact_name.trim().length >= 2
     && isPhoneValid(eventForm.contact_phone)
     && Number(eventForm.guest_count) >= 1
     && amountValid
     && paidValid
+    && durationValid
     && eventWhenValid;
 
   // What else is already on the chosen date. Cancelled events don't count —
@@ -580,7 +596,7 @@ function TablesPage() {
         amount_paid: e.amount_paid != null ? String(e.amount_paid) : "",
         date: dateKey(at),
         time: timeKey(at),
-        duration_minutes: e.duration_minutes ?? 180,
+        duration_hours: (e.duration_minutes ?? 180) / 60,
         food_requirements: e.food_requirements ?? "",
         notes: e.notes ?? "",
       });
@@ -616,7 +632,8 @@ function TablesPage() {
       amount: amountNum,
       amount_paid: paidNum,
       starts_at: eventAt!.toISOString(),
-      duration_minutes: Number(eventForm.duration_minutes) || 180,
+      // Rounded to whole minutes: 2.5 hours is 150, and the column is an int.
+      duration_minutes: Math.round(durationHours * 60),
       food_requirements: eventForm.food_requirements.trim() || null,
       notes: eventForm.notes.trim() || null,
     };
@@ -783,10 +800,26 @@ function TablesPage() {
       <h1 className="text-2xl font-semibold">Tables &amp; QR</h1>
 
       <Tabs defaultValue="qr" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="qr">QR codes</TabsTrigger>
-          <TabsTrigger value="floor">Floor plan</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings</TabsTrigger>
+        {/* Underline rather than the default pill: these switch the whole page,
+            so the bar reads as navigation. shadcn's TabsList carries its own
+            background, padding and rounding, and TabsTrigger its own active
+            pill — all of it has to be nulled out here, not just added to.
+            overflow-x-auto matters on a 360px screen: a fourth tab would wrap
+            into a second row and shift everything below it. */}
+        <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0 overflow-x-auto">
+          {[
+            { value: "qr", label: "QR codes" },
+            { value: "floor", label: "Floor plan" },
+            { value: "bookings", label: "Bookings" },
+          ].map(t => (
+            <TabsTrigger
+              key={t.value}
+              value={t.value}
+              className="relative rounded-none border-b-2 border-transparent bg-transparent px-1 pb-2.5 pt-1 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:text-foreground"
+            >
+              {t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {/* ---------------------------------------------------------- QR tab */}
@@ -1072,7 +1105,7 @@ function TablesPage() {
                         <div className="sm:w-40 shrink-0">
                           <div className="text-sm font-semibold">{whenLabel(e.starts_at)}</div>
                           <div className="text-xs text-muted-foreground">
-                            {typeLabel} · {e.duration_minutes} min
+                            {typeLabel} · {hoursLabel(e.duration_minutes)}
                           </div>
                         </div>
 
@@ -1487,18 +1520,25 @@ function TablesPage() {
               )}
             </div>
 
+            {/* Taken in hours because that's how a function is quoted on the
+                phone; converted to minutes on save, so the stored column is
+                unchanged and nothing else that reads the row has to know. */}
             <div className="space-y-1">
-              <Label htmlFor="ev-duration">Runs for (minutes)</Label>
+              <Label htmlFor="ev-duration">Runs for (hours)</Label>
               <Input
                 id="ev-duration"
                 type="number"
-                min={30}
-                step={30}
-                inputMode="numeric"
-                value={eventForm.duration_minutes}
-                onChange={e => setEventForm({ ...eventForm, duration_minutes: Number(e.target.value) })}
+                min={DURATION_STEP_HOURS}
+                step={DURATION_STEP_HOURS}
+                inputMode="decimal"
+                value={eventForm.duration_hours}
+                onChange={e => setEventForm({ ...eventForm, duration_hours: e.target.value })}
+                aria-invalid={eventTouched && !durationValid}
                 className="h-11"
               />
+              {eventTouched && !durationValid && (
+                <p className="text-[11px] text-red-500">At least {DURATION_STEP_HOURS} hours</p>
+              )}
             </div>
 
             <div className="space-y-1">
