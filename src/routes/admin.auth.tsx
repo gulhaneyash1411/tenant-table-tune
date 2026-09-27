@@ -37,8 +37,17 @@ function AdminAuth() {
   return (
     <div className="min-h-screen grid place-items-center bg-gradient-to-br from-primary/5 to-background p-6">
       <Card className="w-full max-w-md p-8">
-        <div className="flex items-center gap-2 mb-2"><ShieldCheck className="h-5 w-5 text-primary" /><h1 className="text-xl font-semibold">Super admin</h1></div>
-        <p className="text-sm text-muted-foreground mb-6">Platform-owner portal. Restaurants sign in <Link to="/auth" className="text-primary">here</Link>.</p>
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+          <h1 className="text-xl font-semibold">Super admin</h1>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6">
+          Platform-owner portal. Restaurants sign in{" "}
+          <Link to="/auth" className="text-primary">
+            here
+          </Link>
+          .
+        </p>
         <form onSubmit={submit} className="space-y-4">
           <div><Label>Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} type="email" required /></div>
           <div><Label>Password</Label><PasswordInput value={password} onChange={e=>setPassword(e.target.value)} required /></div>

@@ -8,9 +8,14 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { sendOrderInvoice } from "@/lib/whatsapp.functions";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronLeft, Bike } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/orders")({ component: LiveOrders });
+
+// Name of the relation holding dining tables. Change this to whatever it is in
+// your schema (check src/integrations/supabase/types.ts) — "tables" is not in
+// the generated types, so it is almost certainly named something else here.
+const TABLES_RELATION = "restaurant_tables";
 
 const COLUMNS: { key: any; label: string }[] = [
   { key: "new", label: "New" },
@@ -19,11 +24,42 @@ const COLUMNS: { key: any; label: string }[] = [
   { key: "served", label: "Served" },
 ];
 
+const FLOW = ["new", "preparing", "ready", "served"] as const;
+
+// Button copy for advancing a card one stage.
+const NEXT_LABEL: Record<string, string> = {
+  preparing: "Start preparing",
+  ready: "Mark ready",
+  served: "Mark served",
+};
+
+// Delivery tickets advance through the same statuses but the words on the last
+// button are wrong for them — nothing is served to a guest who isn't here.
+const DELIVERY_NEXT_LABEL: Record<string, string> = {
+  ...NEXT_LABEL,
+  ready: "Ready to dispatch",
+  served: "Mark delivered",
+};
+
+function nextStatus(status: string) {
+  const i = FLOW.indexOf(status as any);
+  return i >= 0 && i < FLOW.length - 1 ? FLOW[i + 1] : null;
+}
+function prevStatus(status: string) {
+  const i = FLOW.indexOf(status as any);
+  return i > 0 ? FLOW[i - 1] : null;
+}
+function columnLabel(key: string) {
+  return COLUMNS.find(c => c.key === key)?.label ?? key;
+}
+
 function LiveOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0,10));
   const [items, setItems] = useState<Record<string, any[]>>({});
+  const [tableLabels, setTableLabels] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -48,6 +84,39 @@ function LiveOrders() {
     return () => { supabase.removeChannel(ch); };
   }, [date]);
 
+  // Resolve table ids to their labels. Cast to any because the relation name is
+  // set above rather than known to the generated types.
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await (supabase as any).from(TABLES_RELATION).select("*");
+      if (error || !data) {
+        console.warn(`Table labels unavailable from "${TABLES_RELATION}":`, error?.message);
+        return;
+      }
+      const map: Record<string, string> = {};
+      for (const t of data as any[]) {
+        const label = t.label ?? t.name ?? t.table_number ?? t.number ?? t.code ?? t.title;
+        if (label !== null && label !== undefined && label !== "") map[t.id] = String(label);
+      }
+      setTableLabels(map);
+    })();
+  }, []);
+
+  // Never renders a raw uuid — falls back to "Dine-in" if no label is known.
+  function tableLabel(o: any): string | null {
+    const direct = o.table_number ?? o.table_no ?? o.table_label;
+    const raw = direct ?? (o.table_id ? tableLabels[o.table_id] : null);
+    if (raw === null || raw === undefined || raw === "") return null;
+    const s = String(raw);
+    return /^table/i.test(s) ? s : `Table ${s}`;
+  }
+
+  function orderTypeLabel(o: any): string {
+    if (o.order_type === "dine_in") return tableLabel(o) ?? "Dine-in";
+    if (o.order_type === "home_delivery") return "Home delivery";
+    return "Takeaway";
+  }
+
   const grouped = useMemo(() => {
     const g: Record<string, any[]> = { new: [], preparing: [], ready: [], served: [] };
     for (const o of orders) if (g[o.status]) g[o.status].push(o);
@@ -55,10 +124,15 @@ function LiveOrders() {
   }, [orders]);
 
   async function move(order: any, status: string) {
+    setBusy(order.id);
     const patch: any = { status };
     if (status === "served") patch.served_at = new Date().toISOString();
     const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
+    setBusy(null);
     if (error) return toast.error(error.message);
+    // Optimistic local update so the card moves before the realtime echo lands.
+    setOrders(prev => prev.map(o => (o.id === order.id ? { ...o, ...patch } : o)));
+    toast.success(`#${order.order_number} moved to ${columnLabel(status)}`);
     load();
   }
   async function markPaid(o: any) {
@@ -80,7 +154,7 @@ function LiveOrders() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-semibold">Live orders</h1>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground hidden md:inline">Drag cards between columns to update status</span>
+          <span className="text-xs text-muted-foreground hidden md:inline">Drag cards, or use the buttons, to update status</span>
           <span className="text-sm text-muted-foreground">Date</span>
           <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-auto" />
         </div>
@@ -109,7 +183,13 @@ function LiveOrders() {
               <div className="text-xs text-muted-foreground">{grouped[col.key].length}</div>
             </div>
             <div className="space-y-2">
-              {grouped[col.key].map((o) => (
+              {grouped[col.key].map((o) => {
+                const next = nextStatus(o.status);
+                const back = prevStatus(o.status);
+                const isDelivery = o.order_type === "home_delivery";
+                const labels = isDelivery ? DELIVERY_NEXT_LABEL : NEXT_LABEL;
+                const isBusy = busy === o.id;
+                return (
                 <Card
                   key={o.id}
                   className={`p-3 cursor-grab active:cursor-grabbing transition-opacity ${dragging === o.id ? "opacity-40" : ""}`}
@@ -121,16 +201,59 @@ function LiveOrders() {
                     <div className="font-medium text-sm">#{o.order_number} · {o.customer_name}</div>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">{o.order_type === "dine_in" ? "Dine-in" : "Takeaway"} · {format(new Date(o.created_at), "p")}</div>
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    {isDelivery && <Bike className="h-3 w-3 shrink-0" />}
+                    {orderTypeLabel(o)} · {format(new Date(o.created_at), "p")}
+                  </div>
+                  {isDelivery && o.delivery_address && (
+                    <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                      {o.delivery_address}{o.delivery_pincode ? ` — ${o.delivery_pincode}` : ""}
+                    </div>
+                  )}
                   <ul className="text-xs mt-2 space-y-0.5">
                     {(items[o.id] || []).map(i => <li key={i.id}>{i.quantity}× {i.name}</li>)}
                   </ul>
                   <div className="text-sm font-medium mt-2">{money(o.total)}</div>
+
+                  {(next || back) && (
+                    <div
+                      className="mt-2 flex items-center gap-1.5"
+                      onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    >
+                      {back && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 shrink-0"
+                          disabled={isBusy}
+                          aria-label={`Move #${o.order_number} back to ${columnLabel(back)}`}
+                          title={`Back to ${columnLabel(back)}`}
+                          onClick={() => move(o, back)}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {next && (
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs flex-1"
+                          disabled={isBusy}
+                          onClick={() => move(o, next)}
+                        >
+                          {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : labels[next]}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
                   {o.payment_status !== "paid" && (
-                    <div className="mt-2"><Button size="sm" onClick={() => markPaid(o)} className="h-7 text-xs w-full">Mark paid</Button></div>
+                    <div className="mt-2">
+                      <Button size="sm" variant="outline" onClick={() => markPaid(o)} className="h-7 text-xs w-full">Mark paid</Button>
+                    </div>
                   )}
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </Card>
         ))}

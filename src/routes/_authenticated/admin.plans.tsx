@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import { money } from "@/lib/format";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/admin/plans")({ component: Plans });
 
 const empty = { name: "", description: "", monthly_price: 0, yearly_price: 0, max_tables: 10, max_orders_month: 500, max_menu_items: 100, max_staff: 5, is_active: true };
 
@@ -83,3 +82,5 @@ function Plans() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/_authenticated/admin/plans")({ component: Plans });
