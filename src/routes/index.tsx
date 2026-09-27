@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
 import { motion, AnimatePresence, useReducedMotion, type TargetAndTransition } from "framer-motion";
 import {
   Utensils, Zap, ArrowRight, PlayCircle, Check, CheckCircle2, ChevronLeft, ChevronRight,
@@ -2903,84 +2903,11 @@ const AgentFloat = () => {
 };
 
 // ====================
-// BRANDED LOADER
-// ====================
-type Tenant = { name?: string | null; logo_url?: string | null; slogan?: string | null };
-
-// Shared full-screen loader: public QR/takeaway flow, hotel dashboard, admin console.
-// Pass `tenant` when the caller knows the restaurant; omit it for the generic PlatesOS spinner.
-export function BrandedLoader({ tenant, label }: { tenant?: Tenant | null; label?: string }) {
-  return (
-    <div className="min-h-screen grid place-items-center bg-white p-6">
-      <div className="flex flex-col items-center gap-3 text-center">
-        {/* ring + logo */}
-        <div className="relative h-28 w-28 grid place-items-center">
-          {/* soft glow */}
-          <div className="absolute inset-0 rounded-full blur-xl" style={{ background: BRAND.soft }} />
-          {/* rotating arc — only this moves */}
-          <div
-            className="absolute inset-0 rounded-full border-4 animate-spin [animation-duration:1.2s] motion-reduce:animate-none"
-            style={{ borderColor: "rgba(11,123,255,0.15)", borderTopColor: BRAND.primary }}
-          />
-          {/* static logo */}
-          {tenant?.logo_url ? (
-            <img
-              src={tenant.logo_url}
-              alt={tenant?.name || ""}
-              className="relative h-20 w-20 rounded-full object-cover bg-white shadow-md"
-            />
-          ) : (
-            <div
-              className="relative h-20 w-20 rounded-full grid place-items-center text-white shadow-md"
-              style={{ background: BRAND.primary }}>
-              <Utensils className="h-8 w-8" />
-            </div>
-          )}
-        </div>
-
-        {tenant?.name ? (
-          <div className="font-semibold" style={{ color: BRAND.dark }}>{tenant.name}</div>
-        ) : (
-          <div className="text-lg font-bold" style={{ color: BRAND.dark }}>
-            Plates<span style={{ color: BRAND.primary }}>OS</span>
-          </div>
-        )}
-        {tenant?.slogan && <div className="text-sm text-slate-500 italic">"{tenant.slogan}"</div>}
-        {label && <div className="text-xs text-slate-400 mt-1">{label}</div>}
-      </div>
-    </div>
-  );
-}
-
-// useLayoutEffect warns during server rendering, so fall back to useEffect there.
-const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
-
-// Full-screen boot overlay that fades away once the page has loaded.
-const BootLoader = ({ show, label }: { show: boolean; label?: string }) => (
-  <AnimatePresence>
-    {show && (
-      <motion.div
-        key="boot"
-        className="fixed inset-0 z-[200] bg-white"
-        initial={{ opacity: 1 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
-        aria-busy="true"
-        role="status">
-        <BrandedLoader label={label} />
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
-
-// ====================
 // MAIN APP
 // ====================
 function PlatesOS() {
   // Language resets to English on every load/refresh (nothing is persisted)
   const [lang, setLang] = useState<Lang>("en");
-  const [booting, setBooting] = useState(true);
 
   // Always open at the top on load/refresh (browsers otherwise restore the old scroll position)
   useEffect(() => {
@@ -2989,48 +2916,9 @@ function PlatesOS() {
     window.scrollTo(0, 0);
   }, []);
 
-  // Hold the loader until the page has loaded — with a minimum beat so it never flashes,
-  // and a failsafe so a slow asset can never strand the visitor on the spinner.
-  useEffect(() => {
-    let loaded = document.readyState === "complete";
-    let waited = false;
-    const finish = () => { if (loaded && waited) setBooting(false); };
-    const onLoad = () => { loaded = true; finish(); };
-    window.addEventListener("load", onLoad);
-    const min = window.setTimeout(() => { waited = true; finish(); }, 800);
-    const failsafe = window.setTimeout(() => setBooting(false), 4000);
-    return () => {
-      window.removeEventListener("load", onLoad);
-      window.clearTimeout(min);
-      window.clearTimeout(failsafe);
-    };
-  }, []);
-
-  // No scrollbar behind the loader. useLayoutEffect so the lock lands before the first
-  // paint (a plain effect lets one scrollbar frame through), and on <html> as well as
-  // <body> because either element can be the scroll container.
-  useIsoLayoutEffect(() => {
-    const html = document.documentElement;
-    const { body } = document;
-    if (booting) {
-      html.style.overflow = "hidden";
-      body.style.overflow = "hidden";
-    } else {
-      html.style.overflow = "";
-      body.style.overflow = "";
-    }
-    return () => { html.style.overflow = ""; body.style.overflow = ""; };
-  }, [booting]);
-
   return (
     <LangCtx.Provider value={{ lang, setLang }}>
-      {/* While booting the wrapper is clamped to the viewport, so the tall page below
-          can't produce a scrollbar even before the overflow lock applies. */}
-      <div
-        className={`bg-white text-slate-900 antialiased [scroll-behavior:smooth] ${
-          booting ? "h-screen overflow-hidden" : "min-h-screen"}`}
-        lang={lang}>
-        <BootLoader show={booting} />
+      <div className="min-h-screen bg-white text-slate-900 antialiased [scroll-behavior:smooth]" lang={lang}>
         <Navbar />
         <main>
           <Hero />
