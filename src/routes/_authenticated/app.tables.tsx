@@ -15,9 +15,11 @@ import { Plus, RefreshCw, Users, Clock, Phone, CalendarClock, Pencil, PartyPoppe
 
 export const Route = createFileRoute("/_authenticated/app/tables")({ component: TablesPage });
 
-// A dine-in table is occupied for the whole service — from the moment the order
-// lands until the bill is settled. Payment, not kitchen stage, is what frees it:
-// once payment_status is "paid" the order belongs to history and the table opens.
+// A dine-in table is occupied for the whole service. Payment alone does not
+// free it: QR guests pay up front, so a prepaid order would release the tile
+// while the food is still being cooked and the guests are still sitting there.
+// A table is free only once its order is both served and settled — see the
+// filter in loadOrders, which these statuses feed.
 const OPEN_ORDER_STATUSES = ["new", "preparing", "ready", "served"] as const;
 
 // How long a booking blocks the table around its start time. The lead is so
@@ -268,10 +270,13 @@ function TablesPage() {
       .eq("order_type", "dine_in")
       .in("status", OPEN_ORDER_STATUSES)
       .gte("created_at", startOfToday())
-      // Plain .neq("payment_status", "paid") would drop rows where the column is
-      // null, because NULL <> 'paid' is NULL in Postgres, not true — an unpaid
-      // order would vanish and its table would wrongly read Free.
-      .or("payment_status.is.null,payment_status.neq.paid");
+      // An order keeps its table until it is BOTH served and paid. Filtering on
+      // payment alone frees the table the moment a QR guest pays up front, with
+      // the food still in the kitchen — which is how a table in Preparing came
+      // to show as Free. `payment_status.is.null` is listed explicitly because
+      // NULL <> 'paid' evaluates to NULL in Postgres, not true, so an unpaid
+      // order with a null column would otherwise drop out of this result.
+      .or("status.neq.served,payment_status.is.null,payment_status.neq.paid");
 
     if (error) {
       console.warn("Floor plan could not read orders:", error.message);
@@ -337,8 +342,8 @@ function TablesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // The orders board writes payment_status; this listens for it so a table turns
-  // green the moment someone taps "Mark paid" there.
+  // The orders board writes status and payment_status; this listens for both so
+  // a table turns green the moment an order is served and settled there.
   useEffect(() => {
     if (!tenant?.id) return;
     const ch = supabase
@@ -730,7 +735,13 @@ function TablesPage() {
           (acc, o) => (!acc || o.created_at < acc ? o.created_at : acc),
           null,
         );
-        const due = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+        // Only what is still owed. Prepaid orders now stay in this list until
+        // they are served, so summing every open order would show money due on
+        // a table that has already paid.
+        const due = orders.reduce(
+          (sum, o) => (o.payment_status === "paid" ? sum : sum + Number(o.total || 0)),
+          0,
+        );
         return { ...t, status, orders, orderCount: orders.length, since, due, holding, upcoming, bookings };
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -928,9 +939,13 @@ function TablesPage() {
 
                     <div className="mt-3 text-sm font-medium">{style.label}</div>
 
+                    {/* "open orders", not "unpaid": a prepaid order still holds
+                        the table, so the count and the money are separate facts
+                        now. */}
                     {isBusy && (
                       <div className="text-xs text-muted-foreground">
-                        {t.orderCount} unpaid {t.orderCount === 1 ? "order" : "orders"} · {money(t.due)}
+                        {t.orderCount} open {t.orderCount === 1 ? "order" : "orders"}
+                        {t.due > 0 ? ` · ${money(t.due)} due` : " · paid"}
                         {t.since ? ` · since ${format(new Date(t.since), "p")}` : ""}
                       </div>
                     )}
@@ -962,7 +977,7 @@ function TablesPage() {
           )}
 
           <p className="text-xs text-muted-foreground">
-            A table stays busy until its bill is settled on the Live orders page. Tap any table to book it or see who's expected.
+            A table stays busy until its order is marked served on the Live orders page and the bill is settled. Tap any table to book it or see who's expected.
           </p>
         </TabsContent>
 
@@ -1207,8 +1222,9 @@ function TablesPage() {
 
           {dialogRow?.status === "busy" && (
             <div className="rounded-md border border-red-500/40 bg-red-500/5 p-3 text-sm">
-              Guests are seated here now — {dialogRow.orderCount} unpaid{" "}
-              {dialogRow.orderCount === 1 ? "order" : "orders"}, {money(dialogRow.due)}.
+              Guests are seated here now — {dialogRow.orderCount} open{" "}
+              {dialogRow.orderCount === 1 ? "order" : "orders"}
+              {dialogRow.due > 0 ? `, ${money(dialogRow.due)} still due` : ", paid in full"}.
               A booking made now will still hold the table from its start time.
             </div>
           )}

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,79 +9,243 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money } from "@/lib/format";
 import { format, subDays } from "date-fns";
-import { Search, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/customers")({ component: Customers });
 
 const PAGE_SIZE = 10;
 
+// PostgREST caps a single response at 1000 rows by default, so orders are read
+// in pages rather than in one select — otherwise the list silently truncates at
+// a thousand orders and older customers start disappearing.
+const FETCH_CHUNK = 1000;
+
+// ---------------------------------------------------------------------------
+// Why this page reads orders and not just the `customers` table
+//
+// `customers` is a cache, and only the public QR/takeaway/delivery checkout
+// path writes to it. An order created at the counter through New order inserts
+// into `orders` and stops there, so that guest never turned up on this screen.
+// Orders are the actual record of who came in, so the list is built from them
+// and the `customers` row is merged in afterwards for the fields an order
+// doesn't carry (email, a corrected name).
+//
+// If you later add a database trigger that keeps `customers` in sync, this page
+// keeps working unchanged — the merge below just stops having anything to fix.
+// ---------------------------------------------------------------------------
+
+/** Digits only, last 10 — "+91 98765 43210" and "9876543210" are one guest. */
+const phoneKey = (v: any) => String(v ?? "").replace(/\D/g, "").slice(-10);
+
+/** A cancelled order is neither a visit nor money taken. */
+const isRealVisit = (o: any) => o.status !== "cancelled";
+
+type CustomerRow = {
+  key: string;
+  id?: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  visits: number;
+  total_spend: number;
+  last_visit: string | null;
+  orders: any[];
+};
+
 function Customers() {
-  const [rows, setRows] = useState<any[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [visitFilter, setVisitFilter] = useState("all"); // all | new | returning
   const [period, setPeriod] = useState("all");           // all | 7 | 30 | 90
+  const [page, setPage] = useState(1);
 
-  const [selected, setSelected] = useState<any | null>(null);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [selected, setSelected] = useState<CustomerRow | null>(null);
 
-  // Debounce search input
+  // Debounce the search box
   useEffect(() => {
-    const t = setTimeout(() => {
-      setDebounced(search.trim());
-      setPage(1);
-    }, 300);
+    const t = setTimeout(() => setDebounced(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Fetch current page
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      let q = supabase
-        .from("customers")
-        .select("*", { count: "exact" })
-        .order("last_visit", { ascending: false, nullsFirst: false });
+  const load = useCallback(async () => {
+    setError(null);
 
-      if (debounced) {
-        const s = debounced.replace(/[,()%]/g, ""); // keep the .or() filter valid
-        if (s) q = q.or(`name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`);
+    const rows: any[] = [];
+    for (let from = 0; ; from += FETCH_CHUNK) {
+      // select("*") rather than a column list: the optional invoice columns
+      // (discount, payment_method, notes) aren't on every deployment of this
+      // schema, and naming one that isn't there fails the whole read — which
+      // is how "column orders.discount does not exist" emptied this page. The
+      // renderers below already treat those fields as optional.
+      const { data, error: ordErr } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(from, from + FETCH_CHUNK - 1);
+
+      if (ordErr) {
+        // Said out loud rather than swallowed: an empty list caused by a failed
+        // read looks exactly like an empty list caused by having no customers.
+        console.error("Customers: orders could not be read:", ordErr.code, ordErr.message);
+        setError(ordErr.message);
+        break;
       }
-      if (visitFilter === "new") q = q.eq("visits", 1);
-      if (visitFilter === "returning") q = q.gt("visits", 1);
-      if (period !== "all") q = q.gte("last_visit", subDays(new Date(), Number(period)).toISOString());
+      rows.push(...(data ?? []));
+      if ((data?.length ?? 0) < FETCH_CHUNK) break;
+    }
+    setOrders(rows);
 
-      const from = (page - 1) * PAGE_SIZE;
-      const { data, count, error } = await q.range(from, from + PAGE_SIZE - 1);
-      if (cancelled) return;
-      if (error) console.error(error);
-      setRows(data || []);
-      setTotal(count || 0);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
+    // Optional enrichment. If the table is missing or RLS blocks it, the page
+    // still works — it just loses email addresses.
+    const { data: cust, error: custErr } = await supabase.from("customers").select("*");
+    if (custErr) {
+      console.warn("Customers: profile table unavailable:", custErr.message);
+      setProfiles({});
+      return;
+    }
+    const map: Record<string, any> = {};
+    for (const c of cust ?? []) {
+      const k = phoneKey(c.phone);
+      if (k) map[k] = c;
+    }
+    setProfiles(map);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    load().finally(() => setLoading(false));
+  }, [load]);
+
+  // A new order is a new (or returning) customer, so the list follows the
+  // orders table live. Debounced: a busy service fires several events a minute
+  // and each reload re-reads the whole history.
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const queue = () => {
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+      reloadTimer.current = setTimeout(() => load(), 1500);
     };
-  }, [page, debounced, visitFilter, period]);
+    const ch = supabase
+      .channel("customers-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, queue)
+      .on("postgres_changes", { event: "*", schema: "public", table: "customers" }, queue)
+      .subscribe();
+    return () => {
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+      supabase.removeChannel(ch);
+    };
+  }, [load]);
 
-  async function open(c: any) {
-    setSelected(c);
-    setOrders([]);
-    setOrdersLoading(true);
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("customer_phone", c.phone)
-      .order("created_at", { ascending: false });
-    setOrders(data || []);
-    setOrdersLoading(false);
+  async function refresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   }
+
+  // ---- Build the customer list from orders --------------------------------
+  const customers = useMemo<CustomerRow[]>(() => {
+    const byPhone = new Map<string, CustomerRow>();
+
+    for (const o of orders) {
+      const key = phoneKey(o.customer_phone);
+      // A walk-in with no number can't be told apart from the next one, so it
+      // isn't turned into a customer — it stays in Order history only.
+      if (!key) continue;
+
+      let rec = byPhone.get(key);
+      if (!rec) {
+        rec = {
+          key,
+          name: o.customer_name || "Walk-in",
+          phone: o.customer_phone,
+          email: null,
+          visits: 0,
+          total_spend: 0,
+          last_visit: null,
+          orders: [],
+        };
+        byPhone.set(key, rec);
+      }
+      // `orders` arrives newest first, so each customer's list is already in
+      // the order the dialog wants to show it.
+      rec.orders.push(o);
+
+      if (isRealVisit(o)) {
+        rec.visits += 1;
+        rec.total_spend += Number(o.total || 0);
+        if (!rec.last_visit || o.created_at > rec.last_visit) rec.last_visit = o.created_at;
+      }
+    }
+
+    // Merge the stored profile: a name or email captured there beats whatever
+    // was typed on the last ticket, and a profile with no orders yet still
+    // belongs on the list.
+    for (const [key, c] of Object.entries(profiles)) {
+      const rec = byPhone.get(key);
+      if (rec) {
+        rec.id = c.id;
+        if (c.name) rec.name = c.name;
+        rec.email = c.email ?? null;
+      } else {
+        byPhone.set(key, {
+          key,
+          id: c.id,
+          name: c.name || "—",
+          phone: c.phone,
+          email: c.email ?? null,
+          visits: Number(c.visits || 0),
+          total_spend: Number(c.total_spend || 0),
+          last_visit: c.last_visit ?? null,
+          orders: [],
+        });
+      }
+    }
+
+    return [...byPhone.values()].sort((a, b) =>
+      (b.last_visit ?? "").localeCompare(a.last_visit ?? ""),
+    );
+  }, [orders, profiles]);
+
+  const filtered = useMemo(() => {
+    const s = debounced.toLowerCase();
+    const sDigits = s.replace(/\D/g, "");
+    const cutoff = period === "all" ? null : subDays(new Date(), Number(period)).toISOString();
+
+    return customers.filter(c => {
+      if (visitFilter === "new" && c.visits !== 1) return false;
+      if (visitFilter === "returning" && c.visits <= 1) return false;
+      if (cutoff && (!c.last_visit || c.last_visit < cutoff)) return false;
+      if (!s) return true;
+      return (
+        (c.name ?? "").toLowerCase().includes(s) ||
+        (sDigits ? c.key.includes(sDigits) : false) ||
+        (c.email ?? "").toLowerCase().includes(s)
+      );
+    });
+  }, [customers, debounced, visitFilter, period]);
+
+  // Any change to the result set sends the reader back to page one, otherwise a
+  // narrower filter can strand them on an empty page.
+  useEffect(() => { setPage(1); }, [debounced, visitFilter, period]);
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paged = useMemo(
+    () => filtered.slice(pageStart, pageStart + PAGE_SIZE),
+    [filtered, pageStart],
+  );
+
+  const start = total === 0 ? 0 : pageStart + 1;
+  const end = Math.min(pageStart + PAGE_SIZE, total);
+  const hasFilters = !!search || visitFilter !== "all" || period !== "all";
 
   function resetFilters() {
     setSearch("");
@@ -91,14 +255,22 @@ function Customers() {
     setPage(1);
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const end = Math.min(page * PAGE_SIZE, total);
-  const hasFilters = !!search || visitFilter !== "all" || period !== "all";
-
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Customers</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Customers</h1>
+        <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing || loading}>
+          <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Customers could not be loaded: {error}
+        </div>
+      )}
 
       {/* Search & filters */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -145,9 +317,9 @@ function Customers() {
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className={loading ? "opacity-60" : ""}>
-            {rows.map(c => (
-              <TableRow key={c.id}>
+          <TableBody className={refreshing ? "opacity-60" : ""}>
+            {paged.map(c => (
+              <TableRow key={c.key}>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell>{c.phone}</TableCell>
                 <TableCell>{c.email || "—"}</TableCell>
@@ -155,11 +327,22 @@ function Customers() {
                 <TableCell>{money(Number(c.total_spend))}</TableCell>
                 <TableCell>{c.last_visit ? format(new Date(c.last_visit), "PP") : "—"}</TableCell>
                 <TableCell>
-                  <Button size="sm" variant="ghost" onClick={() => open(c)}>Orders</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelected(c)}>Orders</Button>
                 </TableCell>
               </TableRow>
             ))}
-            {!loading && rows.length === 0 && (
+
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />Loading customers…
+                  </span>
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!loading && paged.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   {hasFilters ? "No customers match your filters." : "No customers yet."}
@@ -175,45 +358,55 @@ function Customers() {
             Showing {start}–{end} of {total}
           </span>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setPage(p => p - 1)} disabled={page <= 1 || loading} aria-label="Previous page">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={currentPage <= 1 || loading}
+              aria-label="Previous page"
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span>Page {page} of {totalPages}</span>
-            <Button size="sm" variant="outline" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages || loading} aria-label="Next page">
+            <span>Page {currentPage} of {totalPages}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || loading}
+              aria-label="Next page"
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </Card>
 
-      <OrderHistoryDialog
-        customer={selected}
-        orders={orders}
-        loading={ordersLoading}
-        onClose={() => setSelected(null)}
-      />
+      <OrderHistoryDialog customer={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Order history for one customer
+//
+// The orders are already in memory from the list above, so this no longer
+// re-queries them — only the line items, and only for the row being opened.
+// ---------------------------------------------------------------------------
+
 function OrderHistoryDialog({
   customer,
-  orders,
-  loading,
   onClose,
 }: {
-  customer: any | null;
-  orders: any[];
-  loading: boolean;
+  customer: CustomerRow | null;
   onClose: () => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setExpanded(null);
-  }, [customer?.id]);
+  useEffect(() => { setExpanded(null); }, [customer?.key]);
+
+  const orders = customer?.orders ?? [];
 
   async function toggle(o: any) {
     if (expanded === o.id) return setExpanded(null);
@@ -221,12 +414,17 @@ function OrderHistoryDialog({
     if (items[o.id]) return;
     setLoadingId(o.id);
     const { data, error } = await supabase.from("order_items").select("*").eq("order_id", o.id);
-    if (error) console.error(error);
+    if (error) console.error("Order items could not be read:", error.message);
     setItems(prev => ({ ...prev, [o.id]: data || [] }));
     setLoadingId(null);
   }
 
-  const lifetime = orders.reduce((s, o) => s + Number(o.total || 0), 0);
+  // Cancelled orders are listed but don't count towards the lifetime figure —
+  // the same rule the visits and spend columns use.
+  const lifetime = orders.reduce(
+    (s, o) => (isRealVisit(o) ? s + Number(o.total || 0) : s),
+    0,
+  );
 
   return (
     <Dialog open={!!customer} onOpenChange={o => !o && onClose()}>
@@ -235,15 +433,14 @@ function OrderHistoryDialog({
           <DialogTitle>{customer?.name} — Order history</DialogTitle>
           {customer && (
             <p className="text-sm text-muted-foreground">
-              {customer.phone} · {orders.length} orders · {money(lifetime)} total
+              {customer.phone} · {orders.length} {orders.length === 1 ? "order" : "orders"} ·{" "}
+              {money(lifetime)} total
             </p>
           )}
         </DialogHeader>
 
         <div className="divide-y max-h-[60vh] overflow-y-auto">
-          {loading && <div className="py-6 text-center text-muted-foreground text-sm">Loading orders…</div>}
-
-          {!loading && orders.map(o => {
+          {orders.map(o => {
             const isOpen = expanded === o.id;
             const lines = items[o.id];
             return (
@@ -296,7 +493,9 @@ function OrderHistoryDialog({
                       {o.subtotal != null && <Row label="Subtotal" value={money(Number(o.subtotal))} />}
                       {Number(o.discount) > 0 && <Row label="Discount" value={`− ${money(Number(o.discount))}`} />}
                       {o.tax != null && <Row label="Tax" value={money(Number(o.tax))} />}
+                      {Number(o.delivery_fee) > 0 && <Row label="Delivery" value={money(Number(o.delivery_fee))} />}
                       <Row label="Total" value={money(Number(o.total))} bold />
+                      {o.payment_status && <Row label="Payment status" value={o.payment_status} />}
                       {o.payment_method && <Row label="Payment" value={o.payment_method} />}
                       {o.notes && <Row label="Notes" value={o.notes} />}
                     </dl>
@@ -306,7 +505,7 @@ function OrderHistoryDialog({
             );
           })}
 
-          {!loading && orders.length === 0 && (
+          {orders.length === 0 && (
             <div className="py-6 text-center text-muted-foreground text-sm">No orders</div>
           )}
         </div>
@@ -319,7 +518,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
   return (
     <div className={`flex justify-between gap-4 ${bold ? "font-semibold" : ""}`}>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right">{value}</dd>
+      <dd className="text-right capitalize">{value}</dd>
     </div>
   );
 }

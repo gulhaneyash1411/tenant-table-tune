@@ -194,11 +194,16 @@ function StatusPage() {
 
   // Keep the open dialog in step with the refreshed list, otherwise the sheet
   // holds the snapshot from the moment it was opened and shows a stale stage
-  // while the card behind it has already advanced.
+  // while the card behind it has already advanced. Totals are compared too:
+  // staff can add a round to a running order, which changes the amount due
+  // without touching the status.
   useEffect(() => {
     if (!selected) return;
     const fresh = orders.find((o: any) => o.id === selected.id);
-    if (fresh && fresh.status !== selected.status) setSelected(fresh);
+    if (!fresh) return;
+    if (fresh.status !== selected.status || Number(fresh.total) !== Number(selected.total)) {
+      setSelected(fresh);
+    }
   }, [orders, selected]);
 
   async function openOrder(o: any) {
@@ -255,12 +260,16 @@ function StatusPage() {
     y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
     doc.setFont("helvetica","normal");
     its.forEach(i => {
+      // Start a new page before the rows run off the bottom — a long order
+      // otherwise writes its last items into the footer margin, or off-page.
+      if (y > 720) { doc.addPage(); y = 64; }
       doc.text(String(i.name).slice(0, 50), 48, y);
       doc.text(String(i.quantity), 340, y, { align: "right" });
       doc.text(rs(Number(i.price)), 430, y, { align: "right" });
       doc.text(rs(Number(i.price) * i.quantity), 547, y, { align: "right" });
       y += 16;
     });
+    if (y > 660) { doc.addPage(); y = 64; }
     y += 8; doc.setDrawColor(230).line(340, y, 547, y); y += 16;
     doc.text("Subtotal", 430, y, { align: "right" }); doc.text(rs(order.subtotal), 547, y, { align: "right" }); y += 14;
     doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 14;
@@ -335,49 +344,74 @@ function StatusPage() {
         ) : null}
 
         <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-          {/* Corner radius matched to the cart and item sheets on the menu. */}
-          <DialogContent className="max-w-md rounded-[32px]">
-            <DialogHeader><DialogTitle>Order #{selected?.order_number}</DialogTitle></DialogHeader>
+          {/*
+            Three bands: header, scrolling middle, pinned footer. The sheet is
+            capped at 85% of the viewport (dvh, so an iOS address bar sliding in
+            doesn't push the buttons off-screen) and only the item list scrolls,
+            which keeps the total and the two actions reachable no matter how
+            many rounds have been added to the order.
+
+            p-0/gap-0 override the padding shadcn's DialogContent applies by
+            default, so each band can carry its own.
+          */}
+          <DialogContent className="max-w-md w-[calc(100%-2rem)] rounded-[28px] p-0 gap-0 flex flex-col max-h-[85vh] max-h-[85dvh] overflow-hidden">
+            <DialogHeader className="shrink-0 px-5 pt-5 pb-3 text-left">
+              <DialogTitle>Order #{selected?.order_number}</DialogTitle>
+            </DialogHeader>
+
             {selected && (
-              <div className="space-y-3">
-                <OrderProgress status={selected.status} orderType={selected.order_type} />
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</span>
-                  <span className={`px-2.5 py-1 rounded-full font-medium ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
-                </div>
-
-                {selected.order_type === "home_delivery" && selected.delivery_address && (
-                  <div className="rounded-2xl bg-muted/40 p-3 text-sm">
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <Bike className="h-3.5 w-3.5" />Delivering to
-                    </div>
-                    <div className="mt-1">{selected.delivery_address}</div>
-                    {selected.delivery_landmark && <div className="text-muted-foreground">Near {selected.delivery_landmark}</div>}
-                    <div className="text-muted-foreground">{selected.delivery_pincode}</div>
+              <>
+                {/* min-h-0 is what actually lets this shrink inside the flex
+                    column — without it the list forces the sheet taller than
+                    the cap instead of scrolling. */}
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-4 space-y-3">
+                  <OrderProgress status={selected.status} orderType={selected.order_type} />
+                  <div className="flex justify-between items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</span>
+                    <span className={`shrink-0 px-2.5 py-1 rounded-full font-medium ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
                   </div>
-                )}
 
-                <div className="divide-y rounded-2xl bg-muted/40">
-                  {items.map(i => (
-                    <div key={i.id} className="p-3 flex justify-between text-sm">
-                      <span>{i.quantity}× {i.name}</span>
-                      <span>{money(Number(i.price) * i.quantity)}</span>
+                  {selected.order_type === "home_delivery" && selected.delivery_address && (
+                    <div className="rounded-2xl bg-muted/40 p-3 text-sm">
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <Bike className="h-3.5 w-3.5" />Delivering to
+                      </div>
+                      <div className="mt-1 break-words">{selected.delivery_address}</div>
+                      {selected.delivery_landmark && <div className="text-muted-foreground break-words">Near {selected.delivery_landmark}</div>}
+                      <div className="text-muted-foreground">{selected.delivery_pincode}</div>
                     </div>
-                  ))}
-                </div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{money(Number(selected.subtotal))}</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>{money(Number(selected.tax))}</span></div>
-                  {Number(selected.delivery_fee) > 0 && (
-                    <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span>{money(Number(selected.delivery_fee))}</span></div>
                   )}
-                  <div className="flex justify-between font-semibold"><span>Total</span><span>{money(Number(selected.total))}</span></div>
+
+                  <div className="divide-y rounded-2xl bg-muted/40">
+                    {items.map(i => (
+                      <div key={i.id} className="p-3 flex justify-between gap-3 text-sm">
+                        <span className="min-w-0 break-words">{i.quantity}× {i.name}</span>
+                        <span className="shrink-0 tabular-nums">{money(Number(i.price) * i.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button variant="outline" className="h-12 rounded-full font-semibold border-2" onClick={keepOrdering}><Plus className="h-4 w-4 mr-2"/>Keep ordering</Button>
-                  <Button className="h-12 rounded-full font-semibold shadow-lg shadow-primary/25" onClick={() => downloadInvoice()}><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
+
+                {/* Pinned: the amount due and the two actions stay visible. */}
+                <div className="shrink-0 border-t bg-background px-5 py-4 space-y-3">
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="tabular-nums">{money(Number(selected.subtotal))}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="tabular-nums">{money(Number(selected.tax))}</span></div>
+                    {Number(selected.delivery_fee) > 0 && (
+                      <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span className="tabular-nums">{money(Number(selected.delivery_fee))}</span></div>
+                    )}
+                    <div className="flex justify-between font-semibold"><span>Total</span><span className="tabular-nums">{money(Number(selected.total))}</span></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" className="h-12 rounded-full font-semibold border-2 px-2 text-sm" onClick={keepOrdering}>
+                      <Plus className="h-4 w-4 mr-1.5 shrink-0"/>Keep ordering
+                    </Button>
+                    <Button className="h-12 rounded-full font-semibold shadow-lg shadow-primary/25 px-2 text-sm" onClick={() => downloadInvoice()}>
+                      <Download className="h-4 w-4 mr-1.5 shrink-0"/>Invoice
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </DialogContent>
         </Dialog>

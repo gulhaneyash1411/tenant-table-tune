@@ -19,11 +19,26 @@ const TYPE_LABELS: Record<string, string> = {
 const TYPE_FILTERS = ["all", "dine_in", "takeaway", "home_delivery"] as const;
 const typeLabel = (t?: string) => TYPE_LABELS[t ?? ""] ?? (t?.replace("_", " ") ?? "—");
 
+// payment_status enum: unpaid | paid | refunded. Refunded is neither money owed
+// (amber) nor money taken (green), so it gets a neutral badge — same palette as
+// the live orders board.
+const PAYMENT_BADGE: Record<string, string> = {
+  unpaid: "bg-warning/15 text-warning",
+  paid: "bg-success/15 text-success",
+  refunded: "bg-muted text-muted-foreground",
+};
+const paymentBadge = (s?: string) => PAYMENT_BADGE[s ?? ""] ?? "bg-muted text-muted-foreground";
+
+// Local calendar date. toISOString() would give the UTC day, which in IST names
+// yesterday until 05:30 — and since the range below is built in local time,
+// orders placed after midnight would fall outside it and simply not appear.
+const localDate = (d: Date) => format(d, "yyyy-MM-dd");
+
 const PAGE_SIZE = 10;
 
 function OrderHistory() {
-  const [from, setFrom] = useState<string>(new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10));
-  const [to, setTo] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [from, setFrom] = useState<string>(localDate(new Date(Date.now() - 6 * 86400000)));
+  const [to, setTo] = useState<string>(localDate(new Date()));
   const [q, setQ] = useState("");
   const [type, setType] = useState<string>("all");
   const [rows, setRows] = useState<any[]>([]);
@@ -33,13 +48,16 @@ function OrderHistory() {
   const [page, setPage] = useState(1);
 
   async function load() {
-    const start = new Date(from + "T00:00:00").toISOString();
-    const end = new Date(to + "T23:59:59").toISOString();
+    // Half-open [start, midnight after `to`): an inclusive 23:59:59 end drops
+    // anything in the final second of the last day.
+    const start = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    end.setDate(end.getDate() + 1);
     const { data } = await supabase
       .from("orders")
       .select("*")
-      .gte("created_at", start)
-      .lte("created_at", end)
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
       .order("created_at", { ascending: false });
     setRows(data || []);
     const ids = (data || []).map(o => o.id);
@@ -88,6 +106,10 @@ function OrderHistory() {
   const totalRevenue = paid.reduce((a, b) => a + Number(b.total || 0), 0);
   const deliveryCollected = paid.reduce((a, b) => a + Number(b.delivery_fee || 0), 0);
   const deliveryCount = filtered.filter(o => o.order_type === "home_delivery").length;
+  // Counted positively: "not paid" would sweep refunded orders in with the
+  // ones still owing money, which they are not.
+  const unpaidCount = filtered.filter(o => o.payment_status === "unpaid").length;
+  const refundedCount = filtered.filter(o => o.payment_status === "refunded").length;
 
   function exportCsv() {
     const header = [
@@ -167,9 +189,12 @@ function OrderHistory() {
         </Card>
         <Card className="p-3 sm:p-4">
           <div className="text-xs text-muted-foreground">Unpaid</div>
-          <div className="text-xl sm:text-2xl font-semibold">
-            {filtered.filter(o => o.payment_status !== "paid").length}
-          </div>
+          <div className="text-xl sm:text-2xl font-semibold">{unpaidCount}</div>
+          {refundedCount > 0 && (
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {refundedCount} refunded
+            </div>
+          )}
         </Card>
         <Card className="p-3 sm:p-4">
           <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -272,11 +297,7 @@ function OrderHistory() {
                   <td className="p-3 capitalize hidden lg:table-cell align-top">{o.status}</td>
                   <td className="p-2 sm:p-3 align-top">
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${
-                        o.payment_status === "paid"
-                          ? "bg-success/15 text-success"
-                          : "bg-warning/15 text-warning"
-                      }`}
+                      className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${paymentBadge(o.payment_status)}`}
                     >
                       {o.payment_status}
                     </span>
