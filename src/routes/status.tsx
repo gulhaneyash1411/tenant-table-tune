@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
 import { mergeOrderItems } from "@/lib/order-items";
-const rs = (n: number) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
+import { downloadInvoicePdf } from "@/lib/invoice";
 import { format } from "date-fns";
 import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
-import { jsPDF } from "jspdf";
 
 export const Route = createFileRoute("/status")({ component: StatusPage });
 
@@ -110,31 +109,6 @@ function OrderProgress({ status, orderType }: { status: string; orderType?: stri
   );
 }
 
-/**
- * Loads a remote logo into a data URL so jsPDF can embed it. Fetches the
- * bytes directly (instead of drawing a cross-origin <img> onto a canvas) so
- * a storage host that omits permissive CORS headers can't taint the canvas
- * and silently drop the logo; this also normalises any source format
- * (PNG/JPEG/WEBP) to PNG, which is what jsPDF is told to expect below.
- */
-async function loadLogo(url?: string | null): Promise<{ data: string; w: number; h: number } | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const bitmap = await createImageBitmap(blob);
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width; canvas.height = bitmap.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(bitmap, 0, 0);
-    return { data: canvas.toDataURL("image/png"), w: bitmap.width, h: bitmap.height };
-  } catch {
-    return null;
-  }
-}
-
 function StatusPage() {
   const phone = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("phone");
   const [orders, setOrders] = useState<any[]>([]);
@@ -220,79 +194,22 @@ function StatusPage() {
     setItems(detail.items || []); setTenant(detail.tenant);
   }
 
+  /**
+   * The PDF itself lives in @/lib/invoice, shared with the staff order-history
+   * screen so the two can't drift apart. Called with no argument from the open
+   * sheet, where the items and tenant are already loaded; called with an order
+   * from a card in the list, where they still have to be fetched.
+   */
   async function downloadInvoice(orderArg?: any) {
-    let order = orderArg || selected;
+    const order = orderArg || selected;
+    if (!order) return;
     let its = orderArg ? [] as any[] : items;
     let ten = tenant;
-    if (!order) return;
     if (orderArg) {
       const detail = await getOrderDetail({ data: { order_id: order.id, phone: phone! } });
       its = detail.items || []; ten = detail.tenant;
     }
-    // The invoice reads the same way the sheet does: one row per dish. Qty and
-    // Amount both follow the merged quantity, so the rows still total to the
-    // subtotal printed underneath them.
-    const invoiceLines = mergeOrderItems(its);
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    let y = 48;
-    const logo = await loadLogo(ten?.logo_url);
-    if (logo) {
-      const size = 56;
-      const h = Math.min(size, (logo.h / logo.w) * size);
-      try { doc.addImage(logo.data, "PNG", 491, y - 22, size, h); } catch { /* ignore bad image */ }
-    }
-    doc.setFont("helvetica", "bold").setFontSize(18).text(ten?.name || "Invoice", 48, y); y += 18;
-    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
-    if (ten?.slogan) { doc.text(ten.slogan, 48, y); y += 14; }
-    const addr = [ten?.address, ten?.city].filter(Boolean).join(", ");
-    if (addr) { doc.text(addr, 48, y); y += 14; }
-    if (ten?.gst_number) { doc.text(`GST: ${ten.gst_number}`, 48, y); y += 14; }
-    y += 8; doc.setDrawColor(230).line(48, y, 547, y); y += 20;
-    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(12).text(`Invoice #${order.order_number}`, 48, y);
-    doc.setFont("helvetica","normal").setFontSize(10).setTextColor(120).text(format(new Date(order.created_at), "PPpp"), 48, y + 14);
-    doc.setTextColor(0).text(`${order.customer_name} \u00b7 ${order.customer_phone}`, 547, y, { align: "right" });
-    doc.setFontSize(9).setTextColor(order.payment_status === "paid" ? 22 : 150, order.payment_status === "paid" ? 101 : 100, 52).text(order.payment_status.toUpperCase(), 547, y + 14, { align: "right" });
-    y += 40;
-
-    // Delivery address is part of the record of what was bought, so it belongs
-    // on the invoice rather than only on the screen.
-    if (order.order_type === "home_delivery" && order.delivery_address) {
-      doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10).text("Delivered to", 48, y); y += 14;
-      doc.setFont("helvetica","normal").setTextColor(120);
-      const lines = doc.splitTextToSize(
-        [order.delivery_address, order.delivery_landmark ? `Near ${order.delivery_landmark}` : null, order.delivery_pincode]
-          .filter(Boolean).join(", "),
-        400,
-      );
-      doc.text(lines, 48, y); y += lines.length * 12 + 12;
-    }
-
-    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10);
-    doc.text("Item", 48, y); doc.text("Qty", 340, y, { align: "right" }); doc.text("Price", 430, y, { align: "right" }); doc.text("Amount", 547, y, { align: "right" });
-    y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
-    doc.setFont("helvetica","normal");
-    invoiceLines.forEach(i => {
-      // Start a new page before the rows run off the bottom — a long order
-      // otherwise writes its last items into the footer margin, or off-page.
-      if (y > 720) { doc.addPage(); y = 64; }
-      doc.text(String(i.name).slice(0, 50), 48, y);
-      doc.text(String(i.quantity), 340, y, { align: "right" });
-      doc.text(rs(Number(i.price)), 430, y, { align: "right" });
-      doc.text(rs(Number(i.price) * i.quantity), 547, y, { align: "right" });
-      y += 16;
-    });
-    if (y > 660) { doc.addPage(); y = 64; }
-    y += 8; doc.setDrawColor(230).line(340, y, 547, y); y += 16;
-    doc.text("Subtotal", 430, y, { align: "right" }); doc.text(rs(order.subtotal), 547, y, { align: "right" }); y += 14;
-    doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 14;
-    if (Number(order.delivery_fee) > 0) {
-      doc.text("Delivery", 430, y, { align: "right" }); doc.text(rs(order.delivery_fee), 547, y, { align: "right" }); y += 14;
-    }
-    y += 2;
-    doc.setFont("helvetica","bold").text("Total", 430, y, { align: "right" }); doc.text(rs(order.total), 547, y, { align: "right" });
-    y += 40; doc.setFont("helvetica","italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
-    y += 20; doc.setFont("helvetica","normal").setFontSize(8).setTextColor(160).text("Powered by PlateOS", 48, y);
-    doc.save(`Invoice-${order.order_number}.pdf`);
+    await downloadInvoicePdf(order, its, ten);
   }
 
   function keepOrdering() {

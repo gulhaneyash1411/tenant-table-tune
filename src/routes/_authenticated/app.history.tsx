@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getOrderDetail } from "@/lib/public-orders.functions";
+import { downloadInvoicePdf } from "@/lib/invoice";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { money } from "@/lib/format";
 import { mergeOrderItems } from "@/lib/order-items";
 import { format } from "date-fns";
-import { History, Download, Search, Loader2, Bike, ChevronLeft, ChevronRight } from "lucide-react";
+import { History, Download, Search, Loader2, Bike, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/history")({ component: OrderHistory });
 
@@ -147,6 +149,10 @@ function OrderHistory() {
   const [selected, setSelected] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  // Which order's invoice is being built. The PDF needs a round trip for the
+  // tenant header, so the button that was pressed shows a spinner rather than
+  // looking dead for a second.
+  const [invoicingId, setInvoicingId] = useState<string | null>(null);
 
   async function load() {
     // Half-open [start, midnight after `to`): an inclusive 23:59:59 end drops
@@ -251,6 +257,39 @@ function OrderHistory() {
   const unpaidCount = filtered.filter(o => o.payment_status === "unpaid").length;
   const refundedCount = filtered.filter(o => o.payment_status === "refunded").length;
 
+  /**
+   * Same PDF the customer gets from the status page — same module, so the two
+   * can't drift apart.
+   *
+   * The order rows read here carry no tenant details, so the restaurant's name,
+   * address, GST number and logo come from getOrderDetail, which returns them
+   * alongside the items. It authenticates on the customer's own phone number;
+   * where an order has none recorded, the invoice is still produced from the
+   * items already in memory, just without the letterhead.
+   */
+  async function handleInvoice(o: any) {
+    if (!o || invoicingId) return;
+    setInvoicingId(o.id);
+    try {
+      let its: any[] = items[o.id] || [];
+      let ten: any = null;
+      if (o.customer_phone) {
+        try {
+          const detail = await getOrderDetail({ data: { order_id: o.id, phone: o.customer_phone } });
+          if (detail?.items?.length) its = detail.items;
+          ten = detail?.tenant ?? null;
+        } catch (err) {
+          console.warn("[history] invoice falling back to locally loaded items", err);
+        }
+      }
+      await downloadInvoicePdf(o, its, ten);
+    } catch (err) {
+      console.error("[history] invoice failed", err);
+    } finally {
+      setInvoicingId(null);
+    }
+  }
+
   function exportCsv() {
     const header = [
       "Order #", "Date", "Customer", "Phone", "Type", "Table", "Address", "Landmark", "Pincode",
@@ -289,27 +328,31 @@ function OrderHistory() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Title on its own line on a phone; the date range gets the full width
+          underneath it rather than three controls fighting over 360px. */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2">
           <History className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
           <h1 className="text-xl sm:text-2xl font-semibold">Order history</h1>
         </div>
-        {/* Dates share the row width on phones; the CSV button shrinks to its
-            icon rather than pushing the inputs out of the viewport. */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full lg:w-auto">
           <Input
             type="date"
             value={from}
             onChange={e => setFrom(e.target.value)}
-            className="flex-1 min-w-0 sm:flex-none sm:w-auto"
+            aria-label="From date"
+            className="flex-1 min-w-0 lg:w-40 lg:flex-none"
           />
           <span className="text-muted-foreground text-sm shrink-0">to</span>
           <Input
             type="date"
             value={to}
             onChange={e => setTo(e.target.value)}
-            className="flex-1 min-w-0 sm:flex-none sm:w-auto"
+            aria-label="To date"
+            className="flex-1 min-w-0 lg:w-40 lg:flex-none"
           />
+          {/* Shrinks to its icon on a phone rather than pushing the dates out
+              of the viewport. */}
           <Button variant="outline" onClick={exportCsv} className="shrink-0" aria-label="Download CSV">
             <Download className="h-4 w-4 sm:mr-1" />
             <span className="hidden sm:inline">CSV</span>
@@ -374,119 +417,167 @@ function OrderHistory() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            {/* Date, type and status drop out below md and reappear inside the
-                customer cell, so a phone shows four columns rather than a
-                sideways scroll through seven. The table number rides with the
-                type badge in both layouts — it is only meaningful next to
-                "Dine-in", and a column of its own would be empty for two
-                thirds of the rows. */}
-            <thead className="bg-muted/40 text-left">
-              <tr>
-                <th className="p-2 sm:p-3">#</th>
-                <th className="p-3 hidden md:table-cell">Date</th>
-                <th className="p-2 sm:p-3">Customer</th>
-                <th className="p-3 hidden md:table-cell">Type</th>
-                <th className="p-3 hidden lg:table-cell">Status</th>
-                <th className="p-2 sm:p-3">Payment</th>
-                <th className="p-2 sm:p-3 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
+        {loading ? (
+          <div className="p-6 text-center text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />Loading orders…
+            </span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-6 text-center text-muted-foreground">
+            No orders match this range and filter
+          </div>
+        ) : (
+          <>
+            {/* ---- Phone and tablet: one card per order ----------------------
+                Eight columns don't survive a narrow viewport, and a sideways
+                scroll hides exactly the things a manager is looking for. The
+                same fields are stacked instead, with the invoice button given
+                its own tap target clear of the row that opens the detail
+                sheet. The table below takes over from lg up. */}
+            <div className="divide-y lg:hidden">
               {paged.map(o => {
                 const table = tableTag(o, tableNames);
                 return (
-                  <tr
-                    key={o.id}
-                    className="border-t cursor-pointer hover:bg-accent/40"
-                    onClick={() => setSelected(o)}
-                  >
-                    <td className="p-2 sm:p-3 font-medium align-top">#{o.order_number}</td>
-                    <td className="p-3 whitespace-nowrap hidden md:table-cell align-top">
-                      {format(new Date(o.created_at), "PP p")}
-                    </td>
-                    <td className="p-2 sm:p-3 align-top">
-                      <div className="break-words">{o.customer_name}</div>
+                  <div key={o.id} className="p-3">
+                    <button
+                      onClick={() => setSelected(o)}
+                      className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="font-medium">#{o.order_number}</span>
+                        <span className="font-semibold tabular-nums whitespace-nowrap">
+                          {money(Number(o.total || 0))}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-sm break-words">{o.customer_name}</div>
                       <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
                       {o.order_type === "home_delivery" && o.delivery_address && (
-                        <div className="text-xs text-muted-foreground truncate max-w-[160px] sm:max-w-[220px]">
+                        <div className="text-xs text-muted-foreground break-words">
                           {o.delivery_address}
                         </div>
                       )}
-                      <div className="md:hidden mt-1 flex flex-wrap items-center gap-1">
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(o.created_at), "dd MMM, p")}
                         </span>
-                        <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap ${typeBadge(o.order_type)}`}
-                        >
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap ${typeBadge(o.order_type)}`}>
                           {typeLabel(o.order_type)}
                         </span>
                         {table && (
-                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                            {table}
-                          </span>
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">{table}</span>
                         )}
-                        <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded capitalize whitespace-nowrap lg:hidden ${statusBadge(o.status)}`}
-                        >
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize whitespace-nowrap ${statusBadge(o.status)}`}>
                           {statusLabel(o.status)}
                         </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap ${paymentBadge(o.payment_status)}`}>
+                          {o.payment_status}
+                        </span>
                       </div>
-                    </td>
-                    <td className="p-3 hidden md:table-cell align-top">
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${typeBadge(o.order_type)}`}
+                    </button>
+
+                    <div className="mt-2.5 flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-9"
+                        disabled={invoicingId === o.id}
+                        onClick={() => handleInvoice(o)}
                       >
-                        {typeLabel(o.order_type)}
-                      </span>
-                      {/* Dine-in only, and only when a table was recorded. */}
-                      {table && (
-                        <div className="text-xs text-muted-foreground mt-1 whitespace-nowrap">
-                          {table}
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-3 hidden lg:table-cell align-top">
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded capitalize whitespace-nowrap ${statusBadge(o.status)}`}
-                      >
-                        {statusLabel(o.status)}
-                      </span>
-                    </td>
-                    <td className="p-2 sm:p-3 align-top">
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${paymentBadge(o.payment_status)}`}
-                      >
-                        {o.payment_status}
-                      </span>
-                    </td>
-                    <td className="p-2 sm:p-3 text-right font-medium whitespace-nowrap align-top">
-                      {money(Number(o.total || 0))}
-                    </td>
-                  </tr>
+                        {invoicingId === o.id
+                          ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                          : <Receipt className="h-4 w-4 mr-1.5" />}
+                        Invoice
+                      </Button>
+                    </div>
+                  </div>
                 );
               })}
-              {loading && (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />Loading orders…
-                    </span>
-                  </td>
-                </tr>
-              )}
-              {!loading && filtered.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
-                    No orders match this range and filter
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+
+            {/* ---- Desktop: the full table ---------------------------------- */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-left">
+                  <tr>
+                    <th className="p-3">#</th>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Customer</th>
+                    <th className="p-3">Type</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Payment</th>
+                    <th className="p-3 text-right">Total</th>
+                    <th className="p-3 text-right">Invoice</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map(o => {
+                    const table = tableTag(o, tableNames);
+                    return (
+                      <tr
+                        key={o.id}
+                        className="border-t cursor-pointer hover:bg-accent/40"
+                        onClick={() => setSelected(o)}
+                      >
+                        <td className="p-3 font-medium align-top">#{o.order_number}</td>
+                        <td className="p-3 whitespace-nowrap align-top">
+                          {format(new Date(o.created_at), "PP p")}
+                        </td>
+                        <td className="p-3 align-top">
+                          <div className="break-words">{o.customer_name}</div>
+                          <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
+                          {o.order_type === "home_delivery" && o.delivery_address && (
+                            <div className="text-xs text-muted-foreground truncate max-w-[220px]">
+                              {o.delivery_address}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3 align-top">
+                          <span className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${typeBadge(o.order_type)}`}>
+                            {typeLabel(o.order_type)}
+                          </span>
+                          {/* Dine-in only, and only when a table was recorded. */}
+                          {table && (
+                            <div className="text-xs text-muted-foreground mt-1 whitespace-nowrap">{table}</div>
+                          )}
+                        </td>
+                        <td className="p-3 align-top">
+                          <span className={`text-[10px] px-2 py-0.5 rounded capitalize whitespace-nowrap ${statusBadge(o.status)}`}>
+                            {statusLabel(o.status)}
+                          </span>
+                        </td>
+                        <td className="p-3 align-top">
+                          <span className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${paymentBadge(o.payment_status)}`}>
+                            {o.payment_status}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-medium whitespace-nowrap align-top">
+                          {money(Number(o.total || 0))}
+                        </td>
+                        {/* stopPropagation, or downloading also opens the
+                            detail sheet behind the save dialog. */}
+                        <td className="p-3 text-right align-top" onClick={e => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            disabled={invoicingId === o.id}
+                            aria-label={`Download invoice for order ${o.order_number}`}
+                            onClick={() => handleInvoice(o)}
+                          >
+                            {invoicingId === o.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <Download className="h-3.5 w-3.5" />}
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
         {!loading && filtered.length > 0 && (
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-t p-3">
@@ -589,6 +680,18 @@ function OrderHistory() {
                   <span>Total</span><span>{money(Number(selected.total))}</span>
                 </div>
               </div>
+
+              <Button
+                variant="outline"
+                className="w-full h-11"
+                disabled={invoicingId === selected.id}
+                onClick={() => handleInvoice(selected)}
+              >
+                {invoicingId === selected.id
+                  ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  : <Download className="h-4 w-4 mr-2" />}
+                Download invoice
+              </Button>
             </div>
           )}
         </DialogContent>
