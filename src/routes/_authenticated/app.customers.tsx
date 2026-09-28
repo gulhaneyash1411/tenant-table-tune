@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money } from "@/lib/format";
+import { mergeOrderItems } from "@/lib/order-items";
 import { format, subDays } from "date-fns";
 import { Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 
@@ -605,6 +606,8 @@ function OrderHistoryDialog({
     setLoadingId(o.id);
     const { data, error } = await supabase.from("order_items").select("*").eq("order_id", o.id);
     if (error) console.error("Order items could not be read:", error.message);
+    // Stored as read; the merge for display happens at render (see below), so
+    // the rows here still match what is in the database.
     setItems(prev => ({ ...prev, [o.id]: data || [] }));
     setLoadingId(null);
   }
@@ -632,7 +635,12 @@ function OrderHistoryDialog({
         <div className="divide-y max-h-[60vh] overflow-y-auto">
           {orders.map(o => {
             const isOpen = expanded === o.id;
-            const lines = items[o.id];
+            // One row per dish with the quantities summed: the same dish added
+            // in two rounds is two order_items rows, which would otherwise
+            // appear as two identical lines. Qty and Amount both follow the
+            // merged quantity, and rows only merge at the same unit price, so
+            // the amounts still add up to the subtotal.
+            const lines = items[o.id] ? mergeOrderItems(items[o.id]) : undefined;
             const table = tableTag(o, tableNames);
             return (
               <div key={o.id}>

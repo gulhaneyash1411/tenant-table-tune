@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { money } from "@/lib/format";
+import { mergeOrderItemsMap } from "@/lib/order-items";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { sendOrderInvoice } from "@/lib/whatsapp.functions";
@@ -147,6 +148,12 @@ function LiveOrders() {
     return g;
   }, [orders]);
 
+  // The same dish added in separate rounds arrives as separate order_items
+  // rows; the card shows one line per dish with the quantities summed. Done
+  // once per load rather than on every render — and only for display, so the
+  // raw rows behind Add items and the invoice are untouched.
+  const displayItems = useMemo(() => mergeOrderItemsMap(items), [items]);
+
   async function move(order: any, status: string) {
     setBusy(order.id);
     const patch: any = { status };
@@ -240,7 +247,7 @@ function LiveOrders() {
                     </div>
                   )}
                   <ul className="text-xs mt-2 space-y-0.5">
-                    {(items[o.id] || []).map(i => <li key={i.id}>{i.quantity}× {i.name}</li>)}
+                    {(displayItems[o.id] || []).map(i => <li key={i.id}>{i.quantity}× {i.name}</li>)}
                   </ul>
                   <div className="text-sm font-medium mt-2">{money(o.total)}</div>
 

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { mergeOrderItemsMap } from "@/lib/order-items";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ChefHat, Clock, Bike } from "lucide-react";
@@ -48,6 +49,13 @@ export function KitchenDisplay() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // Two rounds of the same dish arrive as two order_items rows, so the ticket
+  // would read "Paneer Butter Masala ×1" twice — and the rows need not be
+  // adjacent, so this groups by dish rather than comparing neighbours. The
+  // line the cook reads is one per dish with the quantities summed. Display
+  // only: the rows in state are the real records.
+  const displayItems = useMemo(() => mergeOrderItemsMap(items), [items]);
+
   async function advance(o: any, to: string) {
     const patch: any = { status: to };
     if (to === "served") patch.served_at = new Date().toISOString();
@@ -88,7 +96,7 @@ export function KitchenDisplay() {
                       </div>
                     )}
                     <ul className="text-sm mt-3 space-y-1">
-                      {(items[o.id] || []).map(i => <li key={i.id} className="flex justify-between"><span>{i.name}</span><span className="font-medium">×{i.quantity}</span></li>)}
+                      {(displayItems[o.id] || []).map(i => <li key={i.id} className="flex justify-between"><span>{i.name}</span><span className="font-medium">×{i.quantity}</span></li>)}
                     </ul>
                     <Button className="w-full mt-3" size="sm" onClick={() => advance(o, s.next)}>{nextLabel}</Button>
                   </Card>

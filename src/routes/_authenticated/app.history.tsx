@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
+import { mergeOrderItems } from "@/lib/order-items";
 import { format } from "date-fns";
 import { History, Download, Search, Loader2, Bike, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -225,6 +226,16 @@ function OrderHistory() {
   const paged = useMemo(
     () => filtered.slice(pageStart, pageStart + PAGE_SIZE),
     [filtered, pageStart]
+  );
+
+  // The dish ordered in two rounds is two order_items rows; the receipt shows
+  // one line per dish with the quantities summed, so the line amount is the
+  // unit price times the merged quantity. Only the order being viewed is
+  // merged — the rest of the map is untouched, and so are the raw rows behind
+  // the CSV export.
+  const selectedItems = useMemo(
+    () => (selected ? mergeOrderItems(items[selected.id] || []) : []),
+    [selected, items]
   );
 
   // Totals now include the delivery charge, so the headline figure is split:
@@ -554,7 +565,7 @@ function OrderHistory() {
               )}
 
               <div className="border rounded divide-y">
-                {(items[selected.id] || []).map(i => (
+                {selectedItems.map(i => (
                   <div key={i.id} className="p-2 flex justify-between gap-3 text-sm">
                     <span className="min-w-0 break-words">{i.quantity}× {i.name}</span>
                     <span className="whitespace-nowrap">{money(Number(i.price) * i.quantity)}</span>

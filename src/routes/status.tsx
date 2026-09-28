@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getOrdersByPhone, getOrderDetail } from "@/lib/public-orders.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
+import { mergeOrderItems } from "@/lib/order-items";
 const rs = (n: number) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
 import { format } from "date-fns";
 import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
@@ -144,6 +145,13 @@ function StatusPage() {
   const [tenant, setTenant] = useState<any>(null);
   const cancelledRef = useRef(false);
 
+  // A second round of the same dish is a second order_items row, so the guest
+  // would see the dish listed twice at ×1 rather than once at ×2 — and after
+  // an added round the duplicates aren't even adjacent. One line per dish,
+  // quantities summed; rows only merge at the same unit price, so the line
+  // amounts still add up to the subtotal shown below.
+  const displayItems = useMemo(() => mergeOrderItems(items), [items]);
+
   // Single refresh used by the first load, the poll and the realtime handler,
   // so all three paths behave identically.
   const refresh = useCallback(async (isFirst: boolean) => {
@@ -221,6 +229,10 @@ function StatusPage() {
       const detail = await getOrderDetail({ data: { order_id: order.id, phone: phone! } });
       its = detail.items || []; ten = detail.tenant;
     }
+    // The invoice reads the same way the sheet does: one row per dish. Qty and
+    // Amount both follow the merged quantity, so the rows still total to the
+    // subtotal printed underneath them.
+    const invoiceLines = mergeOrderItems(its);
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     let y = 48;
     const logo = await loadLogo(ten?.logo_url);
@@ -259,7 +271,7 @@ function StatusPage() {
     doc.text("Item", 48, y); doc.text("Qty", 340, y, { align: "right" }); doc.text("Price", 430, y, { align: "right" }); doc.text("Amount", 547, y, { align: "right" });
     y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
     doc.setFont("helvetica","normal");
-    its.forEach(i => {
+    invoiceLines.forEach(i => {
       // Start a new page before the rows run off the bottom — a long order
       // otherwise writes its last items into the footer margin, or off-page.
       if (y > 720) { doc.addPage(); y = 64; }
@@ -383,7 +395,7 @@ function StatusPage() {
                   )}
 
                   <div className="divide-y rounded-2xl bg-muted/40">
-                    {items.map(i => (
+                    {displayItems.map(i => (
                       <div key={i.id} className="p-3 flex justify-between gap-3 text-sm">
                         <span className="min-w-0 break-words">{i.quantity}× {i.name}</span>
                         <span className="shrink-0 tabular-nums">{money(Number(i.price) * i.quantity)}</span>
