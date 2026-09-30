@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getOrdersByPhone, getOrderDetail } from "@/lib/public-orders.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,6 +111,7 @@ function OrderProgress({ status, orderType }: { status: string; orderType?: stri
 
 function StatusPage() {
   const phone = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("phone");
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshError, setRefreshError] = useState(false);
@@ -212,12 +213,22 @@ function StatusPage() {
     await downloadInvoicePdf(order, its, ten);
   }
 
-  function keepOrdering() {
-    if (!selected) return;
-    if (selected.order_type === "home_delivery") window.location.href = `/delivery/${selected.tenant_id}`;
-    else if (selected.order_type === "takeaway") window.location.href = `/takeaway/${selected.tenant_id}`;
-    else if (selected.table_id) window.location.href = `/t/${selected.table_id}`;
-    else window.location.href = `/takeaway/${selected.tenant_id}`;
+  function keepOrdering(order?: any) {
+    const o = order || selected;
+    if (!o) return;
+    if (o.order_type === "home_delivery") window.location.href = `/delivery/${o.tenant_id}`;
+    else if (o.order_type === "takeaway") window.location.href = `/takeaway/${o.tenant_id}`;
+    else if (o.table_id) {
+      navigate({
+        to: "/t/$tableId",
+        params: { tableId: o.table_id },
+        search: {
+          order: String(o.id),
+          phone: String(phone ?? o.customer_phone ?? ""),
+        },
+      });
+    }
+    else window.location.href = `/takeaway/${o.tenant_id}`;
   }
 
   return (
@@ -236,32 +247,39 @@ function StatusPage() {
         )}
 
         {orders.map(o => (
-          <Card key={o.id} className="p-4 rounded-3xl border-0 bg-background shadow-md shadow-black/5">
-            {/* The whole header block is one button so the card is reachable
-                by keyboard; the Invoice button sits outside it, since nesting
-                a button inside a button is invalid markup. */}
-            <button
-              onClick={() => openOrder(o)}
-              className="w-full text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <div className="flex justify-between items-baseline gap-3">
-                <span className="font-bold">Order #{o.order_number}</span>
-                <span className="text-lg font-bold tabular-nums">{money(Number(o.total))}</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {format(new Date(o.created_at), "PPp")}
-                {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? o.order_type}</>}
-              </div>
-              <OrderProgress status={o.status} orderType={o.order_type} />
-            </button>
+          <div key={o.id} className="space-y-2">
+            <Card className="p-4 rounded-3xl border-0 bg-background shadow-md shadow-black/5">
+              <button
+                onClick={() => openOrder(o)}
+                className="w-full text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <div className="flex justify-between items-baseline gap-3">
+                  <span className="font-bold">Order #{o.order_number}</span>
+                  <span className="text-lg font-bold tabular-nums">{money(Number(o.total))}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {format(new Date(o.created_at), "PPp")}
+                  {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? o.order_type}</>}
+                  {o.table_label && <> · Table {o.table_label}</>}
+                </div>
+                <OrderProgress status={o.status} orderType={o.order_type} />
+              </button>
 
-            <div className="mt-4 pt-3 border-t flex items-center justify-between">
-              <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
-              <Button size="sm" variant="outline" className="rounded-full h-9 px-4 border-2 font-semibold" onClick={() => downloadInvoice(o)}>
-                <Download className="h-3.5 w-3.5 mr-1.5"/>Invoice
-              </Button>
-            </div>
-          </Card>
+              <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
+                <Button size="sm" variant="outline" className="rounded-full h-9 px-4 border-2 font-semibold" onClick={() => downloadInvoice(o)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5"/>Invoice
+                </Button>
+              </div>
+            </Card>
+            {o.payment_status === "unpaid" && !CANCELLED.has(String(o.status || "").toLowerCase().trim()) && (
+              <div className="flex justify-center">
+                <Button size="sm" className="h-9 rounded-full px-5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => keepOrdering(o)}>
+                  <Plus className="h-3.5 w-3.5 mr-1 shrink-0"/>Keep ordering
+                </Button>
+              </div>
+            )}
+          </div>
         ))}
 
         {loading ? (
@@ -331,12 +349,9 @@ function StatusPage() {
                     )}
                     <div className="flex justify-between font-semibold"><span>Total</span><span className="tabular-nums">{money(Number(selected.total))}</span></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" className="h-12 rounded-full font-semibold border-2 px-2 text-sm" onClick={keepOrdering}>
-                      <Plus className="h-4 w-4 mr-1.5 shrink-0"/>Keep ordering
-                    </Button>
-                    <Button className="h-12 rounded-full font-semibold shadow-lg shadow-primary/25 px-2 text-sm" onClick={() => downloadInvoice()}>
-                      <Download className="h-4 w-4 mr-1.5 shrink-0"/>Invoice
+                  <div className="flex justify-center">
+                    <Button size="sm" className="h-9 rounded-full px-5 text-xs font-semibold shadow-lg shadow-primary/25" onClick={() => downloadInvoice()}>
+                      <Download className="h-3.5 w-3.5 mr-1 shrink-0"/>Invoice
                     </Button>
                   </div>
                 </div>

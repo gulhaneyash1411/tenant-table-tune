@@ -61,3 +61,34 @@ export function mergeOrderItemsMap<T extends Record<string, any>>(
   for (const [orderId, list] of Object.entries(byOrder)) out[orderId] = mergeOrderItems(list);
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Round detection — used by the live board and the kitchen display
+// ---------------------------------------------------------------------------
+
+export const NEW_ROUND_MARKER = "__nr__";
+
+const ROUND_GRACE_MS = 30_000;
+
+export function isNewRound(item: any, order: any): boolean {
+  if (item?.notes === NEW_ROUND_MARKER) return true;
+  if (!item?.created_at) return false;
+  const ref = order?.served_at ?? order?.created_at;
+  if (!ref) return false;
+  return (
+    new Date(item.created_at).getTime() - new Date(ref).getTime() > ROUND_GRACE_MS
+  );
+}
+
+export function splitByRound<T extends Record<string, any>>(
+  items: T[],
+  order: any,
+): { original: T[]; newRound: T[] } {
+  const original: T[] = [];
+  const newRound: T[] = [];
+  for (const item of items) {
+    (isNewRound(item, order) ? newRound : original).push(item);
+  }
+  return { original, newRound };
+}
+

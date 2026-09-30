@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ForceResetPasswordRouteImport } from './routes/force-reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -22,7 +23,9 @@ import { Route as KitchenLoginRouteImport } from './routes/kitchen.login'
 import { Route as DeliveryTenantIdRouteImport } from './routes/delivery.$tenantId'
 import { Route as ApiSalesAccountRouteImport } from './routes/api/sales-account'
 import { Route as ApiKitchenAccountRouteImport } from './routes/api/kitchen-account'
+import { Route as ApiClearResetFlagRouteImport } from './routes/api/clear-reset-flag'
 import { Route as ApiAdminDeleteRestaurantRouteImport } from './routes/api/admin-delete-restaurant'
+import { Route as ApiAdminCreateRestaurantRouteImport } from './routes/api/admin-create-restaurant'
 import { Route as AdminAuthRouteImport } from './routes/admin.auth'
 import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/sales'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
@@ -84,6 +87,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForceResetPasswordRoute = ForceResetPasswordRouteImport.update({
+  id: '/force-reset-password',
+  path: '/force-reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -133,10 +141,21 @@ const ApiKitchenAccountRoute = ApiKitchenAccountRouteImport.update({
   path: '/api/kitchen-account',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiClearResetFlagRoute = ApiClearResetFlagRouteImport.update({
+  id: '/api/clear-reset-flag',
+  path: '/api/clear-reset-flag',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminDeleteRestaurantRoute =
   ApiAdminDeleteRestaurantRouteImport.update({
     id: '/api/admin-delete-restaurant',
     path: '/api/admin-delete-restaurant',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAdminCreateRestaurantRoute =
+  ApiAdminCreateRestaurantRouteImport.update({
+    id: '/api/admin-create-restaurant',
+    path: '/api/admin-create-restaurant',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AdminAuthRoute = AdminAuthRouteImport.update({
@@ -387,6 +406,7 @@ const AuthenticatedAdminAnnouncementsRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/force-reset-password': typeof ForceResetPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
@@ -395,7 +415,9 @@ export interface FileRoutesByFullPath {
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/admin-create-restaurant': typeof ApiAdminCreateRestaurantRoute
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
+  '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
@@ -447,13 +469,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/force-reset-password': typeof ForceResetPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/admin-create-restaurant': typeof ApiAdminCreateRestaurantRoute
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
+  '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
@@ -507,6 +532,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/force-reset-password': typeof ForceResetPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
@@ -515,7 +541,9 @@ export interface FileRoutesById {
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/_authenticated/sales': typeof AuthenticatedSalesRoute
   '/admin/auth': typeof AdminAuthRoute
+  '/api/admin-create-restaurant': typeof ApiAdminCreateRestaurantRoute
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
+  '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
@@ -569,6 +597,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/force-reset-password'
     | '/reset-password'
     | '/review'
     | '/status'
@@ -577,7 +606,9 @@ export interface FileRouteTypes {
     | '/kitchen'
     | '/sales'
     | '/admin/auth'
+    | '/api/admin-create-restaurant'
     | '/api/admin-delete-restaurant'
+    | '/api/clear-reset-flag'
     | '/api/kitchen-account'
     | '/api/sales-account'
     | '/delivery/$tenantId'
@@ -629,13 +660,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/force-reset-password'
     | '/reset-password'
     | '/review'
     | '/status'
     | '/kitchen'
     | '/sales'
     | '/admin/auth'
+    | '/api/admin-create-restaurant'
     | '/api/admin-delete-restaurant'
+    | '/api/clear-reset-flag'
     | '/api/kitchen-account'
     | '/api/sales-account'
     | '/delivery/$tenantId'
@@ -688,6 +722,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/force-reset-password'
     | '/reset-password'
     | '/review'
     | '/status'
@@ -696,7 +731,9 @@ export interface FileRouteTypes {
     | '/_authenticated/kitchen'
     | '/_authenticated/sales'
     | '/admin/auth'
+    | '/api/admin-create-restaurant'
     | '/api/admin-delete-restaurant'
+    | '/api/clear-reset-flag'
     | '/api/kitchen-account'
     | '/api/sales-account'
     | '/delivery/$tenantId'
@@ -750,11 +787,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ForceResetPasswordRoute: typeof ForceResetPasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ReviewRoute: typeof ReviewRoute
   StatusRoute: typeof StatusRoute
   AdminAuthRoute: typeof AdminAuthRoute
+  ApiAdminCreateRestaurantRoute: typeof ApiAdminCreateRestaurantRoute
   ApiAdminDeleteRestaurantRoute: typeof ApiAdminDeleteRestaurantRoute
+  ApiClearResetFlagRoute: typeof ApiClearResetFlagRoute
   ApiKitchenAccountRoute: typeof ApiKitchenAccountRoute
   ApiSalesAccountRoute: typeof ApiSalesAccountRoute
   DeliveryTenantIdRoute: typeof DeliveryTenantIdRoute
@@ -787,6 +827,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/force-reset-password': {
+      id: '/force-reset-password'
+      path: '/force-reset-password'
+      fullPath: '/force-reset-password'
+      preLoaderRoute: typeof ForceResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -859,11 +906,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiKitchenAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/clear-reset-flag': {
+      id: '/api/clear-reset-flag'
+      path: '/api/clear-reset-flag'
+      fullPath: '/api/clear-reset-flag'
+      preLoaderRoute: typeof ApiClearResetFlagRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin-delete-restaurant': {
       id: '/api/admin-delete-restaurant'
       path: '/api/admin-delete-restaurant'
       fullPath: '/api/admin-delete-restaurant'
       preLoaderRoute: typeof ApiAdminDeleteRestaurantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin-create-restaurant': {
+      id: '/api/admin-create-restaurant'
+      path: '/api/admin-create-restaurant'
+      fullPath: '/api/admin-create-restaurant'
+      preLoaderRoute: typeof ApiAdminCreateRestaurantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/auth': {
@@ -1299,11 +1360,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ForceResetPasswordRoute: ForceResetPasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ReviewRoute: ReviewRoute,
   StatusRoute: StatusRoute,
   AdminAuthRoute: AdminAuthRoute,
+  ApiAdminCreateRestaurantRoute: ApiAdminCreateRestaurantRoute,
   ApiAdminDeleteRestaurantRoute: ApiAdminDeleteRestaurantRoute,
+  ApiClearResetFlagRoute: ApiClearResetFlagRoute,
   ApiKitchenAccountRoute: ApiKitchenAccountRoute,
   ApiSalesAccountRoute: ApiSalesAccountRoute,
   DeliveryTenantIdRoute: DeliveryTenantIdRoute,

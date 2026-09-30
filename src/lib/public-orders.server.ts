@@ -130,3 +130,135 @@ export async function createPublicOrder(input: PublicOrderInput) {
   }
   return order;
 }
+type AppendOrderInput = {
+  order_id: string;
+  customer_phone: string;
+  items: { menu_item_id: string; quantity: number }[];
+};
+
+/**
+ * A second round on a table that is still eating.
+ *
+ * The guest gets one bill, not one bill per round, so this appends rows to the
+ * order that is already open rather than inserting a new one — the same thing
+ * the staff "Add items" dialog does, reached from the guest's own phone.
+ *
+ * The phone number is the only thing proving this is the party who ordered, so
+ * it's matched in the query itself: an order_id alone can't reach a row. Prices
+ * are re-read from the menu here too — the client sends ids and quantities and
+ * nothing else that could move money.
+ */
+export async function appendPublicOrderItems(input: AppendOrderInput) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: order } = await supabaseAdmin
+    .from("orders")
+    .select("id,order_number,tenant_id,status,payment_status,delivery_fee,customer_phone")
+    .eq("id", input.order_id)
+    .eq("customer_phone", input.customer_phone.trim())
+    .maybeSingle();
+  if (!order) throw new Error("We couldn't find that order");
+
+  // Anything past unpaid has an invoice out against it; adding to it would
+  // leave that invoice understating what was actually served.
+  if (order.payment_status !== "unpaid") {
+    throw new Error("This order is already settled — please start a new one");
+  }
+  if (order.status === "cancelled") throw new Error("This order was cancelled — please start a new one");
+
+  const { data: tenant } = await supabaseAdmin
+    .from("tenants")
+    .select("id,settings,status")
+    .eq("id", order.tenant_id)
+    .eq("status", "approved")
+    .maybeSingle();
+  if (!tenant) throw new Error("This restaurant is not accepting orders");
+
+  const requestedIds = [...new Set(input.items.map((item) => item.menu_item_id))];
+  const { data: menuItems, error: menuError } = await supabaseAdmin
+    .from("menu_items")
+    .select("id,name,price")
+    .eq("tenant_id", order.tenant_id)
+    .eq("is_available", true)
+    .in("id", requestedIds);
+  if (menuError) throw new Error(menuError.message);
+  if (!menuItems || menuItems.length !== requestedIds.length) {
+    throw new Error("One or more menu items are no longer available");
+  }
+
+  const byId = new Map(menuItems.map((item) => [item.id, item]));
+  const markNewRound = order.status === "preparing" || order.status === "ready" || order.status === "served";
+  const clearOldMarkers = order.status === "ready" || order.status === "served";
+  if (clearOldMarkers) {
+    await supabaseAdmin
+      .from("order_items")
+      .update({ notes: null })
+      .eq("order_id", order.id)
+      .eq("notes", "__nr__");
+  }
+  const { data: inserted, error: itemError } = await supabaseAdmin
+    .from("order_items")
+    .insert(input.items.map((item) => {
+      const menuItem = byId.get(item.menu_item_id)!;
+      return {
+        order_id: order.id,
+        tenant_id: order.tenant_id,
+        menu_item_id: item.menu_item_id,
+        name: menuItem.name,
+        price: Number(menuItem.price),
+        quantity: item.quantity,
+        ...(markNewRound ? { notes: "__nr__" } : {}),
+      };
+    }))
+    .select("id");
+  if (itemError) throw new Error(itemError.message);
+
+  // Totals are recomputed from every row on the order, not from the round just
+  // added — that way this stays correct even if staff added items too.
+  const { data: rows, error: rowsError } = await supabaseAdmin
+    .from("order_items")
+    .select("price,quantity")
+    .eq("order_id", order.id);
+  if (rowsError || !rows) {
+    // The rows went in but the bill can't be brought up to date, which would
+    // hand the guest food that nobody is charged for. Undo the round instead.
+    await supabaseAdmin.from("order_items").delete().in("id", (inserted ?? []).map(r => r.id));
+    throw new Error(rowsError?.message ?? "Failed to update the order total");
+  }
+
+  const subtotal = rows.reduce((sum, r) => sum + Number(r.price) * Number(r.quantity), 0);
+  const settings = tenant.settings && typeof tenant.settings === "object" && !Array.isArray(tenant.settings)
+    ? tenant.settings as Record<string, unknown>
+    : {};
+  const configuredTax = Number(settings["tax_rate"] ?? 5);
+  const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 5;
+  const tax = Math.round(subtotal * taxRate) / 100;
+  const deliveryFee = Number((order as any).delivery_fee ?? 0) || 0;
+
+  const { data: updated, error: updateError } = await supabaseAdmin
+    .from("orders")
+    .update({
+      subtotal,
+      tax,
+      total: subtotal + tax + deliveryFee,
+      // The kitchen had already finished this order; a new round puts it back
+      // in the queue, otherwise the round is never cooked.  served_at is kept
+      // (not cleared) so the live board and kitchen display can compare each
+      // item's created_at against it: items added after the last serve are the
+      // new round, items before it were already served.  If we cleared it,
+      // every item from every earlier round would look "new" again.
+      ...(order.status === "ready" || order.status === "served"
+        ? { status: "preparing" as const }
+        : {}),
+    })
+    .eq("id", order.id)
+    .select(
+      "id,order_number,status,payment_status,total,created_at,table_id,customer_phone,order_type",
+    )
+    .single();
+  if (updateError || !updated) {
+    await supabaseAdmin.from("order_items").delete().in("id", (inserted ?? []).map(r => r.id));
+    throw new Error(updateError?.message ?? "Failed to update the order total");
+  }
+  return updated;
+}
