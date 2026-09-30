@@ -712,10 +712,11 @@ export function NewOrderDialog({ onSaved }: { onSaved: () => void }) {
                   />
                   <Input
                     type="tel"
-                    inputMode="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     placeholder="Customer Phone Number"
                     value={phone}
-                    onChange={e => setPhone(e.target.value)}
+                    onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                   />
                   {orderType === "home_delivery" && (
                     <>

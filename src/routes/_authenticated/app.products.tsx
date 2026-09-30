@@ -1028,8 +1028,8 @@ function CheckoutDialog({ lines, user, onOpenChange, onPlaced, onFinished }: {
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="c-phone">Phone <span className="text-destructive" aria-hidden>*</span></Label>
-                  <Input id="c-phone" type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)}
-                    autoComplete="tel" placeholder="+91 98450 00000" aria-invalid={!!errors.phone || undefined}
+                  <Input id="c-phone" type="tel" inputMode="numeric" maxLength={10} value={form.phone} onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    autoComplete="tel" placeholder="10 digit phone number" aria-invalid={!!errors.phone || undefined}
                     aria-describedby={errors.phone ? "c-phone-error" : undefined} />
                   {errors.phone && <p id="c-phone-error" role="alert" className="text-xs text-destructive">{errors.phone}</p>}
                 </div>

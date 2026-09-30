@@ -1902,7 +1902,7 @@ function StaffPage() {
               </div>
               <div>
                 <Label>Phone</Label>
-                <Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+                <Input type="tel" inputMode="numeric" maxLength={10} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10 digit phone number" />
               </div>
               <div>
                 <Label>Monthly salary</Label>
