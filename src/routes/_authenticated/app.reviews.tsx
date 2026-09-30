@@ -5,9 +5,19 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, MessageSquare, Search, Star } from "lucide-react";
-import { format, formatDistanceToNow, subDays } from "date-fns";
+import { format, formatDistanceToNow, subDays, subMonths, startOfMonth } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const PAGE_SIZE = 10;
+
+const DATE_RANGES: { value: string; label: string; cutoff: () => Date }[] = [
+  { value: "all", label: "All time", cutoff: () => new Date(0) },
+  { value: "7d", label: "Last 7 days", cutoff: () => subDays(new Date(), 7) },
+  { value: "15d", label: "Last 15 days", cutoff: () => subDays(new Date(), 15) },
+  { value: "30d", label: "Last 30 days", cutoff: () => subDays(new Date(), 30) },
+  { value: "1m", label: "Last month", cutoff: () => startOfMonth(subMonths(new Date(), 1)) },
+  { value: "6m", label: "Last 6 months", cutoff: () => subMonths(new Date(), 6) },
+];
 
 export const Route = createFileRoute("/_authenticated/app/reviews")({
   component: Reviews,
@@ -26,6 +36,7 @@ function Reviews() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<number | "all">("all");
+  const [dateRange, setDateRange] = useState("1m");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
@@ -46,42 +57,62 @@ function Reviews() {
     };
   }, []);
 
-  const avg = rows.length ? rows.reduce((a, b) => a + b.rating, 0) / rows.length : 0;
+  const dateFiltered = useMemo(() => {
+    if (dateRange === "all") return rows;
+    const range = DATE_RANGES.find((d) => d.value === dateRange);
+    if (!range) return rows;
+    const cutoff = range.cutoff();
+    return rows.filter((r) => new Date(r.created_at) >= cutoff);
+  }, [rows, dateRange]);
+
+  const avg = dateFiltered.length ? dateFiltered.reduce((a, b) => a + b.rating, 0) / dateFiltered.length : 0;
 
   const counts = useMemo(() => {
-    const c = [0, 0, 0, 0, 0]; // index 0 = 1 star
-    rows.forEach((r) => {
+    const c = [0, 0, 0, 0, 0];
+    dateFiltered.forEach((r) => {
       if (r.rating >= 1 && r.rating <= 5) c[r.rating - 1] += 1;
     });
     return c;
-  }, [rows]);
+  }, [dateFiltered]);
 
   const highlights = useMemo(() => {
-    const cutoff = subDays(new Date(), 30);
     return {
-      last30: rows.filter((r) => new Date(r.created_at) >= cutoff).length,
-      positivePct: rows.length
-        ? Math.round((rows.filter((r) => r.rating >= 4).length / rows.length) * 100)
+      total: dateFiltered.length,
+      positivePct: dateFiltered.length
+        ? Math.round((dateFiltered.filter((r) => r.rating >= 4).length / dateFiltered.length) * 100)
         : 0,
-      commented: rows.filter((r) => r.comment?.trim()).length,
+      commented: dateFiltered.filter((r) => r.comment?.trim()).length,
     };
+  }, [dateFiltered]);
+
+  const rangeCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const d of DATE_RANGES) {
+      if (d.value === "all") { m[d.value] = rows.length; continue; }
+      const cutoff = d.cutoff();
+      m[d.value] = rows.filter((r) => new Date(r.created_at) >= cutoff).length;
+    }
+    return m;
   }, [rows]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const range = DATE_RANGES.find((d) => d.value === dateRange);
+    const cutoff = range ? range.cutoff() : new Date(0);
     return rows.filter((r) => {
       if (filter !== "all" && r.rating !== filter) return false;
+      if (dateRange !== "all" && new Date(r.created_at) < cutoff) return false;
       if (!q) return true;
       return (
         (r.customer_name || "").toLowerCase().includes(q) ||
         (r.comment || "").toLowerCase().includes(q)
       );
     });
-  }, [rows, filter, query]);
+  }, [rows, filter, dateRange, query]);
 
   useEffect(() => {
     setPage(1);
-  }, [filter, query]);
+  }, [filter, dateRange, query]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -95,15 +126,29 @@ function Reviews() {
           <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
           <p className="text-sm text-muted-foreground">What guests are saying about your restaurant</p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or comment"
-            aria-label="Search reviews"
-            className="h-10 pl-9"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="h-10 w-[150px] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DATE_RANGES.map((d) => (
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label} ({rangeCounts[d.value] ?? 0})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or comment"
+              aria-label="Search reviews"
+              className="h-10 pl-9"
+            />
+          </div>
         </div>
       </div>
 
@@ -115,14 +160,14 @@ function Reviews() {
             </div>
             <Stars value={Math.round(avg)} className="mt-1.5" />
             <p className="mt-1 text-xs text-muted-foreground">
-              {rows.length} {rows.length === 1 ? "review" : "reviews"}
+              {dateFiltered.length} {dateFiltered.length === 1 ? "review" : "reviews"}
             </p>
           </div>
 
           <div className="space-y-1">
             {[5, 4, 3, 2, 1].map((n) => {
               const count = counts[n - 1];
-              const pct = rows.length ? (count / rows.length) * 100 : 0;
+              const pct = dateFiltered.length ? (count / dateFiltered.length) * 100 : 0;
               return (
                 <button
                   key={n}
@@ -151,19 +196,22 @@ function Reviews() {
           </div>
 
           <div className="hidden flex-col justify-center gap-3 border-l border-border/60 pl-6 lg:flex">
-            <Highlight label="Last 30 days" value={highlights.last30} />
+            <Highlight label={DATE_RANGES.find(d => d.value === dateRange)?.label ?? "Total"} value={highlights.total} />
             <Highlight label="Rated 4★ and above" value={`${highlights.positivePct}%`} />
             <Highlight label="With comments" value={highlights.commented} />
           </div>
         </div>
 
-        {filter !== "all" && (
+        {(filter !== "all" || dateRange !== "all") && (
           <div className="flex items-center justify-between border-t border-border/60 bg-muted/30 px-4 py-1.5 text-xs">
             <span className="text-muted-foreground">
-              Showing {filter}-star reviews only
+              {[
+                filter !== "all" ? `${filter}-star reviews` : "",
+                dateRange !== "all" ? (DATE_RANGES.find(d => d.value === dateRange)?.label ?? "") : "",
+              ].filter(Boolean).join(" · ") || "Filtered"}
             </span>
             <button
-              onClick={() => setFilter("all")}
+              onClick={() => { setFilter("all"); setDateRange("all"); }}
               className="font-medium text-primary hover:underline"
             >
               Clear filter
