@@ -124,9 +124,16 @@ function AppLayout() {
       ? "loading"
       : (tenant?.status ?? "none");
 
+  useEffect(() => {
+    if (!loading && tenant && (tenant as any).must_reset_password) {
+      navigate({ to: "/force-reset-password" });
+    }
+  }, [loading, tenant, navigate]);
+
   if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
+  if ((tenant as any)?.must_reset_password) return <BrandedLoader label="Redirecting…" />;
   // Wait for the visibility rules before painting a sidebar we may have to
   // redraw a frame later.
   if (navLoading) return <BrandedLoader label="Loading your dashboard…" />;
