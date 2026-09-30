@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { mergeOrderItemsMap, splitByRound, NEW_ROUND_MARKER } from "@/lib/order-items";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ChefHat, Clock, Bike } from "lucide-react";
+import { ChefHat, Clock, Bike, Flame } from "lucide-react";
+import { clearRoundMarkers } from "@/lib/public-orders.functions";
 
 // Shared by the Hotel Owner's dashboard (/app/kds) and the dedicated Kitchen
 // User portal (/kitchen) — one component, one set of orders/RLS behavior,
@@ -44,13 +46,49 @@ export function KitchenDisplay() {
 
   useEffect(() => {
     load();
-    const ch = supabase.channel("kds").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, load).subscribe();
+    const ch = supabase.channel("kds")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, load)
+      .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // Two rounds of the same dish arrive as two order_items rows, so the ticket
+  // would read "Paneer Butter Masala ×1" twice — and the rows need not be
+  // adjacent, so this groups by dish rather than comparing neighbours. The
+  // line the cook reads is one per dish with the quantities summed. Display
+  // only: the rows in state are the real records.
+  const displayItems = useMemo(() => mergeOrderItemsMap(items), [items]);
+
+  // For orders that came back to "preparing" after a new round was added, the
+  // kitchen only needs to cook the new items.  `kitchenItems` holds only the
+  // new-round rows when they exist, or the full list otherwise.
+  const kitchenItems = useMemo(() => {
+    const out: Record<string, { merged: any[]; isAddedRound: boolean }> = {};
+    for (const o of orders) {
+      const raw = items[o.id] || [];
+      const { newRound } = splitByRound(raw, o);
+      if (newRound.length > 0) {
+        out[o.id] = {
+          merged: mergeOrderItemsMap({ _: newRound })["_"] || [],
+          isAddedRound: true,
+        };
+      } else {
+        out[o.id] = {
+          merged: displayItems[o.id] || [],
+          isAddedRound: false,
+        };
+      }
+    }
+    return out;
+  }, [orders, items, displayItems]);
+
   async function advance(o: any, to: string) {
     const patch: any = { status: to };
-    if (to === "served") patch.served_at = new Date().toISOString();
+    if (to === "served") {
+      patch.served_at = new Date().toISOString();
+      await clearRoundMarkers({ data: { order_id: o.id } });
+    }
     const { error } = await supabase.from("orders").update(patch).eq("id", o.id);
     if (error) toast.error(error.message);
   }
@@ -87,8 +125,17 @@ export function KitchenDisplay() {
                         {o.delivery_address}{o.delivery_pincode ? ` — ${o.delivery_pincode}` : ""}
                       </div>
                     )}
-                    <ul className="text-sm mt-3 space-y-1">
-                      {(items[o.id] || []).map(i => <li key={i.id} className="flex justify-between"><span>{i.name}</span><span className="font-medium">×{i.quantity}</span></li>)}
+                    {kitchenItems[o.id]?.isAddedRound && (
+                      <div className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-orange-600">
+                        <Flame className="h-3.5 w-3.5 shrink-0" />New round — cook only these:
+                      </div>
+                    )}
+                    <ul className={`text-sm ${kitchenItems[o.id]?.isAddedRound ? "mt-1" : "mt-3"} space-y-1`}>
+                      {(kitchenItems[o.id]?.merged || []).map(i => (
+                        <li key={i.id} className={`flex justify-between ${kitchenItems[o.id]?.isAddedRound ? "font-semibold text-orange-600" : ""}`}>
+                          <span>{i.name}</span><span className="font-medium">×{i.quantity}</span>
+                        </li>
+                      ))}
                     </ul>
                     <Button className="w-full mt-3" size="sm" onClick={() => advance(o, s.next)}>{nextLabel}</Button>
                   </Card>

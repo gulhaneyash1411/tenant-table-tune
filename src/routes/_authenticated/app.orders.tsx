@@ -5,10 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { money } from "@/lib/format";
+import { mergeOrderItemsMap, splitByRound, NEW_ROUND_MARKER } from "@/lib/order-items";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { sendOrderInvoice } from "@/lib/whatsapp.functions";
-import { Loader2, ChevronLeft, Bike } from "lucide-react";
+import { Loader2, ChevronLeft, Bike, Flame } from "lucide-react";
+import { NewOrderDialog, AddItemsDialog } from "@/components/orders/NewOrderDialog";
+import { clearRoundMarkers } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/_authenticated/app/orders")({ component: LiveOrders });
 
@@ -16,6 +19,19 @@ export const Route = createFileRoute("/_authenticated/app/orders")({ component: 
 // your schema (check src/integrations/supabase/types.ts) — "tables" is not in
 // the generated types, so it is almost certainly named something else here.
 const TABLES_RELATION = "restaurant_tables";
+
+// payment_status enum on this database: unpaid | paid | refunded.
+// Only "unpaid" is still open for money — the other two are settled, so the
+// card treats them the same way (no Mark paid, no Add items).
+const UNPAID_STATUS = "unpaid";
+
+// Badge colour per payment state. Refunded is deliberately neutral: it is not
+// money owed (amber) and not money taken (green).
+const PAYMENT_BADGE: Record<string, string> = {
+  unpaid: "bg-warning/15 text-warning",
+  paid: "bg-success/15 text-success",
+  refunded: "bg-muted text-muted-foreground",
+};
 
 const COLUMNS: { key: any; label: string }[] = [
   { key: "new", label: "New" },
@@ -55,7 +71,11 @@ function columnLabel(key: string) {
 
 function LiveOrders() {
   const [orders, setOrders] = useState<any[]>([]);
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0,10));
+  // Local calendar date, not UTC. toISOString() here would name yesterday for
+  // the whole IST small hours, while the range below is built in local time —
+  // orders placed after midnight would fall outside the window and the board
+  // would show nothing.
+  const [date, setDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [tableLabels, setTableLabels] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
@@ -63,9 +83,12 @@ function LiveOrders() {
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const start = new Date(date + "T00:00:00");
-    const end = new Date(date + "T23:59:59");
-    const { data } = await supabase.from("orders").select("*").gte("created_at", start.toISOString()).lte("created_at", end.toISOString()).order("created_at", { ascending: false });
+    // Half-open [start, next midnight): an inclusive 23:59:59 end drops
+    // anything in the final second of the day.
+    const start = new Date(`${date}T00:00:00`);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const { data } = await supabase.from("orders").select("*").gte("created_at", start.toISOString()).lt("created_at", end.toISOString()).order("created_at", { ascending: false });
     setOrders(data || []);
     const ids = (data || []).map(o => o.id);
     if (ids.length) {
@@ -80,6 +103,9 @@ function LiveOrders() {
   useEffect(() => {
     const ch = supabase.channel("orders-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => load())
+      // Items can change without the order row changing (staff adding a round),
+      // so listen on order_items too or the card silently goes stale.
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [date]);
@@ -123,10 +149,19 @@ function LiveOrders() {
     return g;
   }, [orders]);
 
+  // The same dish added in separate rounds arrives as separate order_items
+  // rows; the card shows one line per dish with the quantities summed. Done
+  // once per load rather than on every render — and only for display, so the
+  // raw rows behind Add items and the invoice are untouched.
+  const displayItems = useMemo(() => mergeOrderItemsMap(items), [items]);
+
   async function move(order: any, status: string) {
     setBusy(order.id);
     const patch: any = { status };
-    if (status === "served") patch.served_at = new Date().toISOString();
+    if (status === "served") {
+      patch.served_at = new Date().toISOString();
+      await clearRoundMarkers({ data: { order_id: order.id } });
+    }
     const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
     setBusy(null);
     if (error) return toast.error(error.message);
@@ -157,6 +192,7 @@ function LiveOrders() {
           <span className="text-xs text-muted-foreground hidden md:inline">Drag cards, or use the buttons, to update status</span>
           <span className="text-sm text-muted-foreground">Date</span>
           <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-auto" />
+          <NewOrderDialog onSaved={load} />
         </div>
       </div>
       {loading ? (
@@ -189,6 +225,10 @@ function LiveOrders() {
                 const isDelivery = o.order_type === "home_delivery";
                 const labels = isDelivery ? DELIVERY_NEXT_LABEL : NEXT_LABEL;
                 const isBusy = busy === o.id;
+                // Only an unpaid order is still open for money. Paid and
+                // refunded orders both have an invoice out against them.
+                const isUnpaid = o.payment_status === UNPAID_STATUS;
+                const badgeClass = PAYMENT_BADGE[o.payment_status] ?? "bg-muted text-muted-foreground";
                 return (
                 <Card
                   key={o.id}
@@ -199,7 +239,7 @@ function LiveOrders() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-medium text-sm">#{o.order_number} · {o.customer_name}</div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${badgeClass}`}>{o.payment_status}</span>
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
                     {isDelivery && <Bike className="h-3 w-3 shrink-0" />}
@@ -210,9 +250,26 @@ function LiveOrders() {
                       {o.delivery_address}{o.delivery_pincode ? ` — ${o.delivery_pincode}` : ""}
                     </div>
                   )}
-                  <ul className="text-xs mt-2 space-y-0.5">
-                    {(items[o.id] || []).map(i => <li key={i.id}>{i.quantity}× {i.name}</li>)}
-                  </ul>
+                  {(() => {
+                    const raw = items[o.id] || [];
+                    const { original, newRound } = splitByRound(raw, o);
+                    const hasNew = newRound.length > 0;
+                    return (
+                      <ul className="text-xs mt-2 space-y-0.5">
+                        {mergeOrderItemsMap({ _: original })["_"]?.map(i => (
+                          <li key={i.id} className={hasNew ? "text-muted-foreground" : ""}>{i.quantity}× {i.name}</li>
+                        ))}
+                        {hasNew && (
+                          <li className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 pt-1">
+                            <Flame className="h-3 w-3 shrink-0" />New round
+                          </li>
+                        )}
+                        {mergeOrderItemsMap({ _: newRound })["_"]?.map(i => (
+                          <li key={i.id} className="font-semibold text-orange-600">{i.quantity}× {i.name}</li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
                   <div className="text-sm font-medium mt-2">{money(o.total)}</div>
 
                   {(next || back) && (
@@ -246,7 +303,17 @@ function LiveOrders() {
                     </div>
                   )}
 
-                  {o.payment_status !== "paid" && (
+                  {/* Adding to a settled order would leave the WhatsApp invoice wrong. */}
+                  {isUnpaid && (
+                    <div
+                      className="mt-2"
+                      onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    >
+                      <AddItemsDialog order={o} onSaved={load} />
+                    </div>
+                  )}
+
+                  {isUnpaid && (
                     <div className="mt-2">
                       <Button size="sm" variant="outline" onClick={() => markPaid(o)} className="h-7 text-xs w-full">Mark paid</Button>
                     </div>

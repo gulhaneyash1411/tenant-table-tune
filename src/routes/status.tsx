@@ -1,15 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getOrdersByPhone, getOrderDetail } from "@/lib/public-orders.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
-const rs = (n: number) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
+import { mergeOrderItems } from "@/lib/order-items";
+import { downloadInvoicePdf } from "@/lib/invoice";
 import { format } from "date-fns";
 import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
-import { jsPDF } from "jspdf";
 
 export const Route = createFileRoute("/status")({ component: StatusPage });
 
@@ -109,33 +109,9 @@ function OrderProgress({ status, orderType }: { status: string; orderType?: stri
   );
 }
 
-/**
- * Loads a remote logo into a data URL so jsPDF can embed it. Fetches the
- * bytes directly (instead of drawing a cross-origin <img> onto a canvas) so
- * a storage host that omits permissive CORS headers can't taint the canvas
- * and silently drop the logo; this also normalises any source format
- * (PNG/JPEG/WEBP) to PNG, which is what jsPDF is told to expect below.
- */
-async function loadLogo(url?: string | null): Promise<{ data: string; w: number; h: number } | null> {
-  if (!url) return null;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    const bitmap = await createImageBitmap(blob);
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width; canvas.height = bitmap.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(bitmap, 0, 0);
-    return { data: canvas.toDataURL("image/png"), w: bitmap.width, h: bitmap.height };
-  } catch {
-    return null;
-  }
-}
-
 function StatusPage() {
   const phone = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("phone");
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshError, setRefreshError] = useState(false);
@@ -143,6 +119,13 @@ function StatusPage() {
   const [items, setItems] = useState<any[]>([]);
   const [tenant, setTenant] = useState<any>(null);
   const cancelledRef = useRef(false);
+
+  // A second round of the same dish is a second order_items row, so the guest
+  // would see the dish listed twice at ×1 rather than once at ×2 — and after
+  // an added round the duplicates aren't even adjacent. One line per dish,
+  // quantities summed; rows only merge at the same unit price, so the line
+  // amounts still add up to the subtotal shown below.
+  const displayItems = useMemo(() => mergeOrderItems(items), [items]);
 
   // Single refresh used by the first load, the poll and the realtime handler,
   // so all three paths behave identically.
@@ -194,11 +177,16 @@ function StatusPage() {
 
   // Keep the open dialog in step with the refreshed list, otherwise the sheet
   // holds the snapshot from the moment it was opened and shows a stale stage
-  // while the card behind it has already advanced.
+  // while the card behind it has already advanced. Totals are compared too:
+  // staff can add a round to a running order, which changes the amount due
+  // without touching the status.
   useEffect(() => {
     if (!selected) return;
     const fresh = orders.find((o: any) => o.id === selected.id);
-    if (fresh && fresh.status !== selected.status) setSelected(fresh);
+    if (!fresh) return;
+    if (fresh.status !== selected.status || Number(fresh.total) !== Number(selected.total)) {
+      setSelected(fresh);
+    }
   }, [orders, selected]);
 
   async function openOrder(o: any) {
@@ -207,79 +195,40 @@ function StatusPage() {
     setItems(detail.items || []); setTenant(detail.tenant);
   }
 
+  /**
+   * The PDF itself lives in @/lib/invoice, shared with the staff order-history
+   * screen so the two can't drift apart. Called with no argument from the open
+   * sheet, where the items and tenant are already loaded; called with an order
+   * from a card in the list, where they still have to be fetched.
+   */
   async function downloadInvoice(orderArg?: any) {
-    let order = orderArg || selected;
+    const order = orderArg || selected;
+    if (!order) return;
     let its = orderArg ? [] as any[] : items;
     let ten = tenant;
-    if (!order) return;
     if (orderArg) {
       const detail = await getOrderDetail({ data: { order_id: order.id, phone: phone! } });
       its = detail.items || []; ten = detail.tenant;
     }
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    let y = 48;
-    const logo = await loadLogo(ten?.logo_url);
-    if (logo) {
-      const size = 56;
-      const h = Math.min(size, (logo.h / logo.w) * size);
-      try { doc.addImage(logo.data, "PNG", 491, y - 22, size, h); } catch { /* ignore bad image */ }
-    }
-    doc.setFont("helvetica", "bold").setFontSize(18).text(ten?.name || "Invoice", 48, y); y += 18;
-    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
-    if (ten?.slogan) { doc.text(ten.slogan, 48, y); y += 14; }
-    const addr = [ten?.address, ten?.city].filter(Boolean).join(", ");
-    if (addr) { doc.text(addr, 48, y); y += 14; }
-    if (ten?.gst_number) { doc.text(`GST: ${ten.gst_number}`, 48, y); y += 14; }
-    y += 8; doc.setDrawColor(230).line(48, y, 547, y); y += 20;
-    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(12).text(`Invoice #${order.order_number}`, 48, y);
-    doc.setFont("helvetica","normal").setFontSize(10).setTextColor(120).text(format(new Date(order.created_at), "PPpp"), 48, y + 14);
-    doc.setTextColor(0).text(`${order.customer_name} \u00b7 ${order.customer_phone}`, 547, y, { align: "right" });
-    doc.setFontSize(9).setTextColor(order.payment_status === "paid" ? 22 : 150, order.payment_status === "paid" ? 101 : 100, 52).text(order.payment_status.toUpperCase(), 547, y + 14, { align: "right" });
-    y += 40;
-
-    // Delivery address is part of the record of what was bought, so it belongs
-    // on the invoice rather than only on the screen.
-    if (order.order_type === "home_delivery" && order.delivery_address) {
-      doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10).text("Delivered to", 48, y); y += 14;
-      doc.setFont("helvetica","normal").setTextColor(120);
-      const lines = doc.splitTextToSize(
-        [order.delivery_address, order.delivery_landmark ? `Near ${order.delivery_landmark}` : null, order.delivery_pincode]
-          .filter(Boolean).join(", "),
-        400,
-      );
-      doc.text(lines, 48, y); y += lines.length * 12 + 12;
-    }
-
-    doc.setTextColor(0).setFont("helvetica","bold").setFontSize(10);
-    doc.text("Item", 48, y); doc.text("Qty", 340, y, { align: "right" }); doc.text("Price", 430, y, { align: "right" }); doc.text("Amount", 547, y, { align: "right" });
-    y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
-    doc.setFont("helvetica","normal");
-    its.forEach(i => {
-      doc.text(String(i.name).slice(0, 50), 48, y);
-      doc.text(String(i.quantity), 340, y, { align: "right" });
-      doc.text(rs(Number(i.price)), 430, y, { align: "right" });
-      doc.text(rs(Number(i.price) * i.quantity), 547, y, { align: "right" });
-      y += 16;
-    });
-    y += 8; doc.setDrawColor(230).line(340, y, 547, y); y += 16;
-    doc.text("Subtotal", 430, y, { align: "right" }); doc.text(rs(order.subtotal), 547, y, { align: "right" }); y += 14;
-    doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 14;
-    if (Number(order.delivery_fee) > 0) {
-      doc.text("Delivery", 430, y, { align: "right" }); doc.text(rs(order.delivery_fee), 547, y, { align: "right" }); y += 14;
-    }
-    y += 2;
-    doc.setFont("helvetica","bold").text("Total", 430, y, { align: "right" }); doc.text(rs(order.total), 547, y, { align: "right" });
-    y += 40; doc.setFont("helvetica","italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
-    y += 20; doc.setFont("helvetica","normal").setFontSize(8).setTextColor(160).text("Powered by PlateOS", 48, y);
-    doc.save(`Invoice-${order.order_number}.pdf`);
+    await downloadInvoicePdf(order, its, ten);
   }
 
-  function keepOrdering() {
-    if (!selected) return;
-    if (selected.order_type === "home_delivery") window.location.href = `/delivery/${selected.tenant_id}`;
-    else if (selected.order_type === "takeaway") window.location.href = `/takeaway/${selected.tenant_id}`;
-    else if (selected.table_id) window.location.href = `/t/${selected.table_id}`;
-    else window.location.href = `/takeaway/${selected.tenant_id}`;
+  function keepOrdering(order?: any) {
+    const o = order || selected;
+    if (!o) return;
+    if (o.order_type === "home_delivery") window.location.href = `/delivery/${o.tenant_id}`;
+    else if (o.order_type === "takeaway") window.location.href = `/takeaway/${o.tenant_id}`;
+    else if (o.table_id) {
+      navigate({
+        to: "/t/$tableId",
+        params: { tableId: o.table_id },
+        search: {
+          order: String(o.id),
+          phone: String(phone ?? o.customer_phone ?? ""),
+        },
+      });
+    }
+    else window.location.href = `/takeaway/${o.tenant_id}`;
   }
 
   return (
@@ -298,32 +247,39 @@ function StatusPage() {
         )}
 
         {orders.map(o => (
-          <Card key={o.id} className="p-4 rounded-3xl border-0 bg-background shadow-md shadow-black/5">
-            {/* The whole header block is one button so the card is reachable
-                by keyboard; the Invoice button sits outside it, since nesting
-                a button inside a button is invalid markup. */}
-            <button
-              onClick={() => openOrder(o)}
-              className="w-full text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <div className="flex justify-between items-baseline gap-3">
-                <span className="font-bold">Order #{o.order_number}</span>
-                <span className="text-lg font-bold tabular-nums">{money(Number(o.total))}</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {format(new Date(o.created_at), "PPp")}
-                {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? o.order_type}</>}
-              </div>
-              <OrderProgress status={o.status} orderType={o.order_type} />
-            </button>
+          <div key={o.id} className="space-y-2">
+            <Card className="p-4 rounded-3xl border-0 bg-background shadow-md shadow-black/5">
+              <button
+                onClick={() => openOrder(o)}
+                className="w-full text-left rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <div className="flex justify-between items-baseline gap-3">
+                  <span className="font-bold">Order #{o.order_number}</span>
+                  <span className="text-lg font-bold tabular-nums">{money(Number(o.total))}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {format(new Date(o.created_at), "PPp")}
+                  {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? o.order_type}</>}
+                  {o.table_label && <> · Table {o.table_label}</>}
+                </div>
+                <OrderProgress status={o.status} orderType={o.order_type} />
+              </button>
 
-            <div className="mt-4 pt-3 border-t flex items-center justify-between">
-              <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
-              <Button size="sm" variant="outline" className="rounded-full h-9 px-4 border-2 font-semibold" onClick={() => downloadInvoice(o)}>
-                <Download className="h-3.5 w-3.5 mr-1.5"/>Invoice
-              </Button>
-            </div>
-          </Card>
+              <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${o.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{o.payment_status}</span>
+                <Button size="sm" variant="outline" className="rounded-full h-9 px-4 border-2 font-semibold" onClick={() => downloadInvoice(o)}>
+                  <Download className="h-3.5 w-3.5 mr-1.5"/>Invoice
+                </Button>
+              </div>
+            </Card>
+            {o.payment_status === "unpaid" && !CANCELLED.has(String(o.status || "").toLowerCase().trim()) && (
+              <div className="flex justify-center">
+                <Button size="sm" className="h-9 rounded-full px-5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => keepOrdering(o)}>
+                  <Plus className="h-3.5 w-3.5 mr-1 shrink-0"/>Keep ordering
+                </Button>
+              </div>
+            )}
+          </div>
         ))}
 
         {loading ? (
@@ -335,49 +291,71 @@ function StatusPage() {
         ) : null}
 
         <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-          {/* Corner radius matched to the cart and item sheets on the menu. */}
-          <DialogContent className="max-w-md rounded-[32px]">
-            <DialogHeader><DialogTitle>Order #{selected?.order_number}</DialogTitle></DialogHeader>
+          {/*
+            Three bands: header, scrolling middle, pinned footer. The sheet is
+            capped at 85% of the viewport (dvh, so an iOS address bar sliding in
+            doesn't push the buttons off-screen) and only the item list scrolls,
+            which keeps the total and the two actions reachable no matter how
+            many rounds have been added to the order.
+
+            p-0/gap-0 override the padding shadcn's DialogContent applies by
+            default, so each band can carry its own.
+          */}
+          <DialogContent className="max-w-md w-[calc(100%-2rem)] rounded-[28px] p-0 gap-0 flex flex-col max-h-[85vh] max-h-[85dvh] overflow-hidden">
+            <DialogHeader className="shrink-0 px-5 pt-5 pb-3 text-left">
+              <DialogTitle>Order #{selected?.order_number}</DialogTitle>
+            </DialogHeader>
+
             {selected && (
-              <div className="space-y-3">
-                <OrderProgress status={selected.status} orderType={selected.order_type} />
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</span>
-                  <span className={`px-2.5 py-1 rounded-full font-medium ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
-                </div>
-
-                {selected.order_type === "home_delivery" && selected.delivery_address && (
-                  <div className="rounded-2xl bg-muted/40 p-3 text-sm">
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <Bike className="h-3.5 w-3.5" />Delivering to
-                    </div>
-                    <div className="mt-1">{selected.delivery_address}</div>
-                    {selected.delivery_landmark && <div className="text-muted-foreground">Near {selected.delivery_landmark}</div>}
-                    <div className="text-muted-foreground">{selected.delivery_pincode}</div>
+              <>
+                {/* min-h-0 is what actually lets this shrink inside the flex
+                    column — without it the list forces the sheet taller than
+                    the cap instead of scrolling. */}
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-4 space-y-3">
+                  <OrderProgress status={selected.status} orderType={selected.order_type} />
+                  <div className="flex justify-between items-center gap-2 text-xs">
+                    <span className="text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</span>
+                    <span className={`shrink-0 px-2.5 py-1 rounded-full font-medium ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
                   </div>
-                )}
 
-                <div className="divide-y rounded-2xl bg-muted/40">
-                  {items.map(i => (
-                    <div key={i.id} className="p-3 flex justify-between text-sm">
-                      <span>{i.quantity}× {i.name}</span>
-                      <span>{money(Number(i.price) * i.quantity)}</span>
+                  {selected.order_type === "home_delivery" && selected.delivery_address && (
+                    <div className="rounded-2xl bg-muted/40 p-3 text-sm">
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <Bike className="h-3.5 w-3.5" />Delivering to
+                      </div>
+                      <div className="mt-1 break-words">{selected.delivery_address}</div>
+                      {selected.delivery_landmark && <div className="text-muted-foreground break-words">Near {selected.delivery_landmark}</div>}
+                      <div className="text-muted-foreground">{selected.delivery_pincode}</div>
                     </div>
-                  ))}
-                </div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{money(Number(selected.subtotal))}</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Tax</span><span>{money(Number(selected.tax))}</span></div>
-                  {Number(selected.delivery_fee) > 0 && (
-                    <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span>{money(Number(selected.delivery_fee))}</span></div>
                   )}
-                  <div className="flex justify-between font-semibold"><span>Total</span><span>{money(Number(selected.total))}</span></div>
+
+                  <div className="divide-y rounded-2xl bg-muted/40">
+                    {displayItems.map(i => (
+                      <div key={i.id} className="p-3 flex justify-between gap-3 text-sm">
+                        <span className="min-w-0 break-words">{i.quantity}× {i.name}</span>
+                        <span className="shrink-0 tabular-nums">{money(Number(i.price) * i.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button variant="outline" className="h-12 rounded-full font-semibold border-2" onClick={keepOrdering}><Plus className="h-4 w-4 mr-2"/>Keep ordering</Button>
-                  <Button className="h-12 rounded-full font-semibold shadow-lg shadow-primary/25" onClick={() => downloadInvoice()}><Download className="h-4 w-4 mr-2"/>Download invoice</Button>
+
+                {/* Pinned: the amount due and the two actions stay visible. */}
+                <div className="shrink-0 border-t bg-background px-5 py-4 space-y-3">
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="tabular-nums">{money(Number(selected.subtotal))}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="tabular-nums">{money(Number(selected.tax))}</span></div>
+                    {Number(selected.delivery_fee) > 0 && (
+                      <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span className="tabular-nums">{money(Number(selected.delivery_fee))}</span></div>
+                    )}
+                    <div className="flex justify-between font-semibold"><span>Total</span><span className="tabular-nums">{money(Number(selected.total))}</span></div>
+                  </div>
+                  <div className="flex justify-center">
+                    <Button size="sm" className="h-9 rounded-full px-5 text-xs font-semibold shadow-lg shadow-primary/25" onClick={() => downloadInvoice()}>
+                      <Download className="h-3.5 w-3.5 mr-1 shrink-0"/>Invoice
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </DialogContent>
         </Dialog>

@@ -64,7 +64,7 @@ function SettingsPage() {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Restaurant name" v={t.name} on={v=>set("name",v)} />
           <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} />
-          <Field label="Owner phone" v={t.owner_phone||""} on={v=>set("owner_phone",v)} />
+          <div><Label>Owner phone</Label><Input type="tel" inputMode="numeric" maxLength={10} value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/></div>
           <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
           <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
           <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />

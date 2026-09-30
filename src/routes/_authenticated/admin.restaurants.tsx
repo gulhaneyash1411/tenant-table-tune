@@ -21,6 +21,7 @@ import { format, differenceInCalendarDays, isAfter, isBefore, parseISO, startOfD
 import {
   Search, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, SlidersHorizontal,
   Trash2, AlertTriangle, MoreHorizontal, Check, Ban, PauseCircle, PlayCircle, Bell,
+  Plus, Copy, KeyRound, Loader2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/restaurants")({ component: Restaurants });
@@ -102,6 +103,18 @@ function Restaurants() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [confirmText, setConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Create restaurant
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ restaurant_name: "", owner_name: "", owner_email: "", owner_phone: "", city: "", state: "", pincode: "", gst_number: "" });
+  const [creating, setCreating] = useState(false);
+
+  // Credentials dialog (shown after create or reset password)
+  const [creds, setCreds] = useState<{ email: string; password: string; name: string } | null>(null);
+
+  // Reset password
+  const [resetTarget, setResetTarget] = useState<any | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -204,6 +217,60 @@ function Restaurants() {
     }
   }
 
+  async function createRestaurant() {
+    setCreating(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) { toast.error("Session expired"); setCreating(false); return; }
+
+      const res = await fetch("/api/admin-create-restaurant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "create", ...createForm }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) { toast.error(data.error || "Failed to create restaurant"); setCreating(false); return; }
+
+      toast.success(`${data.tenant_name} created successfully`);
+      setCreateOpen(false);
+      setCreateForm({ restaurant_name: "", owner_name: "", owner_email: "", owner_phone: "", city: "", state: "", pincode: "", gst_number: "" });
+      setCreds({ email: data.email, password: data.temp_password, name: data.tenant_name });
+      load();
+    } catch (e: any) {
+      toast.error(e?.message || "Something went wrong");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function resetPassword() {
+    if (!resetTarget) return;
+    setResetting(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) { toast.error("Session expired"); setResetting(false); return; }
+
+      const res = await fetch("/api/admin-create-restaurant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "reset_password", tenant_id: resetTarget.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) { toast.error(data.error || "Failed to reset password"); setResetting(false); return; }
+
+      toast.success(`Password reset for ${data.tenant_name}`);
+      setResetTarget(null);
+      setCreds({ email: resetTarget.owner_email, password: data.temp_password, name: data.tenant_name });
+      load();
+    } catch (e: any) {
+      toast.error(e?.message || "Something went wrong");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   const cities = useMemo(
     () => Array.from(new Set(rows.map(r => r.city).filter(Boolean))).sort() as string[],
     [rows]
@@ -299,7 +366,8 @@ function Restaurants() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Restaurants</h1>
-        <div className="relative w-full sm:max-w-sm">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="relative flex-1 sm:w-80">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input
             aria-label="Search restaurants"
@@ -318,6 +386,10 @@ function Restaurants() {
               <X className="h-4 w-4" />
             </button>
           )}
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-1 h-4 w-4" />Create Restaurant
+        </Button>
         </div>
       </div>
 
@@ -462,7 +534,10 @@ function Restaurants() {
                   <TableCell>{plan ? <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">{plan.name}</span> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{subBadge(sub)}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.created_at), "PP")}</TableCell>
-                  <TableCell><span className={`text-xs px-2 py-0.5 rounded ${statusClass(r.status)}`}>{r.status}</span></TableCell>
+                  <TableCell>
+                    <span className={`text-xs px-2 py-0.5 rounded ${statusClass(r.status)}`}>{r.status}</span>
+                    {(r as any).must_reset_password && <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning" title="Password reset pending">reset pending</span>}
+                  </TableCell>
 
                   {/* One trigger keeps this column a fixed, narrow width */}
                   <TableCell className="text-right">
@@ -495,6 +570,9 @@ function Restaurants() {
                         )}
                         <DropdownMenuItem onSelect={defer(() => setNotifTarget(r))}>
                           <Bell className="mr-2 h-4 w-4" /> Notify
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={defer(() => setResetTarget(r))}>
+                          <KeyRound className="mr-2 h-4 w-4" /> Reset Password
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -552,6 +630,123 @@ function Restaurants() {
             <div><Label htmlFor="nb">Message</Label><Textarea id="nb" value={notifBody} onChange={e => setNotifBody(e.target.value)} rows={4} /></div>
             <Button onClick={sendNotif}>Send notification</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create restaurant */}
+      <Dialog open={createOpen} onOpenChange={o => { if (!creating) setCreateOpen(o); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Create Restaurant Account</DialogTitle>
+            <DialogDescription>
+              Create a new restaurant owner account. A temporary password will be generated automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto -mx-6 px-6 py-1">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+              <div className="sm:col-span-2 space-y-1">
+                <Label>Restaurant name <span className="text-destructive">*</span></Label>
+                <Input value={createForm.restaurant_name} onChange={e => setCreateForm(f => ({ ...f, restaurant_name: e.target.value }))} placeholder="e.g. Royal Kitchen" disabled={creating} />
+              </div>
+              <div className="space-y-1">
+                <Label>Owner name <span className="text-destructive">*</span></Label>
+                <Input value={createForm.owner_name} onChange={e => setCreateForm(f => ({ ...f, owner_name: e.target.value }))} disabled={creating} />
+              </div>
+              <div className="space-y-1">
+                <Label>Owner email <span className="text-destructive">*</span></Label>
+                <Input type="email" value={createForm.owner_email} onChange={e => setCreateForm(f => ({ ...f, owner_email: e.target.value }))} disabled={creating} />
+              </div>
+              <div className="space-y-1">
+                <Label>Owner phone <span className="text-destructive">*</span></Label>
+                <Input type="tel" inputMode="numeric" maxLength={10} value={createForm.owner_phone} onChange={e => setCreateForm(f => ({ ...f, owner_phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="10 digit phone number" disabled={creating} />
+              </div>
+              <div className="space-y-1">
+                <Label>City</Label>
+                <Input value={createForm.city} onChange={e => setCreateForm(f => ({ ...f, city: e.target.value }))} disabled={creating} />
+              </div>
+              <div className="space-y-1">
+                <Label>State</Label>
+                <Input value={createForm.state} onChange={e => setCreateForm(f => ({ ...f, state: e.target.value }))} disabled={creating} />
+              </div>
+              <div className="space-y-1">
+                <Label>Pincode</Label>
+                <Input value={createForm.pincode} onChange={e => setCreateForm(f => ({ ...f, pincode: e.target.value }))} disabled={creating} />
+              </div>
+              <div className="space-y-1">
+                <Label>GST number</Label>
+                <Input value={createForm.gst_number} onChange={e => setCreateForm(f => ({ ...f, gst_number: e.target.value }))} disabled={creating} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating} className="w-full sm:w-auto">Cancel</Button>
+            <Button onClick={createRestaurant} disabled={creating || !createForm.restaurant_name.trim() || !createForm.owner_name.trim() || !createForm.owner_email.trim() || !createForm.owner_phone.trim()} className="w-full sm:w-auto">
+              {creating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating…</> : "Create Restaurant"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset password confirmation */}
+      <Dialog open={!!resetTarget} onOpenChange={o => { if (!resetting) { if (!o) setResetTarget(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Generate a new temporary password for <b>{resetTarget?.name}</b> ({resetTarget?.owner_email}). The owner will be required to change it on their next login.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetTarget(null)} disabled={resetting}>Cancel</Button>
+            <Button onClick={resetPassword} disabled={resetting}>
+              {resetting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Resetting…</> : "Generate New Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Credentials display */}
+      <Dialog open={!!creds} onOpenChange={o => { if (!o) setCreds(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Account Credentials</DialogTitle>
+            <DialogDescription>
+              Share these credentials with the restaurant owner for <b>{creds?.name}</b>. They will be required to change the password on first login.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 rounded-lg border bg-muted/50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-muted-foreground">Email</div>
+                <div className="font-mono text-sm">{creds?.email}</div>
+              </div>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { navigator.clipboard.writeText(creds?.email || ""); toast.success("Email copied"); }}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs text-muted-foreground">Temporary password</div>
+                <div className="font-mono text-sm">{creds?.password}</div>
+              </div>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { navigator.clipboard.writeText(creds?.password || ""); toast.success("Password copied"); }}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-md bg-warning/10 p-3 text-sm text-warning">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            This password is shown only once. Copy or note it now.
+          </div>
+          <DialogFooter>
+            <Button onClick={() => {
+              navigator.clipboard.writeText(`Email: ${creds?.email}\nPassword: ${creds?.password}`);
+              toast.success("Credentials copied");
+            }}>
+              <Copy className="mr-1 h-4 w-4" />Copy All
+            </Button>
+            <Button variant="outline" onClick={() => setCreds(null)}>Done</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin, UtensilsCrossed, X, ChevronLeft, ChevronRight, CalendarClock, Ban } from "lucide-react";
 import { BrandedLoader } from "@/components/branded-loader";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
-import { getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
+import { appendPublicOrderItems, getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
 
 /**
  * Whether a table is being held for a booking right now.
@@ -91,6 +91,19 @@ function TableError() {
 
 export const Route = createFileRoute("/t/$tableId")({
   loader: ({ params }) => loadTableData(params.tableId),
+  // A guest coming back from their status screen to order another round
+  // carries the order they're adding to and the phone it was placed with.
+  // Both are checked against the order actually open on this table below —
+  // they reopen the menu, they don't grant anything on their own.
+  // TanStack Router's default parser runs JSON.parse on raw query values, so
+  // a ten-digit phone number arrives as a *number*, not a string.  Coerce both
+  // params to string so the comparison in the component works regardless of
+  // whether the URL was built with TanStack's navigate (JSON-quoted) or a raw
+  // window.location.href assignment.
+  validateSearch: (search: Record<string, unknown>): { order?: string; phone?: string } => ({
+    order: search.order != null ? String(search.order) : undefined,
+    phone: search.phone != null ? String(search.phone) : undefined,
+  }),
   pendingComponent: TablePending,
   // No artificial delay in either direction: show the pending state the
   // instant loading takes any time at all, and don't hold it a minimum
@@ -327,7 +340,21 @@ function TableOrder() {
   // No "All" pill any more, so the first category is the landing tab.
   const [activeCat, setActiveCat] = useState<string>(cats[0]?.id ?? "");
   const railRef = useRef<HTMLDivElement>(null);
+  const resumeParams = Route.useSearch();
   useTenantBrand(tenant);
+
+  // "Keep ordering" on the status screen sends the guest back here with the
+  // order id and the phone it was placed with. When both match the order that
+  // is actually open on this table, this is the party already sitting here —
+  // so the menu opens instead of the occupied-table screen, and the cart adds
+  // to that running order rather than starting a second bill. The phone is the
+  // same proof the occupied-table form asks for, carried rather than re-typed;
+  // anyone arriving without it still meets that form.
+  const resumeOrder = activeOrder
+    && !!resumeParams.order && resumeParams.order === activeOrder.id
+    && !!resumeParams.phone && resumeParams.phone === activeOrder.customer_phone
+    ? activeOrder
+    : null;
 
   const cartItems = items.filter((i: any) => cart[i.id]);
   const total = cartItems.reduce((a: number, b: any) => a + Number(b.price) * cart[b.id], 0);
@@ -355,11 +382,32 @@ function TableOrder() {
   const scrollRail = (dir: 1 | -1) => railRef.current?.scrollBy({ left: dir * (RAIL_CARD_W + 12), behavior: "smooth" });
 
   async function placeOrder() {
-    if (!nameValid) return toast.error("Enter your name");
-    if (!phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
     if (cartItems.length === 0) return toast.error("Cart is empty");
+    // Only a first order asks who this is; a round added to an order already
+    // carries the name and number it was placed with.
+    if (!resumeOrder) {
+      if (!nameValid) return toast.error("Enter your name");
+      if (!phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
+    }
     setPlacing(true);
+    // Without this the spinner would drop and the menu flash back up while the
+    // browser is already on its way to the status screen.
+    let leaving = false;
     try {
+      if (resumeOrder) {
+        await appendPublicOrderItems({ data: {
+          order_id: resumeOrder.id,
+          customer_phone: resumeOrder.customer_phone,
+          items: cartItems.map((i: any) => ({ menu_item_id: i.id, quantity: cart[i.id] })),
+        } });
+        setCart({}); setShowCart(false);
+        toast.success("Added to your order!");
+        leaving = true;
+        // Back to the status screen they came from, which now shows the new
+        // round on the same running bill.
+        window.location.href = `/status?phone=${encodeURIComponent(resumeOrder.customer_phone)}`;
+        return;
+      }
       const order = await placePublicOrder({ data: {
         tenant_id: tenant.id,
         table_id: table.id,
@@ -374,11 +422,11 @@ function TableOrder() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to place order");
     } finally {
-      setPlacing(false);
+      if (!leaving) setPlacing(false);
     }
   }
 
-  if (placing) return <BrandedLoader tenant={tenant} label="Placing your order…" />;
+  if (placing) return <BrandedLoader tenant={tenant} label={resumeOrder ? "Adding to your order…" : "Placing your order…"} />;
   if (!table) return (
     <div className="min-h-screen grid place-items-center p-6 text-center">
       <div>
@@ -430,7 +478,7 @@ function TableOrder() {
   // 3. Busy — an order on this table is still unpaid. The party who placed it
   //    should be able to follow it, so this screen asks for their details
   //    rather than refusing outright. Anyone else gets turned away below.
-  if (activeOrder) {
+  if (activeOrder && !resumeOrder) {
     return (
       // Same phone-width column and page tint as the menu, so this screen is
       // framed identically on a desktop viewport instead of reading as a
@@ -527,6 +575,15 @@ function TableOrder() {
           </div>
         </header>
       </div>
+
+      {resumeOrder && (
+        <div className="px-4 mt-4">
+          <div className="flex items-center gap-2.5 rounded-2xl bg-primary/10 text-primary px-4 py-3 text-xs font-semibold">
+            <Plus className="h-4 w-4 shrink-0" />
+            <span className="min-w-0">Adding to order #{resumeOrder.order_number} — it all goes on one bill.</span>
+          </div>
+        </div>
+      )}
 
       <div className="px-4 mt-4">
         <div className="relative">
@@ -649,7 +706,7 @@ function TableOrder() {
           >
             <div className="h-1.5 w-10 rounded-full bg-muted mx-auto mb-5 sm:hidden" />
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold tracking-tight">Your order</h2>
+              <h2 className="text-xl font-bold tracking-tight">{resumeOrder ? "Add to your order" : "Your order"}</h2>
               <button aria-label="Close" onClick={() => setShowCart(false)} className="h-9 w-9 grid place-items-center rounded-full bg-muted">
                 <X className="h-4 w-4" />
               </button>
@@ -673,10 +730,19 @@ function TableOrder() {
               <span>Total</span><span>{money(total)}</span>
             </div>
 
-            {/* `required` is omitted deliberately — these inputs are not inside
+            {/* A guest adding a round was identified when they placed the
+                order they came back to, so the contact fields are asked for on
+                a first order only.
+
+                `required` is omitted deliberately — these inputs are not inside
                 a <form>, so it would never fire. aria-required is what a screen
                 reader announces, and the checks in placeOrder are what actually
                 gate submission. */}
+            {resumeOrder ? (
+              <p className="text-sm text-muted-foreground mt-5">
+                These go on order #{resumeOrder.order_number}, under the name and number you ordered with.
+              </p>
+            ) : (
             <div className="space-y-3 mt-5">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">
@@ -712,11 +778,14 @@ function TableOrder() {
                 <FieldError show={phone.length > 0 && !phoneValid}>Phone number must be {PHONE_LEN} digits</FieldError>
               </div>
             </div>
+            )}
 
             <div className="flex gap-3 mt-6">
               <Button variant="outline" className="flex-1 h-12 rounded-full font-semibold border-2" onClick={() => setShowCart(false)} disabled={placing}>Keep browsing</Button>
               <Button onClick={placeOrder} className="flex-1 h-12 rounded-full font-semibold shadow-lg shadow-primary/25" disabled={placing}>
-                {placing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Placing…</> : "Place order"}
+                {placing
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{resumeOrder ? "Adding…" : "Placing…"}</>
+                  : resumeOrder ? "Add to order" : "Place order"}
               </Button>
             </div>
           </div>
