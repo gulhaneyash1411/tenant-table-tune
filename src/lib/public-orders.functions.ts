@@ -32,6 +32,36 @@ export const placePublicOrder = createServerFn({ method: "POST" })
     return createPublicOrder(data);
   });
 
+const appendOrderSchema = z.object({
+  order_id: z.string().uuid(),
+  customer_phone: z.string().trim().min(4).max(30),
+  items: z.array(z.object({
+    menu_item_id: z.string().uuid(),
+    quantity: z.number().int().min(1).max(50),
+  })).min(1).max(100),
+});
+
+// Adding a round to an order that is already open. Deliberately separate from
+// placePublicOrder: there is no tenant, table or order type to choose here —
+// all of that is already fixed by the order being appended to.
+export const appendPublicOrderItems = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => appendOrderSchema.parse(d))
+  .handler(async ({ data }) => {
+    const { appendPublicOrderItems: append } = await import("./public-orders.server");
+    return append(data);
+  });
+
+export const clearRoundMarkers = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ order_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("order_items")
+      .update({ notes: null })
+      .eq("order_id", data.order_id)
+      .eq("notes", "__nr__");
+  });
+
 export const getOrdersByPhone = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ phone: z.string().trim().min(3).max(30) }).parse(d))
   .handler(async ({ data }) => {
@@ -49,7 +79,22 @@ export const getOrdersByPhone = createServerFn({ method: "GET" })
       .gte("created_at", recentCutoff)
       .order("created_at", { ascending: false })
       .limit(15);
-    return orders ?? [];
+    const rows = orders ?? [];
+    const tableIds = [...new Set(rows.map((o: any) => o.table_id).filter(Boolean))];
+    let tableMap: Record<string, string> = {};
+    if (tableIds.length) {
+      const { data: tables } = await supabaseAdmin
+        .from("restaurant_tables")
+        .select("id,label")
+        .in("id", tableIds);
+      for (const t of (tables ?? []) as any[]) {
+        if (t.label != null && t.label !== "") tableMap[t.id] = String(t.label);
+      }
+    }
+    return rows.map((o: any) => ({
+      ...o,
+      table_label: o.table_id ? (tableMap[o.table_id] ?? null) : null,
+    }));
   });
 
 export const getOrderDetail = createServerFn({ method: "GET" })
@@ -81,11 +126,15 @@ export const getActiveTableOrder = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ table_id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // A table is occupied until the bill is settled. "Served but unpaid"
+    // means the party is still eating — they can keep ordering on the same
+    // bill.  Only a cancelled order or a paid one frees the table.
     const { data: order } = await supabaseAdmin
       .from("orders")
       .select("id,order_number,status,payment_status,total,created_at,table_id,customer_phone")
       .eq("table_id", data.table_id)
-      .not("status", "in", "(served,cancelled)")
+      .eq("payment_status", "unpaid")
+      .neq("status", "cancelled")
       .maybeSingle();
     return order ?? null;
   });

@@ -13,6 +13,7 @@ import {
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Loader2, Plus, Minus, ShoppingCart, Info } from "lucide-react";
+import { clearRoundMarkers } from "@/lib/public-orders.functions";
 
 // ---------------------------------------------------------------------------
 // Schema assumptions — verify against src/integrations/supabase/types.ts and
@@ -427,7 +428,14 @@ async function appendToOrder(orderId: string, lines: Line[]): Promise<boolean> {
     return false;
   }
 
-  const { error: itemsError } = await supabase.from("order_items").insert(itemRows(fresh, lines));
+  const markNewRound = ["preparing", "ready", "served"].includes((fresh as any).status);
+  const needsStatusChange = ["ready", "served"].includes((fresh as any).status);
+  if (needsStatusChange) {
+    await clearRoundMarkers({ data: { order_id: orderId } });
+  }
+  const rows = itemRows(fresh, lines);
+  if (markNewRound) rows.forEach((r: any) => { r.notes = "__nr__"; });
+  const { error: itemsError } = await supabase.from("order_items").insert(rows);
   if (itemsError) {
     toast.error(`Items could not be added: ${itemsError.message}`);
     return false;
@@ -437,10 +445,10 @@ async function appendToOrder(orderId: string, lines: Line[]): Promise<boolean> {
   if (total === null) return false; // recalcOrder has already reported why
 
   let backToPreparing = false;
-  if (["ready", "served"].includes((fresh as any).status)) {
+  if (needsStatusChange) {
     const { error: statusError } = await supabase
       .from("orders")
-      .update({ status: "preparing", served_at: null })
+      .update({ status: "preparing" })
       .eq("id", orderId);
     if (statusError) toast.warning(`Items added, but status not changed: ${statusError.message}`);
     else backToPreparing = true;

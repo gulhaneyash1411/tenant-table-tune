@@ -5,12 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { money } from "@/lib/format";
-import { mergeOrderItemsMap } from "@/lib/order-items";
+import { mergeOrderItemsMap, splitByRound, NEW_ROUND_MARKER } from "@/lib/order-items";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { sendOrderInvoice } from "@/lib/whatsapp.functions";
-import { Loader2, ChevronLeft, Bike } from "lucide-react";
+import { Loader2, ChevronLeft, Bike, Flame } from "lucide-react";
 import { NewOrderDialog, AddItemsDialog } from "@/components/orders/NewOrderDialog";
+import { clearRoundMarkers } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/_authenticated/app/orders")({ component: LiveOrders });
 
@@ -157,7 +158,10 @@ function LiveOrders() {
   async function move(order: any, status: string) {
     setBusy(order.id);
     const patch: any = { status };
-    if (status === "served") patch.served_at = new Date().toISOString();
+    if (status === "served") {
+      patch.served_at = new Date().toISOString();
+      await clearRoundMarkers({ data: { order_id: order.id } });
+    }
     const { error } = await supabase.from("orders").update(patch).eq("id", order.id);
     setBusy(null);
     if (error) return toast.error(error.message);
@@ -246,9 +250,26 @@ function LiveOrders() {
                       {o.delivery_address}{o.delivery_pincode ? ` — ${o.delivery_pincode}` : ""}
                     </div>
                   )}
-                  <ul className="text-xs mt-2 space-y-0.5">
-                    {(displayItems[o.id] || []).map(i => <li key={i.id}>{i.quantity}× {i.name}</li>)}
-                  </ul>
+                  {(() => {
+                    const raw = items[o.id] || [];
+                    const { original, newRound } = splitByRound(raw, o);
+                    const hasNew = newRound.length > 0;
+                    return (
+                      <ul className="text-xs mt-2 space-y-0.5">
+                        {mergeOrderItemsMap({ _: original })["_"]?.map(i => (
+                          <li key={i.id} className={hasNew ? "text-muted-foreground" : ""}>{i.quantity}× {i.name}</li>
+                        ))}
+                        {hasNew && (
+                          <li className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 pt-1">
+                            <Flame className="h-3 w-3 shrink-0" />New round
+                          </li>
+                        )}
+                        {mergeOrderItemsMap({ _: newRound })["_"]?.map(i => (
+                          <li key={i.id} className="font-semibold text-orange-600">{i.quantity}× {i.name}</li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
                   <div className="text-sm font-medium mt-2">{money(o.total)}</div>
 
                   {(next || back) && (
