@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,54 +60,85 @@ function SettingsPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <h1 className="text-2xl font-semibold">Settings</h1>
-      <Card className="p-5 space-y-4">
-        <div className="font-medium">Restaurant profile</div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Restaurant name" v={t.name} on={v=>set("name",v)} />
-          <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} />
-          <div><Label>Owner phone</Label><Input type="tel" inputMode="numeric" maxLength={10} value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/></div>
-          <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
-          <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
-          <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
-          <Field type="time" label="Opening time" v={t.opening_time||""} on={v=>set("opening_time",v)} />
-          <Field type="time" label="Closing time" v={t.closing_time||""} on={v=>set("closing_time",v)} />
-        </div>
-        {t.logo_url && <img src={t.logo_url} alt="logo" className="h-16 w-16 rounded object-cover border"/>}
-      </Card>
-      <Card className="p-5 space-y-4">
-        <div className="font-medium">Address</div>
-        <Field label="Address" v={t.address||""} on={v=>set("address",v)} />
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="City" v={t.city||""} on={v=>set("city",v)} />
-          <Field label="State" v={t.state||""} on={v=>set("state",v)} />
-          <Field label="Pincode" v={t.pincode||""} on={v=>set("pincode",v)} />
-        </div>
-      </Card>
-      <Card className="p-5 space-y-4">
-        <div className="font-medium">Invoice & tax</div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="GST number" v={t.gst_number||""} on={v=>set("gst_number",v)} />
-          <Field label="Tax rate (%)" v={t.settings?.tax_rate||"5"} on={v=>setJ("tax_rate", v)} />
-          <Field label="Currency" v={t.currency||"INR"} on={v=>set("currency",v)} />
-          <Field label="Timezone" v={t.timezone||"Asia/Kolkata"} on={v=>set("timezone",v)} />
-        </div>
-      </Card>
-      <Card className="p-5 space-y-4">
-        <div className="font-medium">Branding, hours, printers, KDS, Twilio, UPI</div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Brand color" v={t.brand_color||"#0ea5e9"} on={v=>set("brand_color",v)} />
-          <Field label="Business hours" v={t.settings?.hours||"11:00 - 23:00"} on={v=>setJ("hours",v)} />
-          <Field label="Kitchen printer IP" v={t.settings?.printer_ip||""} on={v=>setJ("printer_ip",v)} />
-          <Field label="KDS token" v={t.settings?.kds_token||""} on={v=>setJ("kds_token",v)} />
-          <Field label="Twilio Account SID" v={t.settings?.twilio_sid||""} on={v=>setJ("twilio_sid",v)} />
-          <Field label="Twilio number" v={t.settings?.twilio_number||""} on={v=>setJ("twilio_number",v)} />
-          <Field label="UPI VPA" v={t.settings?.upi_vpa||""} on={v=>setJ("upi_vpa",v)} />
-        </div>
-      </Card>
-      <Button onClick={save} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
 
-      <SectionPasswordCard tenantId={t.id} />
-      <KitchenAccountCard tenantId={t.id} />
+      <Tabs defaultValue="restaurant" className="space-y-6">
+        {/* Same underline bar as Tables & QR — these switch the whole page, so
+            it reads as navigation. shadcn's TabsList brings its own background,
+            padding and rounding and TabsTrigger its own active pill, so all of
+            that is nulled out here rather than added to. overflow-x-auto keeps
+            the three labels on one row at 360px instead of wrapping. */}
+        <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0 overflow-x-auto">
+          {[
+            { value: "restaurant", label: "Restaurant" },
+            { value: "pin", label: "Lock PIN" },
+            { value: "kitchen", label: "Kitchen account" },
+          ].map(tab => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              className="relative rounded-none border-b-2 border-transparent bg-transparent px-1 pb-2.5 pt-1 text-sm font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none focus-visible:outline-none focus-visible:ring-0 focus-visible:text-foreground"
+            >
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="restaurant" className="space-y-6">
+          <Card className="p-5 space-y-4">
+            <div className="font-medium">Restaurant profile</div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Restaurant name" v={t.name} on={v=>set("name",v)} />
+              <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} />
+              <div><Label>Owner phone</Label><Input type="tel" inputMode="numeric" maxLength={10} value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/></div>
+              <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
+              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
+              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
+              <Field type="time" label="Opening time" v={t.opening_time||""} on={v=>set("opening_time",v)} />
+              <Field type="time" label="Closing time" v={t.closing_time||""} on={v=>set("closing_time",v)} />
+            </div>
+            {t.logo_url && <img src={t.logo_url} alt="logo" className="h-16 w-16 rounded object-cover border"/>}
+          </Card>
+          <Card className="p-5 space-y-4">
+            <div className="font-medium">Address</div>
+            <Field label="Address" v={t.address||""} on={v=>set("address",v)} />
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="City" v={t.city||""} on={v=>set("city",v)} />
+              <Field label="State" v={t.state||""} on={v=>set("state",v)} />
+              <Field label="Pincode" v={t.pincode||""} on={v=>set("pincode",v)} />
+            </div>
+          </Card>
+          <Card className="p-5 space-y-4">
+            <div className="font-medium">Invoice & tax</div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="GST number" v={t.gst_number||""} on={v=>set("gst_number",v)} />
+              <Field label="Tax rate (%)" v={t.settings?.tax_rate||"5"} on={v=>setJ("tax_rate", v)} />
+              <Field label="Currency" v={t.currency||"INR"} on={v=>set("currency",v)} />
+              <Field label="Timezone" v={t.timezone||"Asia/Kolkata"} on={v=>set("timezone",v)} />
+            </div>
+          </Card>
+          <Card className="p-5 space-y-4">
+            <div className="font-medium">Branding, hours, printers, KDS, Twilio, UPI</div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Brand color" v={t.brand_color||"#0ea5e9"} on={v=>set("brand_color",v)} />
+              <Field label="Business hours" v={t.settings?.hours||"11:00 - 23:00"} on={v=>setJ("hours",v)} />
+              <Field label="Kitchen printer IP" v={t.settings?.printer_ip||""} on={v=>setJ("printer_ip",v)} />
+              <Field label="KDS token" v={t.settings?.kds_token||""} on={v=>setJ("kds_token",v)} />
+              <Field label="Twilio Account SID" v={t.settings?.twilio_sid||""} on={v=>setJ("twilio_sid",v)} />
+              <Field label="Twilio number" v={t.settings?.twilio_number||""} on={v=>setJ("twilio_number",v)} />
+              <Field label="UPI VPA" v={t.settings?.upi_vpa||""} on={v=>setJ("upi_vpa",v)} />
+            </div>
+          </Card>
+          <Button onClick={save} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
+        </TabsContent>
+
+        <TabsContent value="pin">
+          <SectionPasswordCard tenantId={t.id} />
+        </TabsContent>
+
+        <TabsContent value="kitchen">
+          <KitchenAccountCard tenantId={t.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
