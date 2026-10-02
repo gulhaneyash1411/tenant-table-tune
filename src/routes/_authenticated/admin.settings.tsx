@@ -5,12 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { Loader2, Upload, X } from "lucide-react";
 import {
-  LOGO_BUCKET, SITE_KEYS, readSettingValue, safeUrl, whatsappHref, writeSettingValue,
+  DEFAULT_TRIAL_DAYS, LOGO_BUCKET, MAX_TRIAL_DAYS, SITE_KEYS, readSettingValue, safeUrl, whatsappHref, writeSettingValue,
 } from "@/lib/site-settings";
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({ component: PlatformSettings });
@@ -36,7 +35,8 @@ const SOCIAL_FIELDS: Field[] = [
 ];
 
 const GENERAL_FIELDS: Field[] = [
-  { k: "trial_days", label: "Free trial (days)" },
+  { k: SITE_KEYS.trialDays, label: "Free trial (days)", placeholder: String(DEFAULT_TRIAL_DAYS),
+    validate: (v) => (/^\d+$/.test(v) && +v >= 1 && +v <= MAX_TRIAL_DAYS ? null : `Enter a whole number from 1 to ${MAX_TRIAL_DAYS}`) },
 ];
 
 const ALL_FIELDS = [...CONTACT_FIELDS, ...SOCIAL_FIELDS, ...GENERAL_FIELDS];
@@ -202,9 +202,11 @@ function PlatformSettings() {
       </Card>
 
       <Card className="p-5 space-y-3">
-        <div className="font-medium">General</div>
+        <div>
+          <div className="font-medium">General</div>
+          <p className="text-xs text-muted-foreground">The free trial length is shown on the public website and used for new free-trial invoices. Left empty, it defaults to {DEFAULT_TRIAL_DAYS} days.</p>
+        </div>
         <div className="grid sm:grid-cols-2 gap-3">{GENERAL_FIELDS.map(renderField)}</div>
-        <div className="space-y-1"><Label htmlFor="about">About the platform</Label><Textarea id="about" rows={4} value={about} onChange={(e) => setAbout(e.target.value)} /></div>
       </Card>
 
       <Button onClick={save} disabled={saving || uploading}>

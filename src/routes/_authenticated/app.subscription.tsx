@@ -21,8 +21,9 @@ import {
   INVOICE_STATUS,
   UTR_PATTERN,
   buildUpiUrl,
-  addBillingCycle,
+  invoiceExpiry,
 } from "@/lib/payment-config";
+import { useTrialDays } from "@/lib/site-settings";
 
 export const Route = createFileRoute("/_authenticated/app/subscription")({ component: SubscriptionPage });
 
@@ -39,7 +40,6 @@ const FREE_TRIAL_STATUS = INVOICE_STATUS.FREE_TRIAL;
 const PENDING_APPROVAL = INVOICE_STATUS.PENDING_APPROVAL;
 const REJECTED = INVOICE_STATUS.REJECTED;
 const PLATFORM_NAME = "PlatesOS";
-const FREE_TRIAL_DAYS = 14;
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 const STATUS_META: Record<string, { label: string; className: string; printClass: string }> = {
@@ -61,25 +61,6 @@ const INVOICE_LOGO_SVG = `
   </svg>
 `;
 
-// Same expiry rules as admin billing page
-function computeExpiry(r: any): Date | null {
-  if (r.status === PENDING_APPROVAL || r.status === REJECTED) return null;
-  if (r.period_end) return new Date(r.period_end);
-  if (r.status === FREE_TRIAL_STATUS) {
-    const base = r.paid_at || r.issued_at;
-    if (!base) return null;
-    const d = new Date(base);
-    d.setDate(d.getDate() + FREE_TRIAL_DAYS);
-    return d;
-  }
-  const base = r.payment_method === PAYMENT_METHOD_UPI ? r.paid_at || r.issued_at : r.issued_at;
-  if (!base) return null;
-  const cycle = r.billing_cycle;
-  if (cycle === "yearly" || cycle === "monthly" || cycle === "14_days" || cycle === "14 days") {
-    return addBillingCycle(new Date(base), cycle);
-  }
-  return null;
-}
 
 // Invoices can be downloaded only once settled
 function canDownload(r: any) {
@@ -87,12 +68,12 @@ function canDownload(r: any) {
 }
 
 // Same invoice as admin billing page's downloadInvoice
-function downloadInvoice(r: any, tenantName: string) {
+function downloadInvoice(r: any, tenantName: string, trialDays: number) {
   const invoiceNo = r.invoice_number || r.id.slice(0, 8);
   const issuedDate = format(new Date(r.issued_at), "PP");
   const paidDate = r.paid_at ? format(new Date(r.paid_at), "PP") : "—";
   const planLabel = r.plan || FREE_TRIAL_LABEL;
-  const expiry = computeExpiry(r);
+  const expiry = invoiceExpiry(r, trialDays);
   const expiryLabel = expiry ? format(expiry, "PP") : "—";
   const meta = statusMeta(r.status);
   const paymentLabel = r.payment_method === PAYMENT_METHOD_UPI ? `UPI${r.utr ? ` (UTR ${r.utr})` : ""}` : "—";
@@ -167,6 +148,7 @@ function priceOf(plan: any, cycle: Cycle) {
 }
 
 function SubscriptionPage() {
+  const trialDays = useTrialDays();
   const [tenant, setTenant] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
@@ -633,7 +615,7 @@ function SubscriptionPage() {
             <div className="space-y-2">
               {history.map((r) => {
                 const meta = statusMeta(r.status);
-                const expiry = computeExpiry(r);
+                const expiry = invoiceExpiry(r, trialDays);
                 const downloadable = canDownload(r);
                 const periodStart = r.period_start ? new Date(r.period_start) : null;
                 const upcoming = r.status === "paid" && !!periodStart && periodStart > now;
@@ -688,7 +670,7 @@ function SubscriptionPage() {
                         className="h-8 rounded-lg"
                         disabled={!downloadable}
                         title={downloadable ? "Download invoice" : "Available after approval"}
-                        onClick={() => downloadInvoice(r, tenant?.name || "—")}
+                        onClick={() => downloadInvoice(r, tenant?.name || "—", trialDays)}
                       >
                         <Download className="h-3.5 w-3.5 sm:mr-1" />
                         <span className="hidden sm:inline">Invoice</span>

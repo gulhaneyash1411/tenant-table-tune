@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 // platform_settings keys the public landing page (/) reads. Every key listed
@@ -12,14 +13,38 @@ export const SITE_KEYS = {
   linkedin: "social_linkedin",
   whatsapp: "social_whatsapp",
   logoUrl: "brand_logo_url",
+  trialDays: "trial_days",
 } as const;
 
 export type SiteSettingField = keyof typeof SITE_KEYS;
 export type SiteSettings = Record<SiteSettingField, string>;
 
 export const EMPTY_SITE_SETTINGS: SiteSettings = {
-  email: "", phone: "", location: "", instagram: "", facebook: "", linkedin: "", whatsapp: "", logoUrl: "",
+  email: "", phone: "", location: "", instagram: "", facebook: "", linkedin: "", whatsapp: "", logoUrl: "", trialDays: "",
 };
+
+// Free-trial length used when Platform settings has no valid "trial_days".
+export const DEFAULT_TRIAL_DAYS = 14;
+export const MAX_TRIAL_DAYS = 365;
+
+/** Whole number of trial days from the stored setting, or the default. */
+export function parseTrialDays(v: string | null | undefined): number {
+  const n = Number((v ?? "").trim());
+  return Number.isInteger(n) && n >= 1 && n <= MAX_TRIAL_DAYS ? n : DEFAULT_TRIAL_DAYS;
+}
+
+/** Current free-trial length from Platform settings. Starts at the default
+ *  and updates once loaded; a failed read keeps the default. */
+export function useTrialDays(): number {
+  const [days, setDays] = useState(DEFAULT_TRIAL_DAYS);
+  useEffect(() => {
+    let alive = true;
+    supabase.from("platform_settings").select("key,value").eq("key", SITE_KEYS.trialDays).maybeSingle()
+      .then(({ data }) => { if (alive && data) setDays(parseTrialDays(readSettingValue(data.key, data.value))); });
+    return () => { alive = false; };
+  }, []);
+  return days;
+}
 
 // Storage bucket the admin uploads the website logo into (public read).
 export const LOGO_BUCKET = "platform-assets";
