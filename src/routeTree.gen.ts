@@ -22,6 +22,7 @@ import { Route as SalesLoginRouteImport } from './routes/sales.login'
 import { Route as KitchenLoginRouteImport } from './routes/kitchen.login'
 import { Route as DeliveryTenantIdRouteImport } from './routes/delivery.$tenantId'
 import { Route as ApiSalesAccountRouteImport } from './routes/api/sales-account'
+import { Route as ApiKitchenDeviceRouteImport } from './routes/api/kitchen-device'
 import { Route as ApiKitchenAccountRouteImport } from './routes/api/kitchen-account'
 import { Route as ApiClearResetFlagRouteImport } from './routes/api/clear-reset-flag'
 import { Route as ApiAdminDeleteRestaurantRouteImport } from './routes/api/admin-delete-restaurant'
@@ -134,6 +135,11 @@ const DeliveryTenantIdRoute = DeliveryTenantIdRouteImport.update({
 const ApiSalesAccountRoute = ApiSalesAccountRouteImport.update({
   id: '/api/sales-account',
   path: '/api/sales-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKitchenDeviceRoute = ApiKitchenDeviceRouteImport.update({
+  id: '/api/kitchen-device',
+  path: '/api/kitchen-device',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiKitchenAccountRoute = ApiKitchenAccountRouteImport.update({
@@ -419,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
+  '/api/kitchen-device': typeof ApiKitchenDeviceRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
@@ -480,6 +487,7 @@ export interface FileRoutesByTo {
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
+  '/api/kitchen-device': typeof ApiKitchenDeviceRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
@@ -545,6 +553,7 @@ export interface FileRoutesById {
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
+  '/api/kitchen-device': typeof ApiKitchenDeviceRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
@@ -610,6 +619,7 @@ export interface FileRouteTypes {
     | '/api/admin-delete-restaurant'
     | '/api/clear-reset-flag'
     | '/api/kitchen-account'
+    | '/api/kitchen-device'
     | '/api/sales-account'
     | '/delivery/$tenantId'
     | '/kitchen/login'
@@ -671,6 +681,7 @@ export interface FileRouteTypes {
     | '/api/admin-delete-restaurant'
     | '/api/clear-reset-flag'
     | '/api/kitchen-account'
+    | '/api/kitchen-device'
     | '/api/sales-account'
     | '/delivery/$tenantId'
     | '/kitchen/login'
@@ -735,6 +746,7 @@ export interface FileRouteTypes {
     | '/api/admin-delete-restaurant'
     | '/api/clear-reset-flag'
     | '/api/kitchen-account'
+    | '/api/kitchen-device'
     | '/api/sales-account'
     | '/delivery/$tenantId'
     | '/kitchen/login'
@@ -796,6 +808,7 @@ export interface RootRouteChildren {
   ApiAdminDeleteRestaurantRoute: typeof ApiAdminDeleteRestaurantRoute
   ApiClearResetFlagRoute: typeof ApiClearResetFlagRoute
   ApiKitchenAccountRoute: typeof ApiKitchenAccountRoute
+  ApiKitchenDeviceRoute: typeof ApiKitchenDeviceRoute
   ApiSalesAccountRoute: typeof ApiSalesAccountRoute
   DeliveryTenantIdRoute: typeof DeliveryTenantIdRoute
   KitchenLoginRoute: typeof KitchenLoginRoute
@@ -897,6 +910,13 @@ declare module '@tanstack/react-router' {
       path: '/api/sales-account'
       fullPath: '/api/sales-account'
       preLoaderRoute: typeof ApiSalesAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kitchen-device': {
+      id: '/api/kitchen-device'
+      path: '/api/kitchen-device'
+      fullPath: '/api/kitchen-device'
+      preLoaderRoute: typeof ApiKitchenDeviceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/kitchen-account': {
@@ -1369,6 +1389,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminDeleteRestaurantRoute: ApiAdminDeleteRestaurantRoute,
   ApiClearResetFlagRoute: ApiClearResetFlagRoute,
   ApiKitchenAccountRoute: ApiKitchenAccountRoute,
+  ApiKitchenDeviceRoute: ApiKitchenDeviceRoute,
   ApiSalesAccountRoute: ApiSalesAccountRoute,
   DeliveryTenantIdRoute: DeliveryTenantIdRoute,
   KitchenLoginRoute: KitchenLoginRoute,
