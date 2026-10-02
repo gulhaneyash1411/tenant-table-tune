@@ -46,9 +46,11 @@ import {
   Plus, Trash2, Download, MoreHorizontal, Pencil, Check, Bell, X, ShieldCheck, Ban,
   Search, SlidersHorizontal, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { INVOICE_STATUS, PAYMENT_METHOD_UPI, addBillingCycle } from "@/lib/payment-config";
+import { INVOICE_STATUS, PAYMENT_METHOD_UPI, addBillingCycle, cycleDays, invoiceExpiry, trialCycleLabel } from "@/lib/payment-config";
+import { useTrialDays } from "@/lib/site-settings";
 
-type BillingCycle = "monthly" | "yearly" | "14_days";
+// "trial" is form state only; trial invoices store "<N> days" as billing_cycle.
+type BillingCycle = "monthly" | "yearly" | "trial";
 type DialogMode = "create" | "edit";
 type ExpiryState = "all" | "active" | "expiring" | "expired" | "none";
 type SortKey = "newest" | "oldest" | "amount_desc" | "amount_asc" | "expiry_asc";
@@ -67,7 +69,6 @@ const REJECTED = INVOICE_STATUS.REJECTED;
 const CUSTOM_PLAN_ID = "__custom__";
 
 const PLATFORM_NAME = "PlatesOS";
-const FREE_TRIAL_DAYS = 14;
 
 // List view
 const PAGE_SIZE = 10;
@@ -134,6 +135,7 @@ function pageNumbers(current: number, total: number): (number | "…")[] {
 }
 
 function Billing() {
+  const trialDays = useTrialDays();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tenants, setTenants] = useState<Record<string, any>>({});
@@ -164,6 +166,9 @@ function Billing() {
   const [originalStatus, setOriginalStatus] = useState<string>("");
   const [customPlanLabel, setCustomPlanLabel] = useState<string>("");
   const [customBillingCycleRaw, setCustomBillingCycleRaw] = useState<string | null>(null);
+  // Editing an existing trial keeps the length it was granted with; new
+  // trials use the current length from Platform settings.
+  const formTrialDays = (mode === "edit" ? cycleDays(customBillingCycleRaw) : null) ?? trialDays;
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
@@ -217,27 +222,7 @@ function Billing() {
   useEffect(() => { load(); }, []);
 
   // ---- expiry helpers ----
-  // Approved QR payments store their exact period (period_start/period_end).
-  // Free trial: 14 days from paid_at (or issued_at).
-  // Manual invoices: period starts at issued_at.
-  function computeExpiry(r: any): Date | null {
-    if (r.status === PENDING_APPROVAL || r.status === REJECTED) return null;
-    if (r.period_end) return new Date(r.period_end);
-    if (r.status === FREE_TRIAL_STATUS) {
-      const base = r.paid_at || r.issued_at;
-      if (!base) return null;
-      const d = new Date(base);
-      d.setDate(d.getDate() + FREE_TRIAL_DAYS);
-      return d;
-    }
-    const base = r.payment_method === PAYMENT_METHOD_UPI ? r.paid_at || r.issued_at : r.issued_at;
-    if (!base) return null;
-    const cycle = r.billing_cycle;
-    if (cycle === "yearly" || cycle === "monthly" || cycle === "14_days" || cycle === "14 days") {
-      return addBillingCycle(new Date(base), cycle);
-    }
-    return null;
-  }
+  const computeExpiry = (r: any) => invoiceExpiry(r, trialDays);
 
   function daysRemaining(r: any): number | null {
     const expiry = computeExpiry(r);
@@ -340,7 +325,7 @@ function Billing() {
     const busy = busyIso ? new Date(busyIso) : null;
     const scheduled = !!busy && busy > now;
     const start = scheduled ? busy! : now;
-    const end = addBillingCycle(start, r.billing_cycle);
+    const end = addBillingCycle(start, r.billing_cycle, trialDays);
     return { start, end, scheduled };
   }
 
@@ -546,7 +531,7 @@ function Billing() {
     }
 
     const billingCycle: BillingCycle =
-      r.billing_cycle === "yearly" ? "yearly" : r.billing_cycle === "monthly" ? "monthly" : "14_days";
+      r.billing_cycle === "yearly" ? "yearly" : r.billing_cycle === "monthly" ? "monthly" : "trial";
 
     setCustomPlanLabel(r.plan || "");
     setCustomBillingCycleRaw(r.billing_cycle ?? null);
@@ -574,15 +559,15 @@ function Billing() {
 
   function onPlanChange(planId: string) {
     if (planId === FREE_TRIAL_PLAN_ID) {
-      setForm((f) => ({ ...f, planId, billingCycle: "14_days", amount: "0", status: FREE_TRIAL_STATUS }));
+      setForm((f) => ({ ...f, planId, billingCycle: "trial", amount: "0", status: FREE_TRIAL_STATUS }));
       return;
     }
     setForm((f) => ({
       ...f,
       planId,
-      billingCycle: f.billingCycle === "14_days" ? "monthly" : f.billingCycle,
+      billingCycle: f.billingCycle === "trial" ? "monthly" : f.billingCycle,
       status: f.status === FREE_TRIAL_STATUS ? "pending" : f.status,
-      amount: priceFor(planId, f.billingCycle === "14_days" ? "monthly" : f.billingCycle) || f.amount,
+      amount: priceFor(planId, f.billingCycle === "trial" ? "monthly" : f.billingCycle) || f.amount,
     }));
   }
 
@@ -612,7 +597,7 @@ function Billing() {
     const selectedPlan = plans.find((p) => p.id === form.planId);
     const planName = isFreeTrial ? "Free Trial" : isCustomPlan ? customPlanLabel || null : selectedPlan?.name || null;
     const billingCycleValue = isFreeTrial
-      ? "14 days"
+      ? trialCycleLabel(formTrialDays)
       : isCustomPlan
         ? customBillingCycleRaw
         : form.planId
@@ -631,6 +616,16 @@ function Billing() {
     // keep plan_id in sync unless the plan is a legacy/custom label
     if (!isCustomPlan) payload.plan_id = isFreeTrial ? null : selectedPlan?.id ?? null;
     if (mode === "create") payload.payment_method = "manual";
+    // A trial's end date is fixed when it's saved, so later changes to the
+    // trial length in Platform settings never shorten or extend it.
+    if (isFreeTrial) {
+      const start = new Date(form.issuedAt);
+      payload.period_start = start.toISOString();
+      payload.period_end = addBillingCycle(start, billingCycleValue, formTrialDays).toISOString();
+    } else if (originalStatus === FREE_TRIAL_STATUS) {
+      payload.period_start = null;
+      payload.period_end = null;
+    }
 
     if (form.status === "paid" && (mode === "create" || originalStatus !== "paid")) {
       payload.paid_at = new Date().toISOString();
@@ -1159,7 +1154,7 @@ function Billing() {
               <div className="space-y-1.5">
                 <Label>Billing cycle</Label>
                 {form.planId === FREE_TRIAL_PLAN_ID ? (
-                  <Input value="14 days" disabled readOnly />
+                  <Input value={trialCycleLabel(formTrialDays)} disabled readOnly />
                 ) : form.planId === CUSTOM_PLAN_ID ? (
                   <Input value={customBillingCycleRaw || "—"} disabled readOnly />
                 ) : (

@@ -8,7 +8,7 @@ import {
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package, Briefcase, SlidersHorizontal } from "lucide-react";import { NotificationBell } from "@/components/notification-bell";
+import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package, Briefcase, SlidersHorizontal, Inbox } from "lucide-react";import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminLayout });
@@ -37,6 +37,7 @@ const SECTIONS = [
     items: [
       { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
       { to: "/admin/tickets", label: "Support tickets", icon: LifeBuoy },
+      { to: "/admin/contacts", label: "Contact messages", icon: Inbox },
     ],
   },
   {
