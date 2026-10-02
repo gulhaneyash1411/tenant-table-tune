@@ -1,44 +1,49 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
 import { motion, AnimatePresence, useReducedMotion, type TargetAndTransition } from "framer-motion";
 import {
   Utensils, Zap, ArrowRight, PlayCircle, Check, CheckCircle2, ChevronLeft, ChevronRight,
   ShoppingCart, QrCode, CalendarDays, LineChart, FileText, Percent,
   Mail, Phone, MapPin, Send, Bell, LayoutDashboard, ChefHat, BarChart3, Loader2, X, Globe, ChevronDown, Menu,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  EMPTY_SITE_SETTINGS, loadSiteSettings, safeUrl, whatsappHref, whatsappNumber, type SiteSettings,
+} from "@/lib/site-settings";
 // import platesos_teaser from "public/videos/platesos_teaser.mp4"
 
-export const Route = createFileRoute("/")({ component: PlatesOS });
+export const Route = createFileRoute("/")({ loader: () => loadSiteSettings(), component: PlatesOS });
 
 // ====================
 // PLATESOS CONFIG
 // ====================
 const BRAND = { name: "PlatesOS", primary: "#0B7BFF", dark: "#0B1B3F", soft: "#EAF3FF" };
 
-const socialLinks = {
-  instagram: "https://instagram.com/platesos",
-  facebook: "https://facebook.com/platesos",
-  whatsapp: "https://wa.me/917218558850",
-  linkedin: "https://linkedin.com/company/platesos",
+const contactHours = "Mon – Fri, 9:00 AM – 6:00 PM";
+
+// Default text for the floating WhatsApp chat
+const whatsappChatMessage = "Hi PlatesOS! \nI'd like to know more about your restaurant management platform.";
+
+type Site = SiteSettings & {
+  /** WhatsApp chat link carrying `msg`, or null when WhatsApp isn't configured. */
+  waLink: (msg: string) => string | null;
 };
 
-const contactInfo = {
-  email: "support@platesos.com",
-  phone: "+91 7218558850",
-  hours: "Mon – Fri, 9:00 AM – 6:00 PM",
-  location: "Bengaluru, Karnataka, India",
+const buildSite = (s: SiteSettings): Site => {
+  const n = whatsappNumber(s.whatsapp);
+  const fallback = whatsappHref(s.whatsapp); // e.g. a group invite link — can't carry text
+  return { ...s, waLink: (msg) => (n ? `https://wa.me/${n}?text=${encodeURIComponent(msg)}` : fallback) };
 };
 
-// Floating WhatsApp chat: number in international format (no +, spaces or dashes)
-const whatsappChat = {
-  number: "917218558850",
-  message: "Hi PlatesOS! \nI'd like to know more about your restaurant management platform.",
-};
-const waLink = (msg: string) => `https://wa.me/${whatsappChat.number}?text=${encodeURIComponent(msg)}`;
-const whatsappChatUrl = waLink(whatsappChat.message);
+const SiteCtx = createContext<Site>(buildSite(EMPTY_SITE_SETTINGS));
+const useSite = () => useContext(SiteCtx);
 
-// PlatesOS Agent look: "card" | "chat" | "peek" | "pill" | "guided"
-// "guided" asks questions with tap-to-answer options, then opens WhatsApp with a summary.
+const FAQ_TOKENS = { email: "{email}", phone: "{phone}", location: "{location}" } as const;
+const faqMissing = (text: string, site: Site) =>
+  (Object.keys(FAQ_TOKENS) as (keyof typeof FAQ_TOKENS)[]).some((k) => text.includes(FAQ_TOKENS[k]) && !site[k]);
+const fillFaq = (text: string, site: Site) =>
+  text.replaceAll(FAQ_TOKENS.email, site.email).replaceAll(FAQ_TOKENS.phone, site.phone).replaceAll(FAQ_TOKENS.location, site.location);
+
 type AgentStyle = "card" | "chat" | "peek" | "pill" | "guided";
 const AGENT_STYLE: AgentStyle = "guided";
 
@@ -51,9 +56,6 @@ const agentQuickReplies = [
 
 // Demo video: a YouTube link or a file path (e.g. "/videos/platesos-demo.mp4" in /public)
 const DEMO_VIDEO_URL = "/videos/platesos_teaser.mp4";
-
-// Set to your API/email endpoint when ready. While null, the form reports an honest error.
-const CONTACT_ENDPOINT: string | null = null;
 
 const NAV = [
   { id: "home", label: "Home" },
@@ -160,6 +162,10 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Send message": "संदेश भेजें", "Sending…": "भेजा जा रहा है…",
     "Name is required": "नाम ज़रूरी है", "Enter a valid email": "सही ईमेल डालें", "Enter a valid phone": "सही फ़ोन नंबर डालें",
     "Choose a subject": "विषय चुनें", "Message must be at least 10 characters": "संदेश कम से कम 10 अक्षरों का हो",
+    "Message must be under 5000 characters": "संदेश 5000 अक्षरों से कम का हो",
+    "Couldn't send your message. Please try again.": "आपका संदेश नहीं भेजा जा सका। कृपया फिर से कोशिश करें।",
+    "Or email us at": "या हमें ईमेल करें:",
+    "Thanks! We'll respond within 24 hours.": "धन्यवाद! हम 24 घंटे में जवाब देंगे।",
     // final cta + footer
     "Ready to grow your restaurant?": "अपना रेस्टोरेंट बढ़ाने के लिए तैयार?",
     "Set up in minutes. No commission. Cancel anytime.": "मिनटों में सेटअप। कोई कमीशन नहीं। कभी भी बंद करें।",
@@ -229,9 +235,9 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Pick a product in the Products section above, tell us your table count, and we'll send a quote with pricing and delivery timelines.": "ऊपर प्रोडक्ट्स सेक्शन में प्रोडक्ट चुनें, हमें अपने टेबल की संख्या बताएं, और हम प्राइसिंग व डिलीवरी टाइमलाइन के साथ कोटेशन भेज देंगे।",
     // faq — support
     "How do I reach your support team?": "सपोर्ट टीम से कैसे संपर्क करें?",
-    "Email support@platesos.com and we respond within 24 hours, or call +91 7218558850 between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.": "support@platesos.com पर ईमेल करें — हम 24 घंटे में जवाब देते हैं — या सोम – शुक्र, सुबह 9:00 से शाम 6:00 के बीच +91 7218558850 पर कॉल करें। WhatsApp भी चलेगा।",
+    "Email {email} and we respond within 24 hours, or call {phone} between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.": "{email} पर ईमेल करें — हम 24 घंटे में जवाब देते हैं — या सोम – शुक्र, सुबह 9:00 से शाम 6:00 के बीच {phone} पर कॉल करें। WhatsApp भी चलेगा।",
     "Where are you based?": "आप कहाँ से काम करते हैं?",
-    "We're based in Bengaluru, Karnataka, India, and remote support is available across the country — so your location is never a problem.": "हम बेंगलुरु, कर्नाटक, भारत से हैं, और पूरे देश में रिमोट सपोर्ट उपलब्ध है — इसलिए आपकी लोकेशन कभी दिक़्क़त नहीं बनती।",
+    "We're based in {location}, and remote support is available across the country — so your location is never a problem.": "हम {location} से हैं, और पूरे देश में रिमोट सपोर्ट उपलब्ध है — इसलिए आपकी लोकेशन कभी दिक़्क़त नहीं बनती।",
     "Is my restaurant's data safe?": "क्या मेरे रेस्टोरेंट का डेटा सुरक्षित है?",
     "Your data stays yours. It is stored on encrypted servers, access is limited by staff role, and you can export or request deletion of your data at any time.": "आपका डेटा आपका ही रहता है। यह एन्क्रिप्टेड सर्वर पर स्टोर होता है, एक्सेस स्टाफ़ रोल के हिसाब से सीमित रहता है, और आप कभी भी डेटा एक्सपोर्ट या डिलीट करवा सकते हैं।",
     // faq — ask box
@@ -361,6 +367,10 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Send message": "संदेश पाठवा", "Sending…": "पाठवत आहे…",
     "Name is required": "नाव आवश्यक आहे", "Enter a valid email": "वैध ईमेल टाका", "Enter a valid phone": "वैध फोन नंबर टाका",
     "Choose a subject": "विषय निवडा", "Message must be at least 10 characters": "संदेश किमान 10 अक्षरांचा हवा",
+    "Message must be under 5000 characters": "संदेश 5000 अक्षरांपेक्षा कमी असावा",
+    "Couldn't send your message. Please try again.": "तुमचा संदेश पाठवता आला नाही. कृपया पुन्हा प्रयत्न करा.",
+    "Or email us at": "किंवा आम्हाला ईमेल करा:",
+    "Thanks! We'll respond within 24 hours.": "धन्यवाद! आम्ही 24 तासांत उत्तर देऊ.",
     "Ready to grow your restaurant?": "तुमचं रेस्टॉरंट वाढवायला तयार?",
     "Set up in minutes. No commission. Cancel anytime.": "काही मिनिटांत सेटअप. कमिशन नाही. कधीही रद्द करा.",
     "Privacy Policy": "प्रायव्हसी पॉलिसी", "Terms of Service": "सेवा अटी", "All rights reserved.": "सर्व हक्क राखीव.",
@@ -428,9 +438,9 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Pick a product in the Products section above, tell us your table count, and we'll send a quote with pricing and delivery timelines.": "वरील प्रॉडक्ट्स विभागात प्रॉडक्ट निवडा, तुमच्या टेबलची संख्या सांगा, आणि आम्ही किंमत व डिलिव्हरी वेळेसह कोटेशन पाठवतो.",
     // faq — support
     "How do I reach your support team?": "सपोर्ट टीमशी संपर्क कसा साधायचा?",
-    "Email support@platesos.com and we respond within 24 hours, or call +91 7218558850 between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.": "support@platesos.com वर ईमेल करा — आम्ही 24 तासांत उत्तर देतो — किंवा सोम – शुक्र, सकाळी 9:00 ते संध्याकाळी 6:00 दरम्यान +91 7218558850 वर कॉल करा. WhatsApp देखील चालेल.",
+    "Email {email} and we respond within 24 hours, or call {phone} between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.": "{email} वर ईमेल करा — आम्ही 24 तासांत उत्तर देतो — किंवा सोम – शुक्र, सकाळी 9:00 ते संध्याकाळी 6:00 दरम्यान {phone} वर कॉल करा. WhatsApp देखील चालेल.",
     "Where are you based?": "तुम्ही कुठून काम करता?",
-    "We're based in Bengaluru, Karnataka, India, and remote support is available across the country — so your location is never a problem.": "आम्ही बेंगळुरू, कर्नाटक, भारत येथून काम करतो, आणि देशभर रिमोट सपोर्ट उपलब्ध आहे — त्यामुळे तुमचं ठिकाण कधीच अडचण ठरत नाही.",
+    "We're based in {location}, and remote support is available across the country — so your location is never a problem.": "आम्ही {location} येथून काम करतो, आणि देशभर रिमोट सपोर्ट उपलब्ध आहे — त्यामुळे तुमचं ठिकाण कधीच अडचण ठरत नाही.",
     "Is my restaurant's data safe?": "माझ्या रेस्टॉरंटचा डेटा सुरक्षित आहे का?",
     "Your data stays yours. It is stored on encrypted servers, access is limited by staff role, and you can export or request deletion of your data at any time.": "तुमचा डेटा तुमचाच राहतो. तो एन्क्रिप्टेड सर्व्हरवर साठवला जातो, अ‍ॅक्सेस स्टाफ भूमिकेनुसार मर्यादित असतो, आणि तुम्ही कधीही डेटा एक्सपोर्ट किंवा डिलीट करून घेऊ शकता.",
     // faq — ask box
@@ -568,6 +578,10 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Send message": "ಸಂದೇಶ ಕಳುಹಿಸಿ", "Sending…": "ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ…",
     "Name is required": "ಹೆಸರು ಅಗತ್ಯ", "Enter a valid email": "ಸರಿಯಾದ ಇಮೇಲ್ ನಮೂದಿಸಿ", "Enter a valid phone": "ಸರಿಯಾದ ಫೋನ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ",
     "Choose a subject": "ವಿಷಯ ಆರಿಸಿ", "Message must be at least 10 characters": "ಸಂದೇಶ ಕನಿಷ್ಠ 10 ಅಕ್ಷರಗಳಿರಬೇಕು",
+    "Message must be under 5000 characters": "ಸಂದೇಶ 5000 ಅಕ್ಷರಗಳಿಗಿಂತ ಕಡಿಮೆ ಇರಲಿ",
+    "Couldn't send your message. Please try again.": "ನಿಮ್ಮ ಸಂದೇಶ ಕಳುಹಿಸಲಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+    "Or email us at": "ಅಥವಾ ನಮಗೆ ಇಮೇಲ್ ಮಾಡಿ:",
+    "Thanks! We'll respond within 24 hours.": "ಧನ್ಯವಾದ! ನಾವು 24 ಗಂಟೆಗಳಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇವೆ.",
     // final cta + footer
     "Ready to grow your restaurant?": "ನಿಮ್ಮ ರೆಸ್ಟೋರೆಂಟ್ ಬೆಳೆಸಲು ಸಿದ್ಧರೇ?",
     "Set up in minutes. No commission. Cancel anytime.": "ನಿಮಿಷಗಳಲ್ಲಿ ಸೆಟಪ್. ಕಮಿಷನ್ ಇಲ್ಲ. ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದು.",
@@ -636,9 +650,9 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Pick a product in the Products section above, tell us your table count, and we'll send a quote with pricing and delivery timelines.": "ಮೇಲಿನ ಉತ್ಪನ್ನಗಳ ವಿಭಾಗದಲ್ಲಿ ಉತ್ಪನ್ನ ಆರಿಸಿ, ನಿಮ್ಮ ಟೇಬಲ್‌ಗಳ ಸಂಖ್ಯೆ ತಿಳಿಸಿ, ನಾವು ಬೆಲೆ ಮತ್ತು ಡೆಲಿವರಿ ಸಮಯದೊಂದಿಗೆ ಕೊಟೇಶನ್ ಕಳುಹಿಸುತ್ತೇವೆ.",
     // faq — support
     "How do I reach your support team?": "ಬೆಂಬಲ ತಂಡವನ್ನು ಹೇಗೆ ಸಂಪರ್ಕಿಸುವುದು?",
-    "Email support@platesos.com and we respond within 24 hours, or call +91 7218558850 between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.": "support@platesos.com ಗೆ ಇಮೇಲ್ ಮಾಡಿ — ನಾವು 24 ಗಂಟೆಗಳಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇವೆ — ಅಥವಾ ಸೋಮ – ಶುಕ್ರ, ಬೆಳಿಗ್ಗೆ 9:00 ರಿಂದ ಸಂಜೆ 6:00 ರ ನಡುವೆ +91 7218558850 ಗೆ ಕರೆ ಮಾಡಿ. WhatsApp ಸಹ ಸಾಧ್ಯ.",
+    "Email {email} and we respond within 24 hours, or call {phone} between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.": "{email} ಗೆ ಇಮೇಲ್ ಮಾಡಿ — ನಾವು 24 ಗಂಟೆಗಳಲ್ಲಿ ಉತ್ತರಿಸುತ್ತೇವೆ — ಅಥವಾ ಸೋಮ – ಶುಕ್ರ, ಬೆಳಿಗ್ಗೆ 9:00 ರಿಂದ ಸಂಜೆ 6:00 ರ ನಡುವೆ {phone} ಗೆ ಕರೆ ಮಾಡಿ. WhatsApp ಸಹ ಸಾಧ್ಯ.",
     "Where are you based?": "ನೀವು ಎಲ್ಲಿಂದ ಕೆಲಸ ಮಾಡುತ್ತೀರಿ?",
-    "We're based in Bengaluru, Karnataka, India, and remote support is available across the country — so your location is never a problem.": "ನಾವು ಬೆಂಗಳೂರು, ಕರ್ನಾಟಕ, ಭಾರತದಿಂದ ಕೆಲಸ ಮಾಡುತ್ತೇವೆ, ಮತ್ತು ದೇಶಾದ್ಯಂತ ರಿಮೋಟ್ ಬೆಂಬಲ ಲಭ್ಯ — ಆದ್ದರಿಂದ ನಿಮ್ಮ ಸ್ಥಳ ಎಂದಿಗೂ ಸಮಸ್ಯೆಯಲ್ಲ.",
+    "We're based in {location}, and remote support is available across the country — so your location is never a problem.": "ನಾವು {location} ನಿಂದ ಕೆಲಸ ಮಾಡುತ್ತೇವೆ, ಮತ್ತು ದೇಶಾದ್ಯಂತ ರಿಮೋಟ್ ಬೆಂಬಲ ಲಭ್ಯ — ಆದ್ದರಿಂದ ನಿಮ್ಮ ಸ್ಥಳ ಎಂದಿಗೂ ಸಮಸ್ಯೆಯಲ್ಲ.",
     "Is my restaurant's data safe?": "ನನ್ನ ರೆಸ್ಟೋರೆಂಟ್‌ನ ಡೇಟಾ ಸುರಕ್ಷಿತವೇ?",
     "Your data stays yours. It is stored on encrypted servers, access is limited by staff role, and you can export or request deletion of your data at any time.": "ನಿಮ್ಮ ಡೇಟಾ ನಿಮ್ಮದೇ. ಅದು ಎನ್‌ಕ್ರಿಪ್ಟೆಡ್ ಸರ್ವರ್‌ಗಳಲ್ಲಿ ಸಂಗ್ರಹವಾಗುತ್ತದೆ, ಪ್ರವೇಶ ಸಿಬ್ಬಂದಿಯ ಪಾತ್ರದ ಪ್ರಕಾರ ಸೀಮಿತವಾಗಿರುತ್ತದೆ, ಮತ್ತು ನೀವು ಯಾವಾಗ ಬೇಕಾದರೂ ಡೇಟಾ ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಅಥವಾ ಅಳಿಸಲು ಕೋರಬಹುದು.",
     // faq — more answers
@@ -752,16 +766,30 @@ const LanguageMenu = () => {
 // ====================
 // SHARED UI
 // ====================
-const Logo = () => (
-  <button onClick={() => scrollTo("home")} className="flex items-center gap-2">
-    <span className="h-9 w-9 rounded-xl grid place-items-center text-white" style={{ background: BRAND.primary }}>
-      <Utensils className="h-5 w-5" />
-    </span>
-    <span className="text-xl font-bold" style={{ color: BRAND.dark }}>
-      Plates<span style={{ color: BRAND.primary }}>OS</span>
-    </span>
-  </button>
-);
+// Uploaded logo from Platform settings; the built-in PlatesOS mark when none
+// is set or the image fails to load.
+const Logo = () => {
+  const { logoUrl } = useSite();
+  const [broken, setBroken] = useState(false);
+  const src = broken ? null : safeUrl(logoUrl);
+  useEffect(() => setBroken(false), [logoUrl]);
+  return (
+    <button onClick={() => scrollTo("home")} className="flex items-center gap-2" aria-label={BRAND.name}>
+      {src ? (
+        <img src={src} alt={BRAND.name} className="h-9 w-auto max-w-[180px] object-contain" onError={() => setBroken(true)} />
+      ) : (
+        <>
+          <span className="h-9 w-9 rounded-xl grid place-items-center text-white" style={{ background: BRAND.primary }}>
+            <Utensils className="h-5 w-5" />
+          </span>
+          <span className="text-xl font-bold" style={{ color: BRAND.dark }}>
+            Plates<span style={{ color: BRAND.primary }}>OS</span>
+          </span>
+        </>
+      )}
+    </button>
+  );
+};
 
 const Pill = ({ children }: { children: ReactNode }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
@@ -800,12 +828,13 @@ const LinkedInIcon = () => (
   <svg viewBox="0 0 24 24" className="h-full w-full"><rect width="24" height="24" rx="6" fill="#0A66C2"/><path d="M8.3 18H5.8v-7.8h2.5V18zM7 9.1a1.4 1.4 0 1 1 0-2.9 1.4 1.4 0 0 1 0 2.9zM18.2 18h-2.5v-3.8c0-.9 0-2.1-1.3-2.1s-1.5 1-1.5 2V18h-2.5v-7.8h2.4v1.1c.3-.6 1.1-1.3 2.3-1.3 2.5 0 3 1.6 3 3.8V18z" fill="#fff"/></svg>
 );
 
-const SOCIALS = [
-  { key: "instagram", name: "Instagram", handle: "@platesos", href: socialLinks.instagram, Icon: InstagramIcon },
-  { key: "facebook", name: "Facebook", handle: "@platesos", href: socialLinks.facebook, Icon: FacebookIcon },
-  { key: "whatsapp", name: "WhatsApp", handle: contactInfo.phone, href: socialLinks.whatsapp, Icon: WhatsAppIcon },
-  { key: "linkedin", name: "LinkedIn", handle: "@platesos", href: socialLinks.linkedin, Icon: LinkedInIcon },
-];
+// Only the networks with a valid saved link are rendered.
+const socialsFor = (site: Site) => [
+  { key: "instagram", name: "Instagram", href: safeUrl(site.instagram), Icon: InstagramIcon },
+  { key: "facebook", name: "Facebook", href: safeUrl(site.facebook), Icon: FacebookIcon },
+  { key: "whatsapp", name: "WhatsApp", href: whatsappHref(site.whatsapp), Icon: WhatsAppIcon },
+  { key: "linkedin", name: "LinkedIn", href: safeUrl(site.linkedin), Icon: LinkedInIcon },
+].filter((s): s is typeof s & { href: string } => !!s.href);
 
 // ====================
 // NAVBAR
@@ -1644,6 +1673,9 @@ const ProductViewer = ({ p }: { p: (typeof PRODUCTS)[number] }) => {
 
 const ProductCard = ({ p }: { p: (typeof PRODUCTS)[number] }) => {
   const t = useT();
+  const href = useSite().waLink(p.message);
+  const cls = "mt-5 inline-flex items-center justify-center gap-2 rounded-xl border border-[#0B7BFF] bg-transparent py-2.5 text-sm font-semibold text-[#0B7BFF] transition-colors duration-300 group-hover:bg-[#0B7BFF] group-hover:text-white hover:bg-[#0B7BFF] hover:text-white";
+  const label = <>{t("Get This for My Restaurant")} <ArrowRight className="h-4 w-4" /></>;
   return (
     <motion.div whileHover={{ y: -6 }} transition={{ type: "spring", stiffness: 300, damping: 22 }}
       className="group flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white transition-shadow duration-300 hover:shadow-xl hover:shadow-blue-500/15">
@@ -1651,10 +1683,9 @@ const ProductCard = ({ p }: { p: (typeof PRODUCTS)[number] }) => {
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-bold" style={{ color: BRAND.dark }}>{t(p.name)}</h3>
         <p className="mt-1.5 flex-1 text-sm text-slate-500">{t(p.body)}</p>
-        <a href={waLink(p.message)} target="_blank" rel="noopener noreferrer"
-          className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl border border-[#0B7BFF] bg-transparent py-2.5 text-sm font-semibold text-[#0B7BFF] transition-colors duration-300 group-hover:bg-[#0B7BFF] group-hover:text-white hover:bg-[#0B7BFF] hover:text-white">
-          {t("Get This for My Restaurant")} <ArrowRight className="h-4 w-4" />
-        </a>
+        {href
+          ? <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{label}</a>
+          : <button type="button" onClick={() => scrollTo("contact")} className={cls}>{label}</button>}
       </div>
     </motion.div>
   );
@@ -1888,8 +1919,11 @@ const Pricing = () => {
 type FormState = { name: string; email: string; phone: string; restaurant: string; subject: string; message: string };
 const EMPTY: FormState = { name: "", email: "", phone: "", restaurant: "", subject: "", message: "" };
 
+const SUBJECTS = ["Book a demo", "Pricing", "Support", "Partnership"];
+
 const ContactSection = () => {
   const t = useT();
+  const site = useSite();
   const [form, setForm] = useState<FormState>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -1902,6 +1936,7 @@ const ContactSection = () => {
     if (form.phone && !/^[+\d\s-]{7,15}$/.test(form.phone)) e.phone = t("Enter a valid phone");
     if (!form.subject) e.subject = t("Choose a subject");
     if (form.message.trim().length < 10) e.message = t("Message must be at least 10 characters");
+    else if (form.message.length > 5000) e.message = t("Message must be under 5000 characters");
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -1910,14 +1945,25 @@ const ContactSection = () => {
     ev.preventDefault();
     if (!validate()) return;
     setStatus("loading");
-    try {
-      if (!CONTACT_ENDPOINT) throw new Error(`Messaging isn't connected yet. Please email us at ${contactInfo.email}.`);
-      const res = await fetch(CONTACT_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      if (!res.ok) throw new Error("Couldn't send your message. Please try again.");
-      setStatus("success"); setStatusMsg("Thanks! We'll respond within 24 hours."); setForm(EMPTY);
-    } catch (err) {
-      setStatus("error"); setStatusMsg((err as Error).message);
+    // Insert-only for visitors: RLS lets anyone add a row but only a super
+    // admin read them back, so no .select() here.
+    const { error } = await supabase.from("contact_messages").insert({
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim() || null,
+      restaurant: form.restaurant.trim() || null,
+      subject: form.subject,
+      message: form.message.trim(),
+    });
+    if (error) {
+      console.error("Contact form submit failed", error);
+      setStatus("error");
+      setStatusMsg(site.email
+        ? `${t("Couldn't send your message. Please try again.")} ${t("Or email us at")} ${site.email}.`
+        : t("Couldn't send your message. Please try again."));
+      return;
     }
+    setStatus("success"); setStatusMsg(t("Thanks! We'll respond within 24 hours.")); setForm(EMPTY);
   };
 
   const field = (k: keyof FormState) => ({
@@ -1939,13 +1985,19 @@ const ContactSection = () => {
         <Reveal delay={0.08}>
           <div className="space-y-5 sm:space-y-6">
             {[
-              { icon: Mail, t: "Email", v: contactInfo.email, s: "We'll respond within 24 hours." },
-              { icon: Phone, t: "Phone", v: contactInfo.phone, s: contactInfo.hours },
-              { icon: MapPin, t: "Location", v: contactInfo.location, s: "(Remote support available)" },
-            ].map((c) => (
+              { icon: Mail, t: "Email", v: site.email, href: `mailto:${site.email}`, s: "We'll respond within 24 hours." },
+              { icon: Phone, t: "Phone", v: site.phone, href: `tel:${site.phone.replace(/[^\d+]/g, "")}`, s: contactHours },
+              { icon: MapPin, t: "Location", v: site.location, href: null, s: "(Remote support available)" },
+            ].filter((c) => c.v).map((c) => (
               <div key={c.t} className="flex gap-3">
                 <span className="h-10 w-10 shrink-0 rounded-lg grid place-items-center" style={{ background: BRAND.soft, color: BRAND.primary }}><c.icon className="h-5 w-5" /></span>
-                <div><div className="font-semibold text-sm" style={{ color: BRAND.dark }}>{t(c.t)}</div><div className="text-sm text-slate-700">{c.v}</div><div className="text-xs text-slate-400">{t(c.s)}</div></div>
+                <div>
+                  <div className="font-semibold text-sm" style={{ color: BRAND.dark }}>{t(c.t)}</div>
+                  {c.href
+                    ? <a href={c.href} className="text-sm text-slate-700 hover:underline break-all">{c.v}</a>
+                    : <div className="text-sm text-slate-700">{c.v}</div>}
+                  <div className="text-xs text-slate-400">{t(c.s)}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -1954,15 +2006,16 @@ const ContactSection = () => {
           <form onSubmit={submit} noValidate className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-lg shadow-slate-200/50 space-y-4">
             <div className="font-semibold" style={{ color: BRAND.dark }}>{t("Send us a message")}</div>
             <div className="grid sm:grid-cols-2 gap-4">
-              <div><Label t={t("Full name")} req /><input {...field("name")} placeholder={t("Your name")} /><Err k="name" /></div>
-              <div><Label t={t("Email")} req /><input type="email" {...field("email")} placeholder="you@example.com" /><Err k="email" /></div>
-              <div><Label t={t("Phone")} /><input {...field("phone")} placeholder="+91 7218558850" /><Err k="phone" /></div>
-              <div><Label t={t("Restaurant name")} /><input {...field("restaurant")} placeholder="Spice Garden" /></div>
+              <div><Label t={t("Full name")} req /><input {...field("name")} maxLength={120} placeholder={t("Your name")} /><Err k="name" /></div>
+              <div><Label t={t("Email")} req /><input type="email" {...field("email")} maxLength={254} placeholder="you@example.com" /><Err k="email" /></div>
+              <div><Label t={t("Phone")} /><input {...field("phone")} placeholder="+91 98765 43210" /><Err k="phone" /></div>
+              <div><Label t={t("Restaurant name")} /><input {...field("restaurant")} maxLength={160} placeholder="Spice Garden" /></div>
             </div>
             <div><Label t={t("Subject")} req />
               <select {...field("subject")}>
                 <option value="">{t("Select an option")}</option>
-                <option>{t("Book a demo")}</option><option>{t("Pricing")}</option><option>{t("Support")}</option><option>{t("Partnership")}</option>
+                {/* Value stays English so admins read one consistent subject, whatever the visitor's language */}
+                {SUBJECTS.map((s) => <option key={s} value={s}>{t(s)}</option>)}
               </select><Err k="subject" />
             </div>
             <div><Label t={t("Message")} req /><textarea rows={4} {...field("message")} placeholder={t("How can we help you?")} /><Err k="message" /></div>
@@ -2010,6 +2063,7 @@ const FinalCTA = () => {
 // ====================
 const Footer = () => {
   const t = useT();
+  const socials = socialsFor(useSite());
   return (
     <footer className="border-t border-slate-100 bg-slate-50/60">
       <div className="max-w-7xl mx-auto px-5 sm:px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -2019,13 +2073,15 @@ const Footer = () => {
           <a href="#" className="hover:text-slate-800">{t("Terms of Service")}</a>
           <button onClick={() => scrollTo("contact")} className="hover:text-slate-800">{t("Contact")}</button>
         </div>
-        <div className="flex gap-3">
-          {SOCIALS.map((s) => (
-            <a key={s.key} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.name} className="h-7 w-7 hover:scale-110 transition"><s.Icon /></a>
-          ))}
-        </div>
+        {socials.length > 0 && (
+          <div className="flex gap-3">
+            {socials.map((s) => (
+              <a key={s.key} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.name} className="h-7 w-7 hover:scale-110 transition"><s.Icon /></a>
+            ))}
+          </div>
+        )}
       </div>
-      <div className="text-center text-xs text-slate-400 pb-6">© {new Date().getFullYear()} PlatesOS. {t("All rights reserved.")}</div>
+      <div className="text-center text-xs text-slate-400 pb-6">© {new Date().getFullYear()} {BRAND.name}. {t("All rights reserved.")}</div>
     </footer>
   );
 };
@@ -2237,7 +2293,7 @@ const FAQS: Faq[] = [
   {
     c: "Support",
     q: "How do I reach your support team?",
-    a: "Email support@platesos.com and we respond within 24 hours, or call +91 7218558850 between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.",
+    a: "Email {email} and we respond within 24 hours, or call {phone} between Mon – Fri, 9:00 AM – 6:00 PM. WhatsApp works too.",
   },
   {
     c: "Support",
@@ -2252,7 +2308,7 @@ const FAQS: Faq[] = [
   {
     c: "Support",
     q: "Where are you based?",
-    a: "We're based in Bengaluru, Karnataka, India, and remote support is available across the country — so your location is never a problem.",
+    a: "We're based in {location}, and remote support is available across the country — so your location is never a problem.",
   },
   {
     c: "Support",
@@ -2285,7 +2341,7 @@ const buildAskMessage = (asked: Faq[]) =>
         "",
         "I'd like to know more.",
       ].join("\n")
-    : whatsappChat.message;
+    : whatsappChatMessage;
 
 // ====================
 // FLOATING PLATESOS AGENT (robot launcher + panel)
@@ -2353,9 +2409,11 @@ const CloseBtn = ({ onClose, className = "", light = false }: { onClose: () => v
   </button>
 );
 
-const ChatButton = ({ small = false, className = "", href = whatsappChatUrl, label = "Chat with us" }:
-  { small?: boolean; className?: string; href?: string; label?: string }) => {
+const ChatButton = ({ small = false, className = "", message = whatsappChatMessage, label = "Chat with us" }:
+  { small?: boolean; className?: string; message?: string; label?: string }) => {
   const t = useT();
+  const href = useSite().waLink(message);
+  if (!href) return null;
   return (
     <motion.a href={href} target="_blank" rel="noopener noreferrer" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
       className={`inline-flex items-center justify-center gap-2 bg-[#25D366] font-semibold text-white shadow-lg shadow-green-600/25 hover:brightness-95 ${
@@ -2464,6 +2522,7 @@ const UserBubble = ({ children }: { children: ReactNode }) => (
 
 const ChatPanel = ({ touch, onClose }: PanelProps) => {
   const t = useT();
+  const { waLink } = useSite();
   const reduce = useReducedMotion();
   const [step, setStep] = useState(reduce ? 3 : 0);
   useEffect(() => {
@@ -2484,8 +2543,8 @@ const ChatPanel = ({ touch, onClose }: PanelProps) => {
         <AnimatePresence>{typing && <TypingDots key={`t${step}`} />}</AnimatePresence>
         {step >= 3 && (
           <div className="flex flex-wrap gap-2 pt-2">
-            {agentQuickReplies.map((q, i) => (
-              <motion.a key={q.label} href={waLink(q.message)} target="_blank" rel="noopener noreferrer"
+            {waLink(whatsappChatMessage) && agentQuickReplies.map((q, i) => (
+              <motion.a key={q.label} href={waLink(q.message) ?? undefined} target="_blank" rel="noopener noreferrer"
                 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
                 className="rounded-full border border-blue-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-[#EAF3FF] transition-colors"
                 style={{ color: BRAND.primary }}>
@@ -2583,6 +2642,7 @@ const buildFlowMessage = (answers: Answer[]) =>
 
 const GuidedPanel = ({ touch, onClose }: PanelProps) => {
   const t = useT();
+  const site = useSite();
   const reduce = useReducedMotion();
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [stepId, setStepId] = useState(FLOW_START);
@@ -2653,7 +2713,7 @@ const GuidedPanel = ({ touch, onClose }: PanelProps) => {
     </div>
   );
 
-  const unread = (list: Faq[]) => list.filter((f) => !asked.includes(f));
+  const unread = (list: Faq[]) => list.filter((f) => !asked.includes(f) && !faqMissing(f.a, site));
 
   return (
     <motion.div {...panelMotion} id="platesos-agent" role="dialog" aria-label="PlatesOS Agent"
@@ -2679,7 +2739,7 @@ const GuidedPanel = ({ touch, onClose }: PanelProps) => {
               return (
                 <div key={f.q} className="space-y-2">
                   <UserBubble>{t(f.q)}</UserBubble>
-                  {!hide && <Bubble>{t(f.a)}</Bubble>}
+                  {!hide && <Bubble>{fillFaq(t(f.a), site)}</Bubble>}
                 </div>
               );
             })}
@@ -2740,8 +2800,8 @@ const GuidedPanel = ({ touch, onClose }: PanelProps) => {
       </div>
 
       <div className="border-t border-slate-100 p-3 space-y-2">
-        {asking && asked.length > 0 && <ChatButton href={waLink(buildAskMessage(asked))} label="Chat with our team" />}
-        {done && !typing && <ChatButton href={waLink(buildFlowMessage(answers))} label="Continue on WhatsApp" />}
+        {asking && asked.length > 0 && <ChatButton message={buildAskMessage(asked)} label="Chat with our team" />}
+        {done && !typing && <ChatButton message={buildFlowMessage(answers)} label="Continue on WhatsApp" />}
         <div className="flex justify-between text-xs text-slate-500">
           <button type="button" onClick={back} disabled={!answers.length} className="hover:text-slate-800 disabled:opacity-40">
             ← {t("Back")}
@@ -2908,6 +2968,8 @@ const AgentFloat = () => {
 function PlatesOS() {
   // Language resets to English on every load/refresh (nothing is persisted)
   const [lang, setLang] = useState<Lang>("en");
+  const settings = Route.useLoaderData();
+  const site = useMemo(() => buildSite(settings), [settings]);
 
   // Always open at the top on load/refresh (browsers otherwise restore the old scroll position)
   useEffect(() => {
@@ -2918,20 +2980,22 @@ function PlatesOS() {
 
   return (
     <LangCtx.Provider value={{ lang, setLang }}>
-      <div className="min-h-screen bg-white text-slate-900 antialiased [scroll-behavior:smooth]" lang={lang}>
-        <Navbar />
-        <main>
-          <Hero />
-          <Features />
-          <Products />
-          <WhyPlatesOS />
-          <Pricing />
-          <ContactSection />
-          <FinalCTA />
-        </main>
-        <Footer />
-        <AgentFloat />
-      </div>
+      <SiteCtx.Provider value={site}>
+        <div className="min-h-screen bg-white text-slate-900 antialiased [scroll-behavior:smooth]" lang={lang}>
+          <Navbar />
+          <main>
+            <Hero />
+            <Features />
+            <Products />
+            <WhyPlatesOS />
+            <Pricing />
+            <ContactSection />
+            <FinalCTA />
+          </main>
+          <Footer />
+          <AgentFloat />
+        </div>
+      </SiteCtx.Provider>
     </LangCtx.Provider>
   );
 }
