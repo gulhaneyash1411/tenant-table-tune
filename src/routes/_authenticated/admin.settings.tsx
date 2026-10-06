@@ -129,7 +129,6 @@ function PlatformSettings() {
   if (loading) {
     return (
       <div className="space-y-4 max-w-2xl">
-        <h1 className="text-2xl font-semibold">Platform settings</h1>
         {[0, 1, 2].map((i) => <Skeleton key={i} className="h-36 w-full rounded-lg" />)}
       </div>
     );
@@ -138,7 +137,6 @@ function PlatformSettings() {
   if (loadError) {
     return (
       <div className="space-y-4 max-w-2xl">
-        <h1 className="text-2xl font-semibold">Platform settings</h1>
         <Card className="p-5 space-y-3">
           <p className="text-sm text-destructive">Couldn't load settings: {loadError}</p>
           <Button variant="outline" onClick={load}>Retry</Button>
@@ -149,7 +147,6 @@ function PlatformSettings() {
 
   return (
     <div className="space-y-4 max-w-2xl">
-      <h1 className="text-2xl font-semibold">Platform settings</h1>
 
       <Card className="p-5 space-y-3">
         <div>

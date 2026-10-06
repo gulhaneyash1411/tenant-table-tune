@@ -43,8 +43,15 @@ async function loadReservationHold(tableId: string) {
 // UI: the route's own `pendingComponent` below. The component itself never
 // renders a "loading" state of its own, because by the time it renders it
 // always already has real data.
-async function loadTableData(tableId: string) {
-  const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
+async function loadTableData(qrKey: string) {
+  // `qrKey` is the secure QR token (/order/{token}) or, for QRs printed before
+  // tokens existed, the table id. resolve_table_qr only answers while the QR is
+  // active, the table is active and the outlet's subscription is live.
+  const { data: resolved } = await (supabase as any).rpc("resolve_table_qr", { p_key: qrKey }).maybeSingle();
+  const tableId: string | null = resolved?.table_id ?? null;
+  const { data: t } = tableId
+    ? await supabase.from("restaurant_tables").select("*").eq("id", tableId).single()
+    : { data: null };
   if (!t) {
     return {
       table: null as any, tenant: null as any, cats: [] as any[], items: [] as any[],

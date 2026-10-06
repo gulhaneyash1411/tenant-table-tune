@@ -12,6 +12,7 @@ import { sendOrderInvoice } from "@/lib/whatsapp.functions";
 import { Loader2, ChevronLeft, Bike, Flame } from "lucide-react";
 import { NewOrderDialog, AddItemsDialog } from "@/components/orders/NewOrderDialog";
 import { clearRoundMarkers } from "@/lib/public-orders.functions";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
 export const Route = createFileRoute("/_authenticated/app/orders")({ component: LiveOrders });
 
@@ -70,6 +71,7 @@ function columnLabel(key: string) {
 }
 
 function LiveOrders() {
+  const [tenant, setTenant] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   // Local calendar date, not UTC. toISOString() here would name yesterday for
   // the whole IST small hours, while the range below is built in local time —
@@ -82,13 +84,22 @@ function LiveOrders() {
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const t = await fetchCurrentOutlet(u.user!.id);
+      setTenant(t);
+    })();
+  }, []);
+
   async function load() {
+    if (!tenant?.id) return;
     // Half-open [start, next midnight): an inclusive 23:59:59 end drops
     // anything in the final second of the day.
     const start = new Date(`${date}T00:00:00`);
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
-    const { data } = await supabase.from("orders").select("*").gte("created_at", start.toISOString()).lt("created_at", end.toISOString()).order("created_at", { ascending: false });
+    const { data } = await supabase.from("orders").select("*").eq("tenant_id", tenant.id).gte("created_at", start.toISOString()).lt("created_at", end.toISOString()).order("created_at", { ascending: false });
     setOrders(data || []);
     const ids = (data || []).map(o => o.id);
     if (ids.length) {
@@ -99,7 +110,7 @@ function LiveOrders() {
     } else setItems({});
     setLoading(false);
   }
-  useEffect(() => { setLoading(true); load(); }, [date]);
+  useEffect(() => { setLoading(true); load(); }, [date, tenant?.id]);
   useEffect(() => {
     const ch = supabase.channel("orders-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => load())
@@ -108,13 +119,13 @@ function LiveOrders() {
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [date]);
+  }, [date, tenant?.id]);
 
   // Resolve table ids to their labels. Cast to any because the relation name is
   // set above rather than known to the generated types.
   useEffect(() => {
     (async () => {
-      const { data, error } = await (supabase as any).from(TABLES_RELATION).select("*");
+      const { data, error } = await (supabase as any).from(TABLES_RELATION).select("*").eq("tenant_id", tenant?.id);
       if (error || !data) {
         console.warn(`Table labels unavailable from "${TABLES_RELATION}":`, error?.message);
         return;
@@ -186,13 +197,12 @@ function LiveOrders() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-semibold">Live orders</h1>
+      <div className="flex items-center justify-end flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground hidden md:inline">Drag cards, or use the buttons, to update status</span>
           <span className="text-sm text-muted-foreground">Date</span>
           <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-auto" />
-          <NewOrderDialog onSaved={load} />
+          <NewOrderDialog tenantId={tenant?.id} onSaved={load} />
         </div>
       </div>
       {loading ? (

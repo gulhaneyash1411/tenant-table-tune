@@ -55,7 +55,7 @@ function Announcements() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2"><Megaphone className="h-6 w-6"/><h1 className="text-2xl font-semibold">Announcements</h1></div>
+      <div className="flex items-center gap-2"><Megaphone className="h-6 w-6"/></div>
       <Card className="p-5 space-y-3 max-w-2xl">
         <div><Label>Title</Label><Input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Platform-wide announcement" /></div>
         <div><Label>Message</Label><Textarea value={body} onChange={e=>setBody(e.target.value)} rows={4} /></div>

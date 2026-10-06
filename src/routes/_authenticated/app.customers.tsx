@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -182,6 +183,7 @@ function Customers() {
   const [page, setPage] = useState(1);
 
   const [selected, setSelected] = useState<CustomerRow | null>(null);
+  const { tenant } = useTenantContext();
 
   // Debounce the search box
   useEffect(() => {
@@ -190,6 +192,7 @@ function Customers() {
   }, [search]);
 
   const load = useCallback(async () => {
+    if (!tenant) return;
     setError(null);
 
     const rows: any[] = [];
@@ -203,6 +206,7 @@ function Customers() {
       const { data, error: ordErr } = await supabase
         .from("orders")
         .select("*")
+        .eq("tenant_id", tenant.id)
         .order("created_at", { ascending: false })
         .range(from, from + FETCH_CHUNK - 1);
 
@@ -229,7 +233,7 @@ function Customers() {
     // time. Rows are widened to any because the label column is probed (see
     // labelFromTableRow) instead of being assumed.
     const names: TableNames = {};
-    const { data: tbls, error: tblErr } = await supabase.from("restaurant_tables").select("*");
+    const { data: tbls, error: tblErr } = await supabase.from("restaurant_tables").select("*").eq("tenant_id", tenant.id);
     if (tblErr) {
       console.warn("Customers: restaurant_tables could not be read:", tblErr.message);
     } else {
@@ -255,7 +259,7 @@ function Customers() {
     // Optional enrichment: a name corrected in the guest's profile beats
     // whatever was typed on the last ticket. If the table is missing or RLS
     // blocks it, the page still works from orders alone.
-    const { data: cust, error: custErr } = await supabase.from("customers").select("*");
+    const { data: cust, error: custErr } = await supabase.from("customers").select("*").eq("tenant_id", tenant.id);
     if (custErr) {
       console.warn("Customers: profile table unavailable:", custErr.message);
       setProfiles({});
@@ -267,7 +271,7 @@ function Customers() {
       if (k) map[k] = c;
     }
     setProfiles(map);
-  }, []);
+  }, [tenant]);
 
   useEffect(() => {
     setLoading(true);
@@ -416,8 +420,7 @@ function Customers() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Customers</h1>
+      <div className="flex items-center justify-end gap-3">
         <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing || loading}>
           <RefreshCw className={`h-4 w-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
           Refresh

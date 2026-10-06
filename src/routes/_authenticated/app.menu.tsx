@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { toast } from "sonner";
 import {
   Search, Plus, Pencil, Trash2, Star, EyeOff, Check, X,
@@ -361,7 +362,7 @@ function Menu() {
 
   async function load() {
     const { data: u } = await supabase.auth.getUser();
-    const { data: t } = await supabase.from("tenants").select("*").eq("owner_id", u.user!.id).single();
+    const t = await fetchCurrentOutlet(u.user!.id);
     setTenant(t);
     if (!t) { setLoading(false); return; }
 
@@ -522,8 +523,7 @@ function Menu() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-5 py-4 sm:px-8">
           <div className="mr-auto">
-            <h1 className="text-2xl font-semibold tracking-tight">Menu</h1>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <p className="text-sm text-slate-500">
               {totals.items} items across {cats.length} categories
               {totals.hidden > 0 && <> · {totals.hidden} hidden from the menu</>}
             </p>

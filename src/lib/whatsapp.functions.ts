@@ -2,11 +2,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+// The outlet the caller is working in (an owner may own several; a manager is
+// assigned some), taken from the
+// x-outlet-id header the browser attaches to every server function call.
+async function currentOutlet<T = { id: string }>(supabase: unknown, userId: string, columns = "id"): Promise<T | null> {
+  const { getRequest } = await import("@tanstack/react-start/server");
+  const { resolveOutlet, OUTLET_HEADER } = await import("./outlet.server");
+  return resolveOutlet<T>(supabase as any, userId, getRequest()?.headers.get(OUTLET_HEADER), columns);
+}
+
 export const getWhatsAppSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data: tenant } = await supabase.from("tenants").select("id,name").eq("owner_id", context.userId).maybeSingle();
+    const tenant = await currentOutlet<{ id: string; name: string }>(supabase, context.userId, "id,name");
     if (!tenant) return { tenant: null, settings: null, platformAvailable: false };
     const { data: settings } = await supabase
       .from("whatsapp_settings")
@@ -31,7 +40,7 @@ export const saveWhatsAppSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: tenant } = await supabase.from("tenants").select("id").eq("owner_id", context.userId).maybeSingle();
+    const tenant = await currentOutlet(supabase, context.userId);
     if (!tenant) throw new Error("No restaurant on this account");
     const { data: existing } = await supabase
       .from("whatsapp_settings")
@@ -65,7 +74,7 @@ export const previewSegment = createServerFn({ method: "POST" })
   }) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: tenant } = await supabase.from("tenants").select("id").eq("owner_id", context.userId).maybeSingle();
+    const tenant = await currentOutlet(supabase, context.userId);
     if (!tenant) return { count: 0, sample: [] };
     const { resolveSegment } = await import("./whatsapp-segments.server");
     const rows = await resolveSegment(supabase, tenant.id, data.segment);
@@ -97,11 +106,7 @@ export const sendCampaign = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id,name")
-      .eq("owner_id", context.userId)
-      .maybeSingle();
+    const tenant = await currentOutlet<{ id: string; name: string }>(supabase, context.userId, "id,name");
     if (!tenant) throw new Error("No restaurant on this account");
 
     const { resolveSegment } = await import("./whatsapp-segments.server");
@@ -142,11 +147,7 @@ export const syncCampaignStatuses = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data: tenant } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("owner_id", context.userId)
-      .maybeSingle();
+    const tenant = await currentOutlet(supabase, context.userId);
     if (!tenant) return { checked: 0, updated: 0 };
     const { syncStatuses } = await import("./whatsapp-sync.server");
     return syncStatuses(tenant.id);
@@ -159,7 +160,7 @@ export const sendTestMessage = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: tenant } = await supabase.from("tenants").select("id,name").eq("owner_id", context.userId).maybeSingle();
+    const tenant = await currentOutlet<{ id: string; name: string }>(supabase, context.userId, "id,name");
     if (!tenant) throw new Error("No restaurant on this account");
     const { resolveCreds, sendWhatsApp, renderBody, brandedBody } = await import("./whatsapp.server");
     const creds = resolveCreds();
@@ -179,7 +180,7 @@ export const sendOrderInvoice = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: tenant } = await supabase.from("tenants").select("id,name,currency").eq("owner_id", context.userId).maybeSingle();
+    const tenant = await currentOutlet<{ id: string; name: string; currency: string | null }>(supabase, context.userId, "id,name,currency");
     if (!tenant) throw new Error("No restaurant on this account");
 
     const { data: order } = await supabase

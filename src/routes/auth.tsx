@@ -7,7 +7,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Utensils } from "lucide-react";
+import { Building2, Hotel, Utensils } from "lucide-react";
+import type { BusinessType } from "@/lib/outlet-context";
 
 export const Route = createFileRoute("/auth")({ component: AuthPage });
 
@@ -112,9 +113,38 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
   );
 }
 
+function BusinessTypeStep({ onPick }: { onPick: (t: BusinessType) => void }) {
+  const options: { type: BusinessType; icon: typeof Hotel; title: string; blurb: string }[] = [
+    { type: "SINGLE_OUTLET", icon: Hotel, title: "Single Hotel / Restaurant", blurb: "I manage one hotel, restaurant, or outlet." },
+    { type: "MULTI_OUTLET", icon: Building2, title: "Multiple Hotels / Restaurants / Outlets", blurb: "I manage multiple hotels, restaurants, branches, or outlets under one business." },
+  ];
+  return (
+    <div className="space-y-3">
+      <h2 className="font-semibold">What type of business do you operate?</h2>
+      {options.map(({ type, icon: Icon, title, blurb }) => (
+        <button
+          key={type}
+          type="button"
+          onClick={() => onPick(type)}
+          className="flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border p-4 text-left transition-colors hover:border-primary hover:bg-primary/5"
+        >
+          <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <span>
+            <span className="block text-sm font-medium">{title}</span>
+            <span className="block text-xs text-muted-foreground">{blurb}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SignUpForm({ onDone }: { onDone: () => void }) {
-  const [f, setF] = useState({ email: "", password: "", full_name: "", phone: "", restaurant: "", city: "", state: "", pincode: "", gst: "", tables: 10 });
+  const [businessType, setBusinessType] = useState<BusinessType | null>(null);
+  const [f, setF] = useState({ email: "", password: "", full_name: "", phone: "", organization: "", restaurant: "", city: "", state: "", pincode: "", gst: "", tables: 10 });
   const [loading, setLoading] = useState(false);
+  if (!businessType) return <BusinessTypeStep onPick={setBusinessType} />;
+  const isMulti = businessType === "MULTI_OUTLET";
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -144,6 +174,8 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
       p_state: f.state,
       p_pincode: f.pincode,
       p_number_of_tables: f.tables,
+      p_business_type: businessType,
+      p_organization_name: isMulti ? f.organization : undefined,
     });
     setLoading(false);
     if (tErr) return toast.error(tErr.message);
@@ -152,13 +184,19 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
   }
   return (
     <form onSubmit={submit} className="space-y-3">
+      <button type="button" onClick={() => setBusinessType(null)} className="cursor-pointer text-xs text-muted-foreground hover:underline">
+        ← {isMulti ? "Multiple Hotels / Restaurants / Outlets" : "Single Hotel / Restaurant"}
+      </button>
+      {isMulti && (
+        <div><Label>Business / organization name</Label><Input required value={f.organization} onChange={e=>setF({...f,organization:e.target.value})} placeholder="ABC Hotels &amp; Restaurants"/></div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Owner name</Label><Input required value={f.full_name} onChange={e=>setF({...f,full_name:e.target.value})}/></div>
         <div><Label>Phone</Label><Input required value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/></div>
       </div>
       <div><Label>Email</Label><Input required type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/></div>
       <div><Label>Password</Label><PasswordInput required value={f.password} onChange={e=>setF({...f,password:e.target.value})}/></div>
-      <div><Label>Restaurant name</Label><Input required value={f.restaurant} onChange={e=>setF({...f,restaurant:e.target.value})}/></div>
+      <div><Label>{isMulti ? "First outlet name" : "Restaurant name"}</Label><Input required value={f.restaurant} onChange={e=>setF({...f,restaurant:e.target.value})}/></div>
       <div className="grid grid-cols-3 gap-3">
         <div><Label>City</Label><Input value={f.city} onChange={e=>setF({...f,city:e.target.value})}/></div>
         <div><Label>State</Label><Input value={f.state} onChange={e=>setF({...f,state:e.target.value})}/></div>

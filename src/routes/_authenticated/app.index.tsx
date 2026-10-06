@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { money } from "@/lib/format";
 import { ListOrdered, Utensils, Users, Star } from "lucide-react";
+import { BusinessOverview } from "@/components/business-overview";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
 export const Route = createFileRoute("/_authenticated/app/")({ component: Dashboard });
 
@@ -11,12 +13,16 @@ function Dashboard() {
   const [s, setS] = useState({ orders: 0, revenue: 0, customers: 0, avgRating: 0, recent: [] as any[] });
   useEffect(() => {
     (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const tenant = await fetchCurrentOutlet(u.user!.id);
+      if (!tenant?.id) return;
+
       const today = new Date(); today.setHours(0,0,0,0);
       const iso = today.toISOString();
       const [{ data: orders }, { count: custCount }, { data: reviews }] = await Promise.all([
-        supabase.from("orders").select("*").gte("created_at", iso).order("created_at", { ascending: false }).limit(200),
-        supabase.from("customers").select("id", { count: "exact", head: true }),
-        supabase.from("reviews").select("rating"),
+        supabase.from("orders").select("*").eq("tenant_id", tenant.id).gte("created_at", iso).order("created_at", { ascending: false }).limit(200),
+        supabase.from("customers").select("id", { count: "exact", head: true }).eq("tenant_id", tenant.id),
+        supabase.from("reviews").select("rating").eq("tenant_id", tenant.id),
       ]);
       const rev = (orders || []).filter(o => o.payment_status === "paid").reduce((a, b) => a + Number(b.total || 0), 0);
       const ratings = (reviews || []).map((r: any) => r.rating);
@@ -32,7 +38,7 @@ function Dashboard() {
   ];
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <BusinessOverview />
       <div className="grid gap-4 md:grid-cols-4">
         {cards.map(c => (
           <Card key={c.label} className="p-5">
