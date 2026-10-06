@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowLeft, MoreHorizontal, Plus, UserPlus, Copy, KeyRound, Pencil, Loader2,
+  ArrowLeft, MoreHorizontal, Plus, UserPlus, Copy, KeyRound, Pencil, Loader2, Trash2,
 } from "lucide-react";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -457,7 +458,58 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
   const [detail, setDetail] = useState<Outlet | null>(null);
   const [adding, setAdding] = useState(false);
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteOutletId, setDeleteOutletId] = useState<string | null>(null);
+  const [deleteOutletName, setDeleteOutletName] = useState("");
+  const [deleteImpact, setDeleteImpact] = useState<any>(null);
+  const [deleteFetching, setDeleteFetching] = useState(false);
+
   const refresh = () => { onChanged(); extra.reload(); };
+
+  const handleDeleteClick = async (outletId: string, outletName: string) => {
+    setDeleteOutletId(outletId);
+    setDeleteOutletName(outletName);
+    setDeleteOpen(true);
+    setDeleteFetching(true);
+
+    try {
+      const response = await fetch(`/api/delete-outlet?outletId=${outletId}`);
+      const data = await response.json();
+      setDeleteImpact(data.impact);
+    } catch (error: any) {
+      toast.error("Failed to load deletion impact");
+      setDeleteOpen(false);
+    } finally {
+      setDeleteFetching(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteOutletId) return;
+
+    try {
+      const response = await fetch(`/api/delete-outlet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outletId: deleteOutletId, confirmationText: "DELETE" }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete outlet");
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        refresh();
+        setDeleteOpen(false);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      throw error;
+    }
+  };
 
   function setOutletStatus(o: Outlet, status: "ACTIVE" | "SUSPENDED" | "CANCELLED") {
     const verb = status === "ACTIVE" ? "Activate" : status === "SUSPENDED" ? "Suspend" : "Cancel";
@@ -542,6 +594,9 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
                           {o.outlet_status !== "ACTIVE" && <DropdownMenuItem onClick={() => setOutletStatus(o, "ACTIVE")}>Activate</DropdownMenuItem>}
                           {o.outlet_status !== "SUSPENDED" && <DropdownMenuItem onClick={() => setOutletStatus(o, "SUSPENDED")}>Suspend</DropdownMenuItem>}
                           {o.outlet_status !== "CANCELLED" && <DropdownMenuItem className="text-destructive" onClick={() => setOutletStatus(o, "CANCELLED")}>Cancel</DropdownMenuItem>}
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(o.id, o.name)}>
+                            <Trash2 className="h-4 w-4 mr-2" />Delete
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuLabel>Subscription</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => setSubFor(o)}>Create / renew subscription</DropdownMenuItem>
@@ -565,6 +620,17 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
       <ExtendDialog sub={extendFor} onClose={() => setExtendFor(null)} onDone={refresh} />
       <OutletSheet outlet={detail} sub={detail ? extra.data?.subs[detail.id] : undefined} onClose={() => setDetail(null)} />
       <ConfirmDialog confirm={confirm} onClose={() => setConfirm(null)} />
+
+      <DeleteConfirmationDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Outlet"
+        description="This will permanently delete the outlet and all its orders, customers, subscriptions, tables, and related data."
+        itemName="outlet"
+        isLoading={deleteFetching}
+        impact={deleteImpact}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

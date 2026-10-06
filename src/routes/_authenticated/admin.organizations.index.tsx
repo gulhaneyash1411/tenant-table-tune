@@ -19,6 +19,7 @@ import {
 import {
   ADMIN_PAGE_SIZE, useDebounced, likeTerm, Pager, BUSINESS_TYPE_LABEL, fmtDate,
 } from "@/components/admin/admin-ui";
+import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/organizations/")({ component: Organizations });
 
@@ -62,6 +63,12 @@ function Organizations() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [creds, setCreds] = useState<{ email: string; password: string; name: string; outlets: number } | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null);
+  const [deleteOrgName, setDeleteOrgName] = useState("");
+  const [deleteImpact, setDeleteImpact] = useState<any>(null);
+  const [deleteFetching, setDeleteFetching] = useState(false);
 
   const loadSummary = useCallback(async () => {
     const head = { count: "exact", head: true } as const;
@@ -168,6 +175,52 @@ function Organizations() {
     load();
     loadSummary();
   }
+
+  const handleDeleteClick = async (orgId: string, orgName: string) => {
+    setDeleteOrgId(orgId);
+    setDeleteOrgName(orgName);
+    setDeleteOpen(true);
+    setDeleteFetching(true);
+
+    try {
+      const response = await fetch(`/api/delete-organization?orgId=${orgId}`);
+      const data = await response.json();
+      setDeleteImpact(data.impact);
+    } catch (error: any) {
+      toast.error("Failed to load deletion impact");
+      setDeleteOpen(false);
+    } finally {
+      setDeleteFetching(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteOrgId) return;
+
+    try {
+      const response = await fetch(`/api/delete-organization`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId: deleteOrgId, confirmationText: "DELETE" }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete organization");
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        load();
+        loadSummary();
+        setDeleteOpen(false);
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error: any) {
+      throw error;
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -318,9 +371,17 @@ function Organizations() {
                   <TableCell className="text-center">{s?.pending ?? 0}</TableCell>
                   <TableCell className="text-center">{s?.suspended ?? 0}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{fmtDate(o.created_at)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2 flex justify-end">
                     <Button asChild size="sm" variant="outline">
                       <a href={`/admin/organizations/${o.id}`}>Manage</a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteClick(o.id, o.name)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -378,6 +439,17 @@ function Organizations() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmationDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete Organization"
+        description="This will permanently delete the organization and all its outlets, orders, customers, and related data."
+        itemName="organization"
+        isLoading={deleteFetching}
+        impact={deleteImpact}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

@@ -27,6 +27,8 @@ import { Route as ApiOwnerOutletsRouteImport } from './routes/api/owner-outlets'
 import { Route as ApiOutletUsersRouteImport } from './routes/api/outlet-users'
 import { Route as ApiKitchenDeviceRouteImport } from './routes/api/kitchen-device'
 import { Route as ApiKitchenAccountRouteImport } from './routes/api/kitchen-account'
+import { Route as ApiDeleteOutletRouteImport } from './routes/api/delete-outlet'
+import { Route as ApiDeleteOrganizationRouteImport } from './routes/api/delete-organization'
 import { Route as ApiClearResetFlagRouteImport } from './routes/api/clear-reset-flag'
 import { Route as ApiAdminDeleteRestaurantRouteImport } from './routes/api/admin-delete-restaurant'
 import { Route as ApiAdminCreateRestaurantRouteImport } from './routes/api/admin-create-restaurant'
@@ -167,6 +169,16 @@ const ApiKitchenDeviceRoute = ApiKitchenDeviceRouteImport.update({
 const ApiKitchenAccountRoute = ApiKitchenAccountRouteImport.update({
   id: '/api/kitchen-account',
   path: '/api/kitchen-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDeleteOutletRoute = ApiDeleteOutletRouteImport.update({
+  id: '/api/delete-outlet',
+  path: '/api/delete-outlet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDeleteOrganizationRoute = ApiDeleteOrganizationRouteImport.update({
+  id: '/api/delete-organization',
+  path: '/api/delete-organization',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiClearResetFlagRoute = ApiClearResetFlagRouteImport.update({
@@ -471,6 +483,8 @@ export interface FileRoutesByFullPath {
   '/api/admin-create-restaurant': typeof ApiAdminCreateRestaurantRoute
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
+  '/api/delete-organization': typeof ApiDeleteOrganizationRoute
+  '/api/delete-outlet': typeof ApiDeleteOutletRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/kitchen-device': typeof ApiKitchenDeviceRoute
   '/api/outlet-users': typeof ApiOutletUsersRoute
@@ -540,6 +554,8 @@ export interface FileRoutesByTo {
   '/api/admin-create-restaurant': typeof ApiAdminCreateRestaurantRoute
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
+  '/api/delete-organization': typeof ApiDeleteOrganizationRoute
+  '/api/delete-outlet': typeof ApiDeleteOutletRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/kitchen-device': typeof ApiKitchenDeviceRoute
   '/api/outlet-users': typeof ApiOutletUsersRoute
@@ -613,6 +629,8 @@ export interface FileRoutesById {
   '/api/admin-create-restaurant': typeof ApiAdminCreateRestaurantRoute
   '/api/admin-delete-restaurant': typeof ApiAdminDeleteRestaurantRoute
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
+  '/api/delete-organization': typeof ApiDeleteOrganizationRoute
+  '/api/delete-outlet': typeof ApiDeleteOutletRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/kitchen-device': typeof ApiKitchenDeviceRoute
   '/api/outlet-users': typeof ApiOutletUsersRoute
@@ -686,6 +704,8 @@ export interface FileRouteTypes {
     | '/api/admin-create-restaurant'
     | '/api/admin-delete-restaurant'
     | '/api/clear-reset-flag'
+    | '/api/delete-organization'
+    | '/api/delete-outlet'
     | '/api/kitchen-account'
     | '/api/kitchen-device'
     | '/api/outlet-users'
@@ -755,6 +775,8 @@ export interface FileRouteTypes {
     | '/api/admin-create-restaurant'
     | '/api/admin-delete-restaurant'
     | '/api/clear-reset-flag'
+    | '/api/delete-organization'
+    | '/api/delete-outlet'
     | '/api/kitchen-account'
     | '/api/kitchen-device'
     | '/api/outlet-users'
@@ -827,6 +849,8 @@ export interface FileRouteTypes {
     | '/api/admin-create-restaurant'
     | '/api/admin-delete-restaurant'
     | '/api/clear-reset-flag'
+    | '/api/delete-organization'
+    | '/api/delete-outlet'
     | '/api/kitchen-account'
     | '/api/kitchen-device'
     | '/api/outlet-users'
@@ -896,6 +920,8 @@ export interface RootRouteChildren {
   ApiAdminCreateRestaurantRoute: typeof ApiAdminCreateRestaurantRoute
   ApiAdminDeleteRestaurantRoute: typeof ApiAdminDeleteRestaurantRoute
   ApiClearResetFlagRoute: typeof ApiClearResetFlagRoute
+  ApiDeleteOrganizationRoute: typeof ApiDeleteOrganizationRoute
+  ApiDeleteOutletRoute: typeof ApiDeleteOutletRoute
   ApiKitchenAccountRoute: typeof ApiKitchenAccountRoute
   ApiKitchenDeviceRoute: typeof ApiKitchenDeviceRoute
   ApiOutletUsersRoute: typeof ApiOutletUsersRoute
@@ -1037,6 +1063,20 @@ declare module '@tanstack/react-router' {
       path: '/api/kitchen-account'
       fullPath: '/api/kitchen-account'
       preLoaderRoute: typeof ApiKitchenAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/delete-outlet': {
+      id: '/api/delete-outlet'
+      path: '/api/delete-outlet'
+      fullPath: '/api/delete-outlet'
+      preLoaderRoute: typeof ApiDeleteOutletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/delete-organization': {
+      id: '/api/delete-organization'
+      path: '/api/delete-organization'
+      fullPath: '/api/delete-organization'
+      preLoaderRoute: typeof ApiDeleteOrganizationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/clear-reset-flag': {
@@ -1539,6 +1579,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminCreateRestaurantRoute: ApiAdminCreateRestaurantRoute,
   ApiAdminDeleteRestaurantRoute: ApiAdminDeleteRestaurantRoute,
   ApiClearResetFlagRoute: ApiClearResetFlagRoute,
+  ApiDeleteOrganizationRoute: ApiDeleteOrganizationRoute,
+  ApiDeleteOutletRoute: ApiDeleteOutletRoute,
   ApiKitchenAccountRoute: ApiKitchenAccountRoute,
   ApiKitchenDeviceRoute: ApiKitchenDeviceRoute,
   ApiOutletUsersRoute: ApiOutletUsersRoute,
