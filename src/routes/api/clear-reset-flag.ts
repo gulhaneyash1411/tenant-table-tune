@@ -14,17 +14,12 @@ async function handle(request: Request) {
   const { data: callerData, error: callerErr } = await supabaseAdmin.auth.getUser(token);
   if (callerErr || !callerData.user) return bad("Invalid or expired session", 401);
 
-  const { data: tenant } = await supabaseAdmin
-    .from("tenants")
-    .select("id")
-    .eq("owner_id", callerData.user.id)
-    .maybeSingle();
-  if (!tenant) return bad("No restaurant found for this account", 404);
-
+  // The flag is set when an admin creates the owner's account; clear it on every
+  // outlet this owner holds so it can't come back on a different outlet.
   const { error } = await (supabaseAdmin as any)
     .from("tenants")
     .update({ must_reset_password: false })
-    .eq("id", tenant.id);
+    .eq("owner_id", callerData.user.id);
   if (error) return bad(error.message);
 
   return Response.json({ ok: true });

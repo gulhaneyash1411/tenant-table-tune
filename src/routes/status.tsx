@@ -221,7 +221,9 @@ function StatusPage() {
     else if (o.table_id) {
       navigate({
         to: "/t/$tableId",
-        params: { tableId: o.table_id },
+        // The table page is addressed by the QR token; the raw id only works
+        // for QRs printed before tokens existed.
+        params: { tableId: o.table_qr_token ?? o.table_id },
         search: {
           order: String(o.id),
           phone: String(phone ?? o.customer_phone ?? ""),
@@ -246,7 +248,15 @@ function StatusPage() {
           </div>
         )}
 
-        {orders.map(o => (
+        {orders.filter(o => {
+          // Hide paid & served orders only if they're older than 1 hour
+          if (o.payment_status === "paid" && o.status === "served") {
+            const createdTime = new Date(o.created_at).getTime();
+            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+            return createdTime > oneHourAgo; // Keep if less than 1 hour old
+          }
+          return true; // Show all other orders
+        }).map(o => (
           <div key={o.id} className="space-y-2">
             <Card className="p-4 rounded-3xl border-0 bg-background shadow-md shadow-black/5">
               <button

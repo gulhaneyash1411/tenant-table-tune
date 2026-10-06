@@ -168,8 +168,7 @@ function Tickets() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Support tickets</h1>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input

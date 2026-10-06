@@ -19,9 +19,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TakeawayTenantIdRouteImport } from './routes/takeaway.$tenantId'
 import { Route as TTableIdRouteImport } from './routes/t.$tableId'
 import { Route as SalesLoginRouteImport } from './routes/sales.login'
+import { Route as OrderTokenRouteImport } from './routes/order.$token'
 import { Route as KitchenLoginRouteImport } from './routes/kitchen.login'
 import { Route as DeliveryTenantIdRouteImport } from './routes/delivery.$tenantId'
 import { Route as ApiSalesAccountRouteImport } from './routes/api/sales-account'
+import { Route as ApiOwnerOutletsRouteImport } from './routes/api/owner-outlets'
+import { Route as ApiOutletUsersRouteImport } from './routes/api/outlet-users'
 import { Route as ApiKitchenDeviceRouteImport } from './routes/api/kitchen-device'
 import { Route as ApiKitchenAccountRouteImport } from './routes/api/kitchen-account'
 import { Route as ApiClearResetFlagRouteImport } from './routes/api/clear-reset-flag'
@@ -62,17 +65,20 @@ import { Route as AuthenticatedAppApiRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAppAnalyticsRouteImport } from './routes/_authenticated/app.analytics'
 import { Route as AuthenticatedAppAiRouteImport } from './routes/_authenticated/app.ai'
 import { Route as AuthenticatedAdminTicketsRouteImport } from './routes/_authenticated/admin.tickets'
+import { Route as AuthenticatedAdminSubscriptionsRouteImport } from './routes/_authenticated/admin.subscriptions'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminSalesRouteImport } from './routes/_authenticated/admin.sales'
+import { Route as AuthenticatedAdminRevenueRouteImport } from './routes/_authenticated/admin.revenue'
 import { Route as AuthenticatedAdminRestaurantsRouteImport } from './routes/_authenticated/admin.restaurants'
-import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin.reports'
+import { Route as AuthenticatedAdminQrCodesRouteImport } from './routes/_authenticated/admin.qr-codes'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminPlansRouteImport } from './routes/_authenticated/admin.plans'
+import { Route as AuthenticatedAdminPaymentsRouteImport } from './routes/_authenticated/admin.payments'
 import { Route as AuthenticatedAdminNavigationRouteImport } from './routes/_authenticated/admin.navigation'
 import { Route as AuthenticatedAdminContactsRouteImport } from './routes/_authenticated/admin.contacts'
-import { Route as AuthenticatedAdminBillingRouteImport } from './routes/_authenticated/admin.billing'
-import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin.audit'
 import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_authenticated/admin.announcements'
+import { Route as AuthenticatedAdminOrganizationsIndexRouteImport } from './routes/_authenticated/admin.organizations.index'
+import { Route as AuthenticatedAdminOrganizationsOrgIdRouteImport } from './routes/_authenticated/admin.organizations.$orgId'
 
 const StatusRoute = StatusRouteImport.update({
   id: '/status',
@@ -123,6 +129,11 @@ const SalesLoginRoute = SalesLoginRouteImport.update({
   path: '/sales/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrderTokenRoute = OrderTokenRouteImport.update({
+  id: '/order/$token',
+  path: '/order/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KitchenLoginRoute = KitchenLoginRouteImport.update({
   id: '/kitchen/login',
   path: '/kitchen/login',
@@ -136,6 +147,16 @@ const DeliveryTenantIdRoute = DeliveryTenantIdRouteImport.update({
 const ApiSalesAccountRoute = ApiSalesAccountRouteImport.update({
   id: '/api/sales-account',
   path: '/api/sales-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOwnerOutletsRoute = ApiOwnerOutletsRouteImport.update({
+  id: '/api/owner-outlets',
+  path: '/api/owner-outlets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOutletUsersRoute = ApiOutletUsersRouteImport.update({
+  id: '/api/outlet-users',
+  path: '/api/outlet-users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiKitchenDeviceRoute = ApiKitchenDeviceRouteImport.update({
@@ -352,6 +373,12 @@ const AuthenticatedAdminTicketsRoute =
     path: '/tickets',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminSubscriptionsRoute =
+  AuthenticatedAdminSubscriptionsRouteImport.update({
+    id: '/subscriptions',
+    path: '/subscriptions',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminSettingsRoute =
   AuthenticatedAdminSettingsRouteImport.update({
     id: '/settings',
@@ -363,16 +390,22 @@ const AuthenticatedAdminSalesRoute = AuthenticatedAdminSalesRouteImport.update({
   path: '/sales',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminRevenueRoute =
+  AuthenticatedAdminRevenueRouteImport.update({
+    id: '/revenue',
+    path: '/revenue',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminRestaurantsRoute =
   AuthenticatedAdminRestaurantsRouteImport.update({
     id: '/restaurants',
     path: '/restaurants',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminReportsRoute =
-  AuthenticatedAdminReportsRouteImport.update({
-    id: '/reports',
-    path: '/reports',
+const AuthenticatedAdminQrCodesRoute =
+  AuthenticatedAdminQrCodesRouteImport.update({
+    id: '/qr-codes',
+    path: '/qr-codes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminProductsRoute =
@@ -386,6 +419,12 @@ const AuthenticatedAdminPlansRoute = AuthenticatedAdminPlansRouteImport.update({
   path: '/plans',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminPaymentsRoute =
+  AuthenticatedAdminPaymentsRouteImport.update({
+    id: '/payments',
+    path: '/payments',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminNavigationRoute =
   AuthenticatedAdminNavigationRouteImport.update({
     id: '/navigation',
@@ -398,21 +437,22 @@ const AuthenticatedAdminContactsRoute =
     path: '/contacts',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminBillingRoute =
-  AuthenticatedAdminBillingRouteImport.update({
-    id: '/billing',
-    path: '/billing',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
 const AuthenticatedAdminAnnouncementsRoute =
   AuthenticatedAdminAnnouncementsRouteImport.update({
     id: '/announcements',
     path: '/announcements',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminOrganizationsIndexRoute =
+  AuthenticatedAdminOrganizationsIndexRouteImport.update({
+    id: '/organizations/',
+    path: '/organizations/',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminOrganizationsOrgIdRoute =
+  AuthenticatedAdminOrganizationsOrgIdRouteImport.update({
+    id: '/organizations/$orgId',
+    path: '/organizations/$orgId',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 
@@ -433,23 +473,27 @@ export interface FileRoutesByFullPath {
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/kitchen-device': typeof ApiKitchenDeviceRoute
+  '/api/outlet-users': typeof ApiOutletUsersRoute
+  '/api/owner-outlets': typeof ApiOwnerOutletsRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
+  '/order/$token': typeof OrderTokenRoute
   '/sales/login': typeof SalesLoginRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
-  '/admin/audit': typeof AuthenticatedAdminAuditRoute
-  '/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/admin/contacts': typeof AuthenticatedAdminContactsRoute
   '/admin/navigation': typeof AuthenticatedAdminNavigationRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
-  '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/qr-codes': typeof AuthenticatedAdminQrCodesRoute
   '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/admin/revenue': typeof AuthenticatedAdminRevenueRoute
   '/admin/sales': typeof AuthenticatedAdminSalesRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/subscriptions': typeof AuthenticatedAdminSubscriptionsRoute
   '/admin/tickets': typeof AuthenticatedAdminTicketsRoute
   '/app/ai': typeof AuthenticatedAppAiRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
@@ -480,6 +524,8 @@ export interface FileRoutesByFullPath {
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/app/': typeof AuthenticatedAppIndexRoute
+  '/admin/organizations/$orgId': typeof AuthenticatedAdminOrganizationsOrgIdRoute
+  '/admin/organizations/': typeof AuthenticatedAdminOrganizationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -496,23 +542,27 @@ export interface FileRoutesByTo {
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/kitchen-device': typeof ApiKitchenDeviceRoute
+  '/api/outlet-users': typeof ApiOutletUsersRoute
+  '/api/owner-outlets': typeof ApiOwnerOutletsRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
+  '/order/$token': typeof OrderTokenRoute
   '/sales/login': typeof SalesLoginRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
-  '/admin/audit': typeof AuthenticatedAdminAuditRoute
-  '/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/admin/contacts': typeof AuthenticatedAdminContactsRoute
   '/admin/navigation': typeof AuthenticatedAdminNavigationRoute
+  '/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
-  '/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/admin/qr-codes': typeof AuthenticatedAdminQrCodesRoute
   '/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/admin/revenue': typeof AuthenticatedAdminRevenueRoute
   '/admin/sales': typeof AuthenticatedAdminSalesRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/admin/subscriptions': typeof AuthenticatedAdminSubscriptionsRoute
   '/admin/tickets': typeof AuthenticatedAdminTicketsRoute
   '/app/ai': typeof AuthenticatedAppAiRoute
   '/app/analytics': typeof AuthenticatedAppAnalyticsRoute
@@ -543,6 +593,8 @@ export interface FileRoutesByTo {
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/app': typeof AuthenticatedAppIndexRoute
+  '/admin/organizations/$orgId': typeof AuthenticatedAdminOrganizationsOrgIdRoute
+  '/admin/organizations': typeof AuthenticatedAdminOrganizationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -563,23 +615,27 @@ export interface FileRoutesById {
   '/api/clear-reset-flag': typeof ApiClearResetFlagRoute
   '/api/kitchen-account': typeof ApiKitchenAccountRoute
   '/api/kitchen-device': typeof ApiKitchenDeviceRoute
+  '/api/outlet-users': typeof ApiOutletUsersRoute
+  '/api/owner-outlets': typeof ApiOwnerOutletsRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
   '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
+  '/order/$token': typeof OrderTokenRoute
   '/sales/login': typeof SalesLoginRoute
   '/t/$tableId': typeof TTableIdRoute
   '/takeaway/$tenantId': typeof TakeawayTenantIdRoute
   '/_authenticated/admin/announcements': typeof AuthenticatedAdminAnnouncementsRoute
-  '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
-  '/_authenticated/admin/billing': typeof AuthenticatedAdminBillingRoute
   '/_authenticated/admin/contacts': typeof AuthenticatedAdminContactsRoute
   '/_authenticated/admin/navigation': typeof AuthenticatedAdminNavigationRoute
+  '/_authenticated/admin/payments': typeof AuthenticatedAdminPaymentsRoute
   '/_authenticated/admin/plans': typeof AuthenticatedAdminPlansRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
-  '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
+  '/_authenticated/admin/qr-codes': typeof AuthenticatedAdminQrCodesRoute
   '/_authenticated/admin/restaurants': typeof AuthenticatedAdminRestaurantsRoute
+  '/_authenticated/admin/revenue': typeof AuthenticatedAdminRevenueRoute
   '/_authenticated/admin/sales': typeof AuthenticatedAdminSalesRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_authenticated/admin/subscriptions': typeof AuthenticatedAdminSubscriptionsRoute
   '/_authenticated/admin/tickets': typeof AuthenticatedAdminTicketsRoute
   '/_authenticated/app/ai': typeof AuthenticatedAppAiRoute
   '/_authenticated/app/analytics': typeof AuthenticatedAppAnalyticsRoute
@@ -610,6 +666,8 @@ export interface FileRoutesById {
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/app/': typeof AuthenticatedAppIndexRoute
+  '/_authenticated/admin/organizations/$orgId': typeof AuthenticatedAdminOrganizationsOrgIdRoute
+  '/_authenticated/admin/organizations/': typeof AuthenticatedAdminOrganizationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -630,23 +688,27 @@ export interface FileRouteTypes {
     | '/api/clear-reset-flag'
     | '/api/kitchen-account'
     | '/api/kitchen-device'
+    | '/api/outlet-users'
+    | '/api/owner-outlets'
     | '/api/sales-account'
     | '/delivery/$tenantId'
     | '/kitchen/login'
+    | '/order/$token'
     | '/sales/login'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/admin/announcements'
-    | '/admin/audit'
-    | '/admin/billing'
     | '/admin/contacts'
     | '/admin/navigation'
+    | '/admin/payments'
     | '/admin/plans'
     | '/admin/products'
-    | '/admin/reports'
+    | '/admin/qr-codes'
     | '/admin/restaurants'
+    | '/admin/revenue'
     | '/admin/sales'
     | '/admin/settings'
+    | '/admin/subscriptions'
     | '/admin/tickets'
     | '/app/ai'
     | '/app/analytics'
@@ -677,6 +739,8 @@ export interface FileRouteTypes {
     | '/api/public/whatsapp-status'
     | '/admin/'
     | '/app/'
+    | '/admin/organizations/$orgId'
+    | '/admin/organizations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -693,23 +757,27 @@ export interface FileRouteTypes {
     | '/api/clear-reset-flag'
     | '/api/kitchen-account'
     | '/api/kitchen-device'
+    | '/api/outlet-users'
+    | '/api/owner-outlets'
     | '/api/sales-account'
     | '/delivery/$tenantId'
     | '/kitchen/login'
+    | '/order/$token'
     | '/sales/login'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/admin/announcements'
-    | '/admin/audit'
-    | '/admin/billing'
     | '/admin/contacts'
     | '/admin/navigation'
+    | '/admin/payments'
     | '/admin/plans'
     | '/admin/products'
-    | '/admin/reports'
+    | '/admin/qr-codes'
     | '/admin/restaurants'
+    | '/admin/revenue'
     | '/admin/sales'
     | '/admin/settings'
+    | '/admin/subscriptions'
     | '/admin/tickets'
     | '/app/ai'
     | '/app/analytics'
@@ -740,6 +808,8 @@ export interface FileRouteTypes {
     | '/api/public/whatsapp-status'
     | '/admin'
     | '/app'
+    | '/admin/organizations/$orgId'
+    | '/admin/organizations'
   id:
     | '__root__'
     | '/'
@@ -759,23 +829,27 @@ export interface FileRouteTypes {
     | '/api/clear-reset-flag'
     | '/api/kitchen-account'
     | '/api/kitchen-device'
+    | '/api/outlet-users'
+    | '/api/owner-outlets'
     | '/api/sales-account'
     | '/delivery/$tenantId'
     | '/kitchen/login'
+    | '/order/$token'
     | '/sales/login'
     | '/t/$tableId'
     | '/takeaway/$tenantId'
     | '/_authenticated/admin/announcements'
-    | '/_authenticated/admin/audit'
-    | '/_authenticated/admin/billing'
     | '/_authenticated/admin/contacts'
     | '/_authenticated/admin/navigation'
+    | '/_authenticated/admin/payments'
     | '/_authenticated/admin/plans'
     | '/_authenticated/admin/products'
-    | '/_authenticated/admin/reports'
+    | '/_authenticated/admin/qr-codes'
     | '/_authenticated/admin/restaurants'
+    | '/_authenticated/admin/revenue'
     | '/_authenticated/admin/sales'
     | '/_authenticated/admin/settings'
+    | '/_authenticated/admin/subscriptions'
     | '/_authenticated/admin/tickets'
     | '/_authenticated/app/ai'
     | '/_authenticated/app/analytics'
@@ -806,6 +880,8 @@ export interface FileRouteTypes {
     | '/api/public/whatsapp-status'
     | '/_authenticated/admin/'
     | '/_authenticated/app/'
+    | '/_authenticated/admin/organizations/$orgId'
+    | '/_authenticated/admin/organizations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -822,9 +898,12 @@ export interface RootRouteChildren {
   ApiClearResetFlagRoute: typeof ApiClearResetFlagRoute
   ApiKitchenAccountRoute: typeof ApiKitchenAccountRoute
   ApiKitchenDeviceRoute: typeof ApiKitchenDeviceRoute
+  ApiOutletUsersRoute: typeof ApiOutletUsersRoute
+  ApiOwnerOutletsRoute: typeof ApiOwnerOutletsRoute
   ApiSalesAccountRoute: typeof ApiSalesAccountRoute
   DeliveryTenantIdRoute: typeof DeliveryTenantIdRoute
   KitchenLoginRoute: typeof KitchenLoginRoute
+  OrderTokenRoute: typeof OrderTokenRoute
   SalesLoginRoute: typeof SalesLoginRoute
   TTableIdRoute: typeof TTableIdRoute
   TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
@@ -904,6 +983,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SalesLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/order/$token': {
+      id: '/order/$token'
+      path: '/order/$token'
+      fullPath: '/order/$token'
+      preLoaderRoute: typeof OrderTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/kitchen/login': {
       id: '/kitchen/login'
       path: '/kitchen/login'
@@ -923,6 +1009,20 @@ declare module '@tanstack/react-router' {
       path: '/api/sales-account'
       fullPath: '/api/sales-account'
       preLoaderRoute: typeof ApiSalesAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/owner-outlets': {
+      id: '/api/owner-outlets'
+      path: '/api/owner-outlets'
+      fullPath: '/api/owner-outlets'
+      preLoaderRoute: typeof ApiOwnerOutletsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/outlet-users': {
+      id: '/api/outlet-users'
+      path: '/api/outlet-users'
+      fullPath: '/api/outlet-users'
+      preLoaderRoute: typeof ApiOutletUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/kitchen-device': {
@@ -1205,6 +1305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTicketsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/subscriptions': {
+      id: '/_authenticated/admin/subscriptions'
+      path: '/subscriptions'
+      fullPath: '/admin/subscriptions'
+      preLoaderRoute: typeof AuthenticatedAdminSubscriptionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/settings': {
       id: '/_authenticated/admin/settings'
       path: '/settings'
@@ -1219,6 +1326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSalesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/revenue': {
+      id: '/_authenticated/admin/revenue'
+      path: '/revenue'
+      fullPath: '/admin/revenue'
+      preLoaderRoute: typeof AuthenticatedAdminRevenueRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/restaurants': {
       id: '/_authenticated/admin/restaurants'
       path: '/restaurants'
@@ -1226,11 +1340,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRestaurantsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/reports': {
-      id: '/_authenticated/admin/reports'
-      path: '/reports'
-      fullPath: '/admin/reports'
-      preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
+    '/_authenticated/admin/qr-codes': {
+      id: '/_authenticated/admin/qr-codes'
+      path: '/qr-codes'
+      fullPath: '/admin/qr-codes'
+      preLoaderRoute: typeof AuthenticatedAdminQrCodesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/products': {
@@ -1247,6 +1361,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPlansRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/payments': {
+      id: '/_authenticated/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AuthenticatedAdminPaymentsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/navigation': {
       id: '/_authenticated/admin/navigation'
       path: '/navigation'
@@ -1261,20 +1382,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminContactsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/billing': {
-      id: '/_authenticated/admin/billing'
-      path: '/billing'
-      fullPath: '/admin/billing'
-      preLoaderRoute: typeof AuthenticatedAdminBillingRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/audit': {
-      id: '/_authenticated/admin/audit'
-      path: '/audit'
-      fullPath: '/admin/audit'
-      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/announcements': {
       id: '/_authenticated/admin/announcements'
       path: '/announcements'
@@ -1282,39 +1389,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/organizations/': {
+      id: '/_authenticated/admin/organizations/'
+      path: '/organizations'
+      fullPath: '/admin/organizations/'
+      preLoaderRoute: typeof AuthenticatedAdminOrganizationsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/organizations/$orgId': {
+      id: '/_authenticated/admin/organizations/$orgId'
+      path: '/organizations/$orgId'
+      fullPath: '/admin/organizations/$orgId'
+      preLoaderRoute: typeof AuthenticatedAdminOrganizationsOrgIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAnnouncementsRoute: typeof AuthenticatedAdminAnnouncementsRoute
-  AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
-  AuthenticatedAdminBillingRoute: typeof AuthenticatedAdminBillingRoute
   AuthenticatedAdminContactsRoute: typeof AuthenticatedAdminContactsRoute
   AuthenticatedAdminNavigationRoute: typeof AuthenticatedAdminNavigationRoute
+  AuthenticatedAdminPaymentsRoute: typeof AuthenticatedAdminPaymentsRoute
   AuthenticatedAdminPlansRoute: typeof AuthenticatedAdminPlansRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
-  AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
+  AuthenticatedAdminQrCodesRoute: typeof AuthenticatedAdminQrCodesRoute
   AuthenticatedAdminRestaurantsRoute: typeof AuthenticatedAdminRestaurantsRoute
+  AuthenticatedAdminRevenueRoute: typeof AuthenticatedAdminRevenueRoute
   AuthenticatedAdminSalesRoute: typeof AuthenticatedAdminSalesRoute
   AuthenticatedAdminSettingsRoute: typeof AuthenticatedAdminSettingsRoute
+  AuthenticatedAdminSubscriptionsRoute: typeof AuthenticatedAdminSubscriptionsRoute
   AuthenticatedAdminTicketsRoute: typeof AuthenticatedAdminTicketsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminOrganizationsOrgIdRoute: typeof AuthenticatedAdminOrganizationsOrgIdRoute
+  AuthenticatedAdminOrganizationsIndexRoute: typeof AuthenticatedAdminOrganizationsIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAnnouncementsRoute: AuthenticatedAdminAnnouncementsRoute,
-  AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
-  AuthenticatedAdminBillingRoute: AuthenticatedAdminBillingRoute,
   AuthenticatedAdminContactsRoute: AuthenticatedAdminContactsRoute,
   AuthenticatedAdminNavigationRoute: AuthenticatedAdminNavigationRoute,
+  AuthenticatedAdminPaymentsRoute: AuthenticatedAdminPaymentsRoute,
   AuthenticatedAdminPlansRoute: AuthenticatedAdminPlansRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
-  AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
+  AuthenticatedAdminQrCodesRoute: AuthenticatedAdminQrCodesRoute,
   AuthenticatedAdminRestaurantsRoute: AuthenticatedAdminRestaurantsRoute,
+  AuthenticatedAdminRevenueRoute: AuthenticatedAdminRevenueRoute,
   AuthenticatedAdminSalesRoute: AuthenticatedAdminSalesRoute,
   AuthenticatedAdminSettingsRoute: AuthenticatedAdminSettingsRoute,
+  AuthenticatedAdminSubscriptionsRoute: AuthenticatedAdminSubscriptionsRoute,
   AuthenticatedAdminTicketsRoute: AuthenticatedAdminTicketsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminOrganizationsOrgIdRoute:
+    AuthenticatedAdminOrganizationsOrgIdRoute,
+  AuthenticatedAdminOrganizationsIndexRoute:
+    AuthenticatedAdminOrganizationsIndexRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
@@ -1412,9 +1541,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiClearResetFlagRoute: ApiClearResetFlagRoute,
   ApiKitchenAccountRoute: ApiKitchenAccountRoute,
   ApiKitchenDeviceRoute: ApiKitchenDeviceRoute,
+  ApiOutletUsersRoute: ApiOutletUsersRoute,
+  ApiOwnerOutletsRoute: ApiOwnerOutletsRoute,
   ApiSalesAccountRoute: ApiSalesAccountRoute,
   DeliveryTenantIdRoute: DeliveryTenantIdRoute,
   KitchenLoginRoute: KitchenLoginRoute,
+  OrderTokenRoute: OrderTokenRoute,
   SalesLoginRoute: SalesLoginRoute,
   TTableIdRoute: TTableIdRoute,
   TakeawayTenantIdRoute: TakeawayTenantIdRoute,

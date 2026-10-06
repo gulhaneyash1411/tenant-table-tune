@@ -130,11 +130,7 @@ function SalesTeam() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Briefcase className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-semibold">Sales Team</h1>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setCreateOpen(true)}>
           <UserPlus className="h-4 w-4 mr-1" />
           Create Sales User

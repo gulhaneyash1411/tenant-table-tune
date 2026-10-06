@@ -12,10 +12,12 @@ import {
   CreditCard, Rocket, AlertTriangle, LockKeyhole, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
+import { OutletSwitcher } from "@/components/outlet-switcher";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "@/components/sign-out-button";
 import { format } from "date-fns";
 import {
@@ -37,6 +39,13 @@ const SECURE_ROUTES = ALL_ITEMS.filter((i) => i.secure).map((i) => i.to);
 const RELOCK_ON_TAB_HIDE = true;
 
 const isActive = isActivePath;
+
+// Outlet managers see only: Dashboard, Live orders, Kitchen Display, Order history,
+// Menu, Tables & QR, Customers, WhatsApp, Reviews, and Subscription.
+// They cannot see: Money (revenue/expenses/analytics), Business (staff/settings/subscription),
+// or the Outlets management page.
+const MANAGER_HIDDEN_KEYS = ["revenue", "expenses", "analytics", "staff", "settings"];
+const MANAGER_BLOCKED_PATHS = ["/app/franchise"];
 
 // Which secure page (if any) the current path belongs to
 const getSecureRoute = (pathname: string) =>
@@ -60,15 +69,23 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { isSuperAdmin, tenant, loading, setTenant, isKitchenUser, isSalesUser } = useUserContext(user);
+  const { isSuperAdmin, tenant, outlets, organization, isOutletManager, loading, setTenant, isKitchenUser, isSalesUser } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
 
   // What the super admin has switched on for this restaurant.
   const {
-    sections: visibleSections,
+    sections: ownerVisibleSections,
     isVisible,
     loading: navLoading,
   } = useNavConfig(tenant?.id);
+
+  // Outlet Managers run the outlet but never the business: billing and owner
+  // settings are hidden here and also blocked by URL below (and by RLS server-side).
+  const visibleSections = isOutletManager
+    ? ownerVisibleSections
+        .map((s) => ({ ...s, items: s.items.filter((i) => !MANAGER_HIDDEN_KEYS.includes(i.key)) }))
+        .filter((s) => s.items.length > 0)
+    : ownerVisibleSections;
 
   // Password lock for secure pages
   // Only ONE page is unlocked at a time: the page where the password was entered.
@@ -106,17 +123,75 @@ function AppLayout() {
   useEffect(() => {
     if (!tenant) { setSub(null); return; }
     let cancelled = false;
-    (async () => {
-      const { data: s } = await supabase
-        .from("subscriptions")
-        .select("*, plan:subscription_plans(name)")
-        .eq("tenant_id", tenant.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!cancelled) setSub(s);
-    })();
-    return () => { cancelled = true; };
+    const tenantId = tenant.id;
+
+    async function loadSub() {
+      // Query subscriptions with all non-canceled statuses
+      const [{ data: subs }, { data: invoices }] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .neq("status", "canceled")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("invoices")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("issued_at", { ascending: false }),
+      ]);
+
+      if (cancelled) return;
+
+      // Most recent subscription (any non-canceled status)
+      const latestSub = (subs || [])[0];
+      // Most recent paid or pending invoice
+      const latestInvoice = (invoices || []).find((inv) =>
+        inv.status === "paid" || inv.status === "pending_approval"
+      ) || (invoices || [])[0];
+
+      // Prefer subscription if exists; otherwise show pending invoice
+      if (latestSub) {
+        const { data: plan } = await supabase
+          .from("subscription_plans")
+          .select("name")
+          .eq("id", latestSub.plan_id)
+          .maybeSingle();
+        setSub(plan ? { plan } : { plan: { name: "Plan" } });
+      } else if (latestInvoice?.status === "pending_approval") {
+        setSub({ plan: { name: `${latestInvoice.plan} (pending approval)` } });
+      } else {
+        setSub(null);
+      }
+    }
+
+    loadSub();
+
+    // Subscribe to real-time changes in subscriptions and invoices
+    const subsSub = supabase
+      .channel(`subscriptions:${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `tenant_id=eq.${tenantId}` }, () => loadSub())
+      .subscribe();
+
+    const invSub = supabase
+      .channel(`invoices:${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices", filter: `tenant_id=eq.${tenantId}` }, () => loadSub())
+      .subscribe();
+
+    // Fallback: re-fetch every 3 seconds to ensure subscription status is current
+    const pollInterval = setInterval(() => loadSub(), 3000);
+
+    // Also refresh when window comes back to focus
+    const handleFocus = () => loadSub();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      cancelled = true;
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", handleFocus);
+      supabase.removeChannel(subsSub);
+      supabase.removeChannel(invSub);
+    };
   }, [tenant?.id]);
 
   const status =
@@ -143,7 +218,8 @@ function AppLayout() {
   if (!tenant?.city) missing.push("city");
   if (!tenant?.owner_phone) missing.push("owner phone");
   if (!tenant?.opening_time || !tenant?.closing_time) missing.push("opening hours");
-  const profileIncomplete = missing.length > 0;
+  // The profile belongs to the owner; a manager can't open Settings to fix it.
+  const profileIncomplete = missing.length > 0 && !isOutletManager;
   const onSettings = pathname === "/app/settings";
   const locked = profileIncomplete && !onSettings;
 
@@ -152,10 +228,22 @@ function AppLayout() {
   const registryItem = findItemByPath(pathname);
   const parentSection = registryItem ? sectionOfItem(registryItem.key) : null;
   const pageDisabled =
-    !!registryItem &&
-    (!isVisible(registryItem.key) || (parentSection ? !isVisible(parentSection.key) : false));
+    (isOutletManager && MANAGER_BLOCKED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) ||
+    (!!registryItem &&
+      (!isVisible(registryItem.key) || (parentSection ? !isVisible(parentSection.key) : false)));
 
-  const passwordLocked = !locked && !pageDisabled && onSecurePage && !secureUnlocked;
+  // A newly added outlet is a draft until its subscription is paid: only the
+  // payment page and the outlet list are reachable.
+  const outletStatus = (tenant as (Tenant & { outlet_status?: string }) | null)?.outlet_status ?? "ACTIVE";
+  const outletInactive = outletStatus !== "ACTIVE";
+  const onPaymentPage = pathname === "/app/subscription" || pathname === "/app/franchise";
+  const outletBlocked = outletInactive && !onPaymentPage;
+
+  // A manager's Settings page is read-only, so it doesn't need the owner's PIN;
+  // the money pages (revenue, expenses, analytics, staff) still do.
+  const managerReadOnlySettings = isOutletManager && pathname === "/app/settings";
+  const passwordLocked =
+    !locked && !pageDisabled && !outletBlocked && onSecurePage && !secureUnlocked && !managerReadOnlySettings;
 
   const visibleItems = visibleSections.flatMap((s) => s.items);
   const current = visibleItems.find((it) => isActive(pathname, it)) ?? registryItem ?? null;
@@ -164,7 +252,7 @@ function AppLayout() {
     .filter(Boolean) as NavItem[];
 
   return (
-    <TenantContextProvider value={{ tenant, setTenant }}>
+    <TenantContextProvider value={{ tenant, setTenant, outlets, organization, isOutletManager }}>
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
           <Sidebar
@@ -194,6 +282,11 @@ function AppLayout() {
                 )}
               </div>
             </SidebarHeader>
+            {outlets.length > 1 && (
+              <div className="shrink-0 border-b border-sidebar-border px-3 py-2 group-data-[collapsible=icon]:hidden">
+                <OutletSwitcher tenant={tenant} outlets={outlets} organization={organization} canManage={!isOutletManager} />
+              </div>
+            )}
 
             {/* Still scrolls; the scrollbar itself is hidden. */}
             {/* overflow-auto in icon mode too: the component's default turns
@@ -239,10 +332,15 @@ function AppLayout() {
           <div className="flex min-w-0 flex-1 flex-col">
             <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/80 px-3 backdrop-blur md:px-4">
               <SidebarTrigger />
-              <h1 className="truncate text-sm font-medium">
-                <span className="md:hidden">{tenant?.name}</span>
-                <span className="hidden md:inline">{current?.label ?? "Dashboard"}</span>
-              </h1>
+              <div className="flex items-center gap-2 truncate">
+                <h1 className="truncate text-sm font-medium">
+                  <span className="md:hidden">{tenant?.name}</span>
+                  <span className="hidden md:inline">{current?.label ?? "Dashboard"}</span>
+                </h1>
+                {isOutletManager && (
+                  <Badge variant="secondary" className="shrink-0 md:ml-2">Manager</Badge>
+                )}
+              </div>
               <div className="ml-auto flex items-center gap-2">
                 {onSecurePage && secureUnlocked && !pageDisabled && (
                   <Button
@@ -254,7 +352,7 @@ function AppLayout() {
                     <LockIcon className="mr-1 h-3.5 w-3.5" />Lock
                   </Button>
                 )}
-                <Link
+                {!isOutletManager && <Link
                   to="/app/subscription"
                   className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs hover:bg-accent/40 md:flex"
                 >
@@ -265,7 +363,7 @@ function AppLayout() {
                       · renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}
                     </span>
                   )}
-                </Link>
+                </Link>}
                 <NotificationBell />
                 <SignOutButton />
               </div>
@@ -283,6 +381,23 @@ function AppLayout() {
               )}
               {pageDisabled ? (
                 <PageUnavailable label={registryItem?.label} />
+              ) : outletBlocked ? (
+                <div className="grid min-h-[50vh] place-items-center">
+                  <div className="max-w-md text-center">
+                    <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-warning/10 text-warning">
+                      <CreditCard className="h-6 w-6" />
+                    </div>
+                    <h1 className="text-xl font-semibold">
+                      {outletStatus === "PENDING_PAYMENT" ? `Activate ${tenant?.name}` : `${tenant?.name} is not active`}
+                    </h1>
+                    <p className="mt-2 text-muted-foreground">
+                      {outletStatus === "PENDING_PAYMENT"
+                        ? "This outlet needs an active subscription before it can take orders. Choose a plan and pay to activate it."
+                        : "This outlet's subscription is not active. Renew it to continue receiving orders."}
+                    </p>
+                    <Link to="/app/subscription"><Button className="mt-6">Go to Subscription</Button></Link>
+                  </div>
+                </div>
               ) : locked ? (
                 <div className="grid min-h-[50vh] place-items-center">
                   <div className="max-w-md text-center">
@@ -301,6 +416,7 @@ function AppLayout() {
                   key={pathname}
                   tenantId={tenant?.id ?? ""}
                   email={user?.email ?? ""}
+                  isManager={isOutletManager}
                   title={`${current?.label ?? "This section"} is locked`}
                   onUnlock={() => setUnlockedRoute(secureRoute)}
                 />
@@ -415,6 +531,8 @@ type Props = {
   email: string;
   onUnlock: () => void;
   title?: string;
+  /** Outlet Managers never fall back to their account password: the owner must set the PIN. */
+  isManager?: boolean;
 };
 
 type VerifyResult = { ok: boolean; attempts_left?: number; retry_after?: number; not_set?: boolean };
@@ -424,7 +542,7 @@ type VerifyResult = { ok: boolean; attempts_left?: number; retry_after?: number;
  * with its own attempt limit that grows on repeated lockouts). Until a PIN is set,
  * the account login password is accepted instead.
  */
-function PasswordGate({ tenantId, email, onUnlock, title = "This section is locked" }: Props) {
+function PasswordGate({ tenantId, email, onUnlock, title = "This section is locked", isManager = false }: Props) {
   const [hasSection, setHasSection] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -534,6 +652,25 @@ function PasswordGate({ tenantId, email, onUnlock, title = "This section is lock
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-4">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading" />
+      </div>
+    );
+  }
+
+  // No PIN yet: an owner may use their account password and then set a PIN, but a
+  // manager can't unlock at all — the 4-digit PIN is created by the owner.
+  if (accountMode && isManager) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-4">
+        <Card className="w-full max-w-sm space-y-3 p-6 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <LockIcon className="h-6 w-6 text-primary" aria-hidden="true" />
+          </div>
+          <h1 className="text-xl font-semibold">{title}</h1>
+          <p className="text-sm text-muted-foreground">
+            The owner hasn't set a 4-digit PIN for this outlet yet. Ask the owner to create it in Settings → Lock PIN,
+            then enter it here.
+          </p>
+        </Card>
       </div>
     );
   }

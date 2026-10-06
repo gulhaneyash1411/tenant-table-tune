@@ -54,7 +54,6 @@ function ContactMessages() {
     <div className="space-y-4 max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Contact messages</h1>
           <p className="text-sm text-muted-foreground">Sent from the "Send us a message" form on the website.</p>
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { money } from "@/lib/format";
 import { LineChart as LineChartIcon } from "lucide-react";
@@ -9,17 +10,19 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, BarChart, 
 export const Route = createFileRoute("/_authenticated/app/analytics")({ component: AnalyticsPage });
 
 function AnalyticsPage() {
+  const { tenant } = useTenantContext();
   const [orders, setOrders] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   useEffect(() => { (async () => {
+    if (!tenant) return;
     const since = new Date(Date.now() - 29 * 86400000).toISOString();
-    const { data: o } = await supabase.from("orders").select("*").gte("created_at", since).order("created_at", { ascending: true });
+    const { data: o } = await supabase.from("orders").select("*").eq("tenant_id", tenant.id).gte("created_at", since).order("created_at", { ascending: true });
     setOrders(o || []);
     if (o && o.length) {
       const { data: oi } = await supabase.from("order_items").select("name,quantity,price,order_id").in("order_id", o.map(x=>x.id));
       setItems(oi || []);
     }
-  })(); }, []);
+  })(); }, [tenant]);
 
   const daily = useMemo(() => {
     const map: Record<string, { date: string; orders: number; revenue: number }> = {};
@@ -40,7 +43,7 @@ function AnalyticsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2"><LineChartIcon className="h-6 w-6"/><h1 className="text-2xl font-semibold">Analytics</h1></div>
+      <div className="flex items-center gap-2"><LineChartIcon className="h-6 w-6"/></div>
       <div className="grid gap-3 md:grid-cols-4">
         <Card className="p-4"><div className="text-xs text-muted-foreground">Orders (30d)</div><div className="text-2xl font-semibold">{orders.length}</div></Card>
         <Card className="p-4"><div className="text-xs text-muted-foreground">Revenue (30d)</div><div className="text-2xl font-semibold">{money(totalRevenue)}</div></Card>

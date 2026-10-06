@@ -8,7 +8,11 @@ import {
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package, Briefcase, SlidersHorizontal, Inbox } from "lucide-react";import { NotificationBell } from "@/components/notification-bell";
+import {
+  LayoutDashboard, Building2, CreditCard, LifeBuoy, Megaphone, Settings, Package,
+  Briefcase, SlidersHorizontal, Inbox, Layers, Users, CalendarClock,
+  Wallet, TrendingUp,
+} from "lucide-react";import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminLayout });
@@ -21,14 +25,17 @@ const SECTIONS = [
     items: [
       { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { to: "/admin/restaurants", label: "Restaurants", icon: Building2 },
+      { to: "/admin/organizations", label: "Organizations", icon: Layers },
       { to: "/admin/sales", label: "Sales Team", icon: Briefcase },
     ],
   },
   {
     label: "Revenue",
     items: [
+      { to: "/admin/subscriptions", label: "Subscriptions", icon: CalendarClock },
+      { to: "/admin/payments", label: "Payments", icon: Wallet },
+      { to: "/admin/revenue", label: "Billing & revenue", icon: TrendingUp },
       { to: "/admin/plans", label: "Plans", icon: CreditCard },
-      { to: "/admin/billing", label: "Billing", icon: Receipt },
       { to: "/admin/products", label: "Products", icon: Package },
     ],
   },
@@ -45,8 +52,6 @@ const SECTIONS = [
     items: [
 
       { to: "/admin/navigation", label: "Owner navigation", icon: SlidersHorizontal }, // Controls what restaurant owners see in /app — see admin.navigation.tsx.
-      { to: "/admin/audit", label: "Audit logs", icon: Activity },
-      { to: "/admin/reports", label: "Reports", icon: FileText },
       { to: "/admin/settings", label: "Platform settings", icon: Settings },
     ],
   },

@@ -86,7 +86,7 @@ function priceOf(row: any): number {
 // Shared data loading
 // ---------------------------------------------------------------------------
 
-function useMenu(open: boolean) {
+function useMenu(open: boolean, tenantId?: string) {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [tables, setTables] = useState<{ id: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,6 +97,7 @@ function useMenu(open: boolean) {
       setLoading(true);
 
       let q = (supabase as any).from(MENU_RELATION).select("*");
+      if (tenantId) q = q.eq("tenant_id", tenantId);
       if (AVAILABILITY_COLUMN) q = q.eq(AVAILABILITY_COLUMN, true);
       const { data: menuRows, error: menuErr } = await q;
 
@@ -116,9 +117,9 @@ function useMenu(open: boolean) {
       // Reported rather than swallowed: an empty table list leaves dine-in
       // orders with no table_id, and the floor plan then cannot mark anything
       // busy — a failure that is invisible on this screen.
-      const { data: tableRows, error: tableErr } = await (supabase as any)
-        .from(TABLES_RELATION)
-        .select("*");
+      let tq = (supabase as any).from(TABLES_RELATION).select("*");
+      if (tenantId) tq = tq.eq("tenant_id", tenantId);
+      const { data: tableRows, error: tableErr } = await tq;
       if (tableErr) {
         toast.error(`Tables could not be loaded from "${TABLES_RELATION}": ${tableErr.message}`);
       }
@@ -135,7 +136,7 @@ function useMenu(open: boolean) {
 
       setLoading(false);
     })();
-  }, [open, menu.length]);
+  }, [open, menu.length, tenantId]);
 
   return { menu, tables, loading };
 }
@@ -305,18 +306,9 @@ function itemRows(order: any, lines: Line[]) {
   })) as any;
 }
 
-// Sequential order numbers. If your schema already generates these (a sequence,
-// or a trigger on orders), drop this and let the DB do it — two staff creating
-// an order in the same second can collide here.
-async function nextOrderNumber(): Promise<number> {
-  const { data } = await supabase
-    .from("orders")
-    .select("order_number")
-    .order("order_number", { ascending: false })
-    .limit(1);
-  const last = Number((data as any)?.[0]?.order_number ?? 0);
-  return (Number.isFinite(last) ? last : 0) + 1;
-}
+// Order numbers are now generated per-tenant by the database trigger.
+// The trigger calls get_next_order_number(p_tenant_id UUID) which safely handles
+// concurrent order creation with advisory locking.
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -466,11 +458,11 @@ async function appendToOrder(orderId: string, lines: Line[]): Promise<boolean> {
 // New order
 // ---------------------------------------------------------------------------
 
-export function NewOrderDialog({ onSaved }: { onSaved: () => void }) {
+export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { menu, tables, loading } = useMenu(open);
+  const { menu, tables, loading } = useMenu(open, tenantId);
   const { cart, lines, total, bump, clear } = useCart(menu);
 
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
@@ -559,7 +551,6 @@ export function NewOrderDialog({ onSaved }: { onSaved: () => void }) {
 
     const payload: any = {
       tenant_id: tenantId,
-      order_number: await nextOrderNumber(),
       customer_name: customerName.trim() || "Walk-in",
       customer_phone: phone.trim() || null,
       order_type: orderType,
@@ -772,7 +763,7 @@ export function AddItemsDialog({ order, onSaved }: { order: any; onSaved: () => 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { menu, loading } = useMenu(open);
+  const { menu, loading } = useMenu(open, order?.tenant_id);
   const { cart, lines, total, bump, clear } = useCart(menu);
 
   async function submit() {

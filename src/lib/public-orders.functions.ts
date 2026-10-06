@@ -82,6 +82,14 @@ export const getOrdersByPhone = createServerFn({ method: "GET" })
     const rows = orders ?? [];
     const tableIds = [...new Set(rows.map((o: any) => o.table_id).filter(Boolean))];
     let tableMap: Record<string, string> = {};
+    // "Order more" re-opens the table menu, which is addressed by the table's
+    // QR token — newer tables have no id-based URL.
+    const tokenMap: Record<string, string> = {};
+    if (tableIds.length) {
+      const { data: qrs } = await (supabaseAdmin as any)
+        .from("qr_codes").select("table_id,token").in("table_id", tableIds).eq("status", "ACTIVE");
+      for (const q of (qrs ?? []) as any[]) tokenMap[q.table_id] = q.token;
+    }
     if (tableIds.length) {
       const { data: tables } = await supabaseAdmin
         .from("restaurant_tables")
@@ -94,6 +102,7 @@ export const getOrdersByPhone = createServerFn({ method: "GET" })
     return rows.map((o: any) => ({
       ...o,
       table_label: o.table_id ? (tableMap[o.table_id] ?? null) : null,
+      table_qr_token: o.table_id ? (tokenMap[o.table_id] ?? null) : null,
     }));
   });
 

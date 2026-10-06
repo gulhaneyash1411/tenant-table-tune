@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1328,7 +1329,7 @@ function StaffPage() {
 
   async function load() {
     const { data: u } = await supabase.auth.getUser();
-    const { data: t } = await (supabase as any).from("tenants").select("*").eq("owner_id", u.user!.id).maybeSingle();
+    const t = await fetchCurrentOutlet(u.user!.id);
     if (!t) return;
     setTenantId(t.id);
     setBusiness({

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,10 +49,10 @@ function ExpensesPage() {
 
   async function load() {
     const { data: u } = await supabase.auth.getUser();
-    const { data: t } = await supabase.from("tenants").select("id").eq("owner_id", u.user!.id).maybeSingle();
+    const t = await fetchCurrentOutlet<{ id: string }>(u.user!.id, "id");
     if (!t) return;
     setTenantId(t.id);
-    const { data } = await (supabase as any).from("expenses").select("*").order("incurred_on", { ascending: false }).limit(200);
+    const { data } = await (supabase as any).from("expenses").select("*").eq("tenant_id", t.id).order("incurred_on", { ascending: false }).limit(200);
     setRows(data || []);
   }
   useEffect(() => { load(); }, []);
@@ -93,8 +94,7 @@ function ExpensesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2"><Wallet className="h-6 w-6" /><h1 className="text-2xl font-semibold">Expenses</h1></div>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />Add expense</Button>
       </div>
       <Card className="p-3 flex flex-wrap items-end gap-3">

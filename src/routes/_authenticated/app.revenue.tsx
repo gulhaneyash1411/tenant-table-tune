@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +65,7 @@ type DayBucket = {
 };
 
 function Revenue() {
+  const { tenant } = useTenantContext();
   const [from, setFrom] = useState(iso(subDays(new Date(), 29)));
   const [to, setTo] = useState(iso(new Date()));
   const [rows, setRows] = useState<any[]>([]);
@@ -76,7 +78,7 @@ function Revenue() {
   const invalidRange = from > to;
 
   useEffect(() => {
-    if (invalidRange) return;
+    if (invalidRange || !tenant) return;
 
     // Changing the dates twice quickly used to leave whichever query finished
     // last on screen, even if it was the older one. This flag drops any reply
@@ -92,6 +94,7 @@ function Revenue() {
       supabase
         .from("orders")
         .select("created_at,total,payment_status,order_type")
+        .eq("tenant_id", tenant.id)
         .gte("created_at", start)
         .lte("created_at", end)
         .order("created_at"),
@@ -102,6 +105,7 @@ function Revenue() {
       supabase
         .from("event_bookings")
         .select("starts_at,amount,amount_paid,status,event_type,contact_name,guest_count")
+        .eq("tenant_id", tenant.id)
         .in("status", EARNING_EVENT_STATUSES)
         .gte("starts_at", start)
         .lte("starts_at", end)
@@ -122,7 +126,7 @@ function Revenue() {
     return () => {
       current = false;
     };
-  }, [from, to, invalidRange]);
+  }, [from, to, invalidRange, tenant]);
 
   const byDay = useMemo(() => {
     const m: Record<string, DayBucket> = {};
@@ -201,7 +205,6 @@ function Revenue() {
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
-          <h1 className="text-2xl font-semibold tracking-tight">Revenue</h1>
         </div>
         <p className="text-sm text-muted-foreground">
           {format(new Date(from), "PP")} – {format(new Date(to), "PP")} · {days}{" "}

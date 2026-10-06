@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import {
   getWhatsAppSettings,
   saveWhatsAppSettings,
@@ -62,7 +63,6 @@ function WhatsAppPage() {
           <MessageCircle className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold">WhatsApp campaigns</h1>
           <p className="text-sm text-muted-foreground">
             Send offers, festival wishes and win-back messages straight to your customers.
           </p>
@@ -97,7 +97,7 @@ function useTenantId() {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
-      const { data } = await supabase.from("tenants").select("id").eq("owner_id", u.user.id).maybeSingle();
+      const data = await fetchCurrentOutlet<{ id: string }>(u.user.id, "id");
       setTenantId(data?.id ?? null);
     })();
   }, []);

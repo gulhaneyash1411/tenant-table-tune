@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
+import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,6 +151,10 @@ function priceOf(plan: any, cycle: Cycle) {
 
 function SubscriptionPage() {
   const trialDays = useTrialDays();
+  // An Outlet Manager can see the plan, its status and the payment history, but
+  // only the owner can buy or change a plan (invoice writes are owner-only in the DB too).
+  const { isOutletManager } = useTenantContext();
+  const canBuy = !isOutletManager;
   const [tenant, setTenant] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
@@ -164,7 +170,7 @@ function SubscriptionPage() {
   async function load() {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const { data: t } = await supabase.from("tenants").select("*").eq("owner_id", u.user.id).maybeSingle();
+    const t = await fetchCurrentOutlet(u.user.id);
     setTenant(t);
     if (!t) return;
 
@@ -224,6 +230,7 @@ function SubscriptionPage() {
 
   function planButton(p: any): { label: string; disabled: boolean } {
     const isCurrent = p.id === currentPlanId;
+    if (!canBuy) return { label: isCurrent && activeNow ? "Current plan" : "Owner only", disabled: true };
     if (p.id === requestedPlanId) {
       if (scheduledSub) return { label: "Scheduled", disabled: true };
       if (queuedPending) return { label: "Next plan", disabled: true };
@@ -237,6 +244,7 @@ function SubscriptionPage() {
   }
 
   function openCheckout(plan: any) {
+    if (!canBuy) return toast.error("Only the owner can buy or change the subscription");
     if (locked) return toast.error("You already have a next plan selected");
     const amount = priceOf(plan, cycle);
     if (amount <= 0) return toast.error("This plan has no price set. Contact support.");
@@ -303,11 +311,7 @@ function SubscriptionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <CreditCard className="h-6 w-6" />
-          <h1 className="text-2xl font-semibold">Subscription</h1>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
           <History className="h-4 w-4 mr-1" />
           Payment history
@@ -316,6 +320,12 @@ function SubscriptionPage() {
           )}
         </Button>
       </div>
+
+      {!canBuy && (
+        <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+          View only. Only the owner can buy, renew or change the subscription.
+        </div>
+      )}
 
       {/* No active plan: request starts as soon as it is approved */}
       {immediatePending && (
