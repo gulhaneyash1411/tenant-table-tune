@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext, TenantContextProvider, type Tenant } from "@/hooks/use-session";
-import { BrandedLoader } from "@/components/branded-loader";
 import {
   SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
@@ -205,14 +204,13 @@ function AppLayout() {
     }
   }, [loading, tenant, navigate]);
 
-  if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
+  if (status === "loading") return null;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
-  if ((tenant as any)?.must_reset_password) return <BrandedLoader label="Redirecting…" />;
+  if ((tenant as any)?.must_reset_password) return null;
   // Wait for the visibility rules before painting a sidebar we may have to
   // redraw a frame later.
-  if (navLoading) return <BrandedLoader label="Loading your dashboard…" />;
-
+  if (navLoading) return null;
   const missing: string[] = [];
   if (!tenant?.address) missing.push("address");
   if (!tenant?.city) missing.push("city");

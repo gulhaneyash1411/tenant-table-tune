@@ -60,7 +60,7 @@ async function handle(request: Request) {
     .eq("owner_id", caller.id)
     .eq("organization_id", tenant.organization_id);
   if ((count ?? 0) <= 1) {
-    return bad("This is your only outlet. To close the whole business, contact PlateOS support.", 409);
+    return bad("This is your only outlet. To close the whole business, contact DineEatz support.", 409);
   }
 
   // Collect tenant-scoped logins and managers before the row goes.

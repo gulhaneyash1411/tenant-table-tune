@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useUserContext } from "@/hooks/use-session";
-import { BrandedLoader } from "@/components/branded-loader";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Briefcase } from "lucide-react";
 
@@ -37,7 +36,7 @@ function SalesPortal() {
     if (!isSalesUser) navigate({ to: "/auth" });
   }, [loading, isSuperAdmin, tenant, isKitchenUser, isSalesUser, navigate]);
 
-  if (loading || !isSalesUser) return <BrandedLoader label="Loading…" />;
+  if (loading || !isSalesUser) return null;
 
   return (
     <div className="min-h-screen bg-background">

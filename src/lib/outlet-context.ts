@@ -16,7 +16,7 @@ export type OutletStatus = "PENDING_PAYMENT" | "ACTIVE" | "SUSPENDED" | "CANCELL
 /** Columns added by 20261005120000_organizations_and_outlets.sql (not yet in the generated types). */
 export type OutletFields = { organization_id: string | null; outlet_status: OutletStatus };
 
-const STORAGE_KEY = "plateos.selectedOutlet";
+const STORAGE_KEY = "dineeatz.selectedOutlet";
 const HEADER = "x-outlet-id";
 
 export function getSelectedOutletId(): string | null {

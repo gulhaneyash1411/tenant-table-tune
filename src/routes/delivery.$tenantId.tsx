@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, Bike, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { BrandedLoader } from "@/components/branded-loader";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
 
@@ -24,7 +23,7 @@ async function loadDeliveryData(tenantId: string): Promise<{ tenant: any; cats: 
 }
 
 function DeliveryPending() {
-  return <BrandedLoader label="Loading Menu..." />;
+  return null;
 }
 
 function DeliveryError() {
@@ -271,7 +270,6 @@ function HomeDeliveryOrder() {
     }
   }
 
-  if (placing) return <BrandedLoader tenant={tenant} label="Placing your order…" />;
   if (!tenant) return (
     <div className="min-h-screen grid place-items-center p-6 text-center">
       <div>

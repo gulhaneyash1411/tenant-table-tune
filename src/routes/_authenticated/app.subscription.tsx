@@ -41,7 +41,7 @@ const FREE_TRIAL_LABEL = "Free trial";
 const FREE_TRIAL_STATUS = INVOICE_STATUS.FREE_TRIAL;
 const PENDING_APPROVAL = INVOICE_STATUS.PENDING_APPROVAL;
 const REJECTED = INVOICE_STATUS.REJECTED;
-const PLATFORM_NAME = "PlatesOS";
+const PLATFORM_NAME = "DineEatz";
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 const STATUS_META: Record<string, { label: string; className: string; printClass: string }> = {
@@ -79,7 +79,7 @@ function downloadInvoice(r: any, tenantName: string, trialDays: number) {
   const expiryLabel = expiry ? format(expiry, "PP") : "—";
   const meta = statusMeta(r.status);
   const paymentLabel = r.payment_method === PAYMENT_METHOD_UPI ? `UPI${r.utr ? ` (UTR ${r.utr})` : ""}` : "—";
-  const fileTitle = `Invoice_PlateOs_${invoiceNo}`;
+  const fileTitle = `Invoice_DineEatz_${invoiceNo}`;
 
   const html = `
     <!DOCTYPE html>
@@ -90,9 +90,7 @@ function downloadInvoice(r: any, tenantName: string, trialDays: number) {
         <style>
           body { font-family: -apple-system, Arial, sans-serif; padding: 40px; color: #111; }
           .header { display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 16px; }
-          .header .brand-name { font-size: 21px; font-weight: 800; letter-spacing: 0.2px; }
-          .header .brand-name .plates { color: #111827; }
-          .header .brand-name .os { color: #1E6FF2; }
+          .header img { height: 40px; width: auto; }
           h1 { font-size: 18px; margin: 0 0 4px; }
           .muted { color: #666; font-size: 13px; }
           table { width: 100%; border-collapse: collapse; margin-top: 24px; }
@@ -111,7 +109,7 @@ function downloadInvoice(r: any, tenantName: string, trialDays: number) {
       <body>
         <div class="header">
           ${INVOICE_LOGO_SVG}
-          <div class="brand-name"><span class="plates">Plates</span><span class="os">OS</span></div>
+          <img src="${window.location.origin}/brand/dineeatz-logo.png?v=2" alt="${PLATFORM_NAME}" />
         </div>
         <h1>Invoice ${invoiceNo}</h1>
         <div class="muted">Issued ${issuedDate}</div>

@@ -12,17 +12,17 @@ import {
 } from "@/lib/site-settings";
 // import platesos_teaser from "public/videos/platesos_teaser.mp4"
 
-export const Route = createFileRoute("/")({ loader: () => loadSiteSettings(), component: PlatesOS });
+export const Route = createFileRoute("/")({ loader: () => loadSiteSettings(), component: DineEatz });
 
 // ====================
-// PLATESOS CONFIG
+// DINEEATZ CONFIG
 // ====================
-const BRAND = { name: "PlatesOS", primary: "#0B7BFF", dark: "#0B1B3F", soft: "#EAF3FF" };
+const BRAND = { name: "DineEatz", primary: "#0B7BFF", dark: "#0B1B3F", soft: "#EAF3FF" };
 
 const contactHours = "Mon – Fri, 9:00 AM – 6:00 PM";
 
 // Default text for the floating WhatsApp chat
-const whatsappChatMessage = "Hi PlatesOS! \nI'd like to know more about your restaurant management platform.";
+const whatsappChatMessage = "Hi DineEatz! \nI'd like to know more about your restaurant management platform.";
 
 type Site = SiteSettings & {
   /** WhatsApp chat link carrying `msg`, or null when WhatsApp isn't configured. */
@@ -63,9 +63,9 @@ const AGENT_STYLE: AgentStyle = "guided";
 
 // Quick replies (used by the "chat" style)
 const agentQuickReplies = [
-  { label: "💰 Pricing", message: "Hi PlatesOS! Can you share your pricing plans?" },
-  { label: "📅 Book a demo", message: "Hi PlatesOS! I'd like to book a demo." },
-  { label: "📱 QR ordering", message: "Hi PlatesOS! Tell me more about QR table ordering." },
+  { label: "💰 Pricing", message: "Hi DineEatz! Can you share your pricing plans?" },
+  { label: "📅 Book a demo", message: "Hi DineEatz! I'd like to book a demo." },
+  { label: "📱 QR ordering", message: "Hi DineEatz! Tell me more about QR table ordering." },
 ];
 
 // Demo video: a YouTube link or a file path (e.g. "/videos/platesos-demo.mp4" in /public)
@@ -113,8 +113,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     // features
     "Everything you need": "आपकी हर ज़रूरत",
     "Powerful features for": "आपके रेस्टोरेंट के लिए", "your restaurant": "दमदार फीचर्स",
-    "From online orders to detailed reports, PlatesOS gives you the tools to run your restaurant smoothly and efficiently.":
-      "ऑनलाइन ऑर्डर से लेकर विस्तृत रिपोर्ट तक, PlatesOS आपको रेस्टोरेंट आसानी से चलाने के सभी टूल देता है।",
+    "From online orders to detailed reports, DineEatz gives you the tools to run your restaurant smoothly and efficiently.":
+      "ऑनलाइन ऑर्डर से लेकर विस्तृत रिपोर्ट तक, DineEatz आपको रेस्टोरेंट आसानी से चलाने के सभी टूल देता है।",
     "Let customers order from anywhere.": "ग्राहक कहीं से भी ऑर्डर कर सकें।",
     "Delivery & takeaway": "डिलीवरी और टेकअवे",
     "Unique QR codes for every table.": "हर टेबल के लिए अलग QR कोड।", "Scan · Order · Pay": "स्कैन · ऑर्डर · पेमेंट",
@@ -128,8 +128,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     // products
     "On every table": "हर टेबल पर",
     "Premium QR products for": "आपकी टेबल के लिए", "your tables": "प्रीमियम QR प्रोडक्ट्स",
-    "Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your PlatesOS menu.":
-      "एक बार प्रिंट, आपके रेस्टोरेंट की ब्रांडिंग और रोज़ के इस्तेमाल लायक मज़बूती। हर प्रोडक्ट सीधे आपके PlatesOS मेन्यू से जुड़ता है।",
+    "Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your DineEatz menu.":
+      "एक बार प्रिंट, आपके रेस्टोरेंट की ब्रांडिंग और रोज़ के इस्तेमाल लायक मज़बूती। हर प्रोडक्ट सीधे आपके DineEatz मेन्यू से जुड़ता है।",
     "Condiment Holder QR": "कंडिमेंट होल्डर QR", "Best seller": "सबसे लोकप्रिय",
     "One caddy for spoons, forks, salt, pepper and napkins — with your ordering QR printed on the front face.":
       "चम्मच, कांटे, नमक, काली मिर्च और नैपकिन के लिए एक ही स्टैंड — सामने की तरफ़ आपका ऑर्डरिंग QR प्रिंटेड।",
@@ -144,7 +144,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Product images are indicative mockups — hover or tap the arrows to see all four sides. Custom sizes, colours and branding available on request.":
       "प्रोडक्ट इमेज सांकेतिक मॉकअप हैं — चारों तरफ़ देखने के लिए ऐरो पर टैप करें। कस्टम साइज़, रंग और ब्रांडिंग अनुरोध पर उपलब्ध।",
     // why
-    "Why choose PlatesOS": "PlatesOS ही क्यों",
+    "Why choose DineEatz": "DineEatz ही क्यों",
     "Built for modern": "आधुनिक रेस्टोरेंट", "restaurants": "के लिए बना",
     "Simple to use, powerful behind the scenes, and designed to help you serve better, manage easier, and grow faster.":
       "इस्तेमाल में आसान, अंदर से दमदार — बेहतर सर्विस, आसान मैनेजमेंट और तेज़ ग्रोथ के लिए।",
@@ -185,8 +185,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Set up in minutes. No commission. Cancel anytime.": "मिनटों में सेटअप। कोई कमीशन नहीं। कभी भी बंद करें।",
     "Privacy Policy": "प्राइवेसी पॉलिसी", "Terms of Service": "सेवा की शर्तें", "All rights reserved.": "सर्वाधिकार सुरक्षित।",
     // agent
-    "PlatesOS Agent": "PlatesOS एजेंट", "Online · replies fast": "ऑनलाइन · जल्दी जवाब", "typing…": "टाइप कर रहे हैं…",
-    "Hi! I'm the PlatesOS Agent 👋": "नमस्ते! मैं PlatesOS एजेंट हूँ 👋",
+    "DineEatz Agent": "DineEatz एजेंट", "Online · replies fast": "ऑनलाइन · जल्दी जवाब", "typing…": "टाइप कर रहे हैं…",
+    "Hi! I'm the DineEatz Agent 👋": "नमस्ते! मैं DineEatz एजेंट हूँ 👋",
     "Want to know more about our platform? Chat with us.": "हमारे प्लेटफ़ॉर्म के बारे में जानना चाहते हैं? हमसे चैट करें।",
     "Want to know more about our platform?": "हमारे प्लेटफ़ॉर्म के बारे में जानना चाहते हैं?",
     "Chat with us": "हमसे चैट करें", "💰 Pricing": "💰 प्राइसिंग", "📅 Book a demo": "📅 डेमो बुक करें", "📱 QR ordering": "📱 QR ऑर्डरिंग",
@@ -210,8 +210,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Continue on WhatsApp": "WhatsApp पर आगे बढ़ें", "Start over": "फिर से शुरू करें",
     // faq knowledge base — used by the agent bot
     // faq — features
-    "What exactly does PlatesOS do?": "PlatesOS असल में क्या करता है?",
-    "PlatesOS runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.": "PlatesOS आपके रेस्टोरेंट के रोज़ के काम एक ही जगह संभालता है — QR टेबल ऑर्डरिंग, ऑनलाइन ऑर्डरिंग, टेबल बुकिंग, किचन टिकट, बिलिंग, रिपोर्ट और इनवॉइस।",
+    "What exactly does DineEatz do?": "DineEatz असल में क्या करता है?",
+    "DineEatz runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.": "DineEatz आपके रेस्टोरेंट के रोज़ के काम एक ही जगह संभालता है — QR टेबल ऑर्डरिंग, ऑनलाइन ऑर्डरिंग, टेबल बुकिंग, किचन टिकट, बिलिंग, रिपोर्ट और इनवॉइस।",
     "How does QR table ordering work?": "QR टेबल ऑर्डरिंग कैसे काम करती है?",
     "Every table gets its own QR code. Guests scan, browse your live menu, order and pay from their phone, and the order reaches your kitchen with the table number already attached.": "हर टेबल का अपना QR कोड होता है। मेहमान स्कैन करते हैं, लाइव मेन्यू देखते हैं, अपने फ़ोन से ऑर्डर और पेमेंट करते हैं, और ऑर्डर टेबल नंबर के साथ सीधे किचन में पहुँच जाता है।",
     "Can guests pay from their own phone?": "क्या मेहमान अपने फ़ोन से पेमेंट कर सकते हैं?",
@@ -222,8 +222,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Yes. The Enterprise plan adds multi-branch control from a single login, with branch-level menus and pricing plus consolidated reporting across outlets.": "हाँ। एंटरप्राइज़ प्लान में एक ही लॉगिन से मल्टी-ब्रांच कंट्रोल मिलता है — ब्रांच-वार मेन्यू और प्राइसिंग के साथ सभी आउटलेट की एक साथ रिपोर्टिंग।",
     "Do I get GST-ready invoices and reports?": "क्या GST-रेडी इनवॉइस और रिपोर्ट मिलती हैं?",
     "Yes. Every order produces a GST-ready invoice, and daily, item-wise and payment-mode reports can be viewed or exported at any time.": "हाँ। हर ऑर्डर पर GST-रेडी इनवॉइस बनती है, और डेली, आइटम-वार और पेमेंट-मोड रिपोर्ट कभी भी देख या एक्सपोर्ट कर सकते हैं।",
-    "Do I need special hardware to use PlatesOS?": "PlatesOS के लिए कोई ख़ास हार्डवेयर चाहिए?",
-    "No. PlatesOS runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.": "नहीं। PlatesOS किसी भी मॉडर्न ब्राउज़र में चलता है — फ़ोन, टैबलेट, लैपटॉप या आपके मौजूदा बिलिंग कंप्यूटर पर। थर्मल प्रिंटर और किचन डिस्प्ले स्क्रीन ज़रूरी नहीं हैं।",
+    "Do I need special hardware to use DineEatz?": "DineEatz के लिए कोई ख़ास हार्डवेयर चाहिए?",
+    "No. DineEatz runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.": "नहीं। DineEatz किसी भी मॉडर्न ब्राउज़र में चलता है — फ़ोन, टैबलेट, लैपटॉप या आपके मौजूदा बिलिंग कंप्यूटर पर। थर्मल प्रिंटर और किचन डिस्प्ले स्क्रीन ज़रूरी नहीं हैं।",
     // faq — pricing
     "Do you charge commission on orders?": "क्या आप ऑर्डर पर कमीशन लेते हैं?",
     "Never. You keep 100% of every order value and pay only a flat monthly plan fee, no matter how many orders you take.": "कभी नहीं। हर ऑर्डर की पूरी रकम आपकी रहती है — आप सिर्फ़ एक फ़िक्स मंथली प्लान फ़ीस देते हैं, चाहे ऑर्डर कितने भी हों।",
@@ -239,7 +239,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Do you help with menu upload and onboarding?": "क्या आप मेन्यू अपलोड और ऑनबोर्डिंग में मदद करते हैं?",
     "Yes. Share your existing menu in any format — PDF, Excel or even photos — and our team sets it up and walks your staff through the basics.": "हाँ। अपना मौजूदा मेन्यू किसी भी फ़ॉर्मैट में भेजें — PDF, Excel या फ़ोटो — हमारी टीम उसे सेट कर देती है और आपके स्टाफ़ को बेसिक चीज़ें सिखा देती है।",
     "Can I keep my current POS or billing software?": "क्या मैं अपना मौजूदा POS या बिलिंग सॉफ़्टवेयर रख सकता हूँ?",
-    "In most cases yes — PlatesOS can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.": "अक्सर हाँ — PlatesOS आपके बिलिंग सिस्टम के साथ-साथ चल सकता है और ऑर्डर डिजिटली आते रहते हैं। हमें बताएं आप क्या इस्तेमाल करते हैं, हम पहले कन्फ़र्म कर देंगे।",
+    "In most cases yes — DineEatz can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.": "अक्सर हाँ — DineEatz आपके बिलिंग सिस्टम के साथ-साथ चल सकता है और ऑर्डर डिजिटली आते रहते हैं। हमें बताएं आप क्या इस्तेमाल करते हैं, हम पहले कन्फ़र्म कर देंगे।",
     // faq — products
     "What QR table products do you supply?": "आप कौन-कौन से QR टेबल प्रोडक्ट देते हैं?",
     "Table tents, tissue-box holders and condiment-caddy wraps, each printed with your branding and a QR code mapped to a specific table.": "टेबल टेंट, टिश्यू-बॉक्स होल्डर और कॉन्डिमेंट-कैडी रैप — हर एक पर आपकी ब्रांडिंग और उस टेबल का QR कोड छपा होता है।",
@@ -264,7 +264,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Yes. Guests can request a table from your page, and you confirm, move or cancel bookings on a live floor plan that shows which tables are free.": "हाँ। मेहमान आपके पेज से टेबल की रिक्वेस्ट भेज सकते हैं, और आप लाइव फ़्लोर प्लान पर बुकिंग कन्फ़र्म, बदल या कैंसिल कर सकते हैं जिसमें ख़ाली टेबल दिखते हैं।",
     "Can I see live table status and a floor plan?": "क्या लाइव टेबल स्टेटस और फ़्लोर प्लान दिखता है?",
     "Yes. The floor plan shows which tables are occupied, which have ordered and which are waiting to pay, updating as orders come in.": "हाँ। फ़्लोर प्लान बताता है कौन सी टेबल भरी है, किसने ऑर्डर किया है और कौन पेमेंट के इंतज़ार में है — ऑर्डर आते ही यह अपडेट होता रहता है।",
-    "Does PlatesOS handle delivery and takeaway orders?": "क्या PlatesOS डिलीवरी और टेकअवे ऑर्डर संभालता है?",
+    "Does DineEatz handle delivery and takeaway orders?": "क्या DineEatz डिलीवरी और टेकअवे ऑर्डर संभालता है?",
     "Yes. Your online ordering page accepts delivery and takeaway orders directly, with no commission taken on any of them.": "हाँ। आपका ऑनलाइन ऑर्डरिंग पेज डिलीवरी और टेकअवे ऑर्डर सीधे लेता है, और उन पर कोई कमीशन नहीं लगता।",
     "Does it print KOT tickets for the kitchen?": "क्या किचन के लिए KOT प्रिंट होता है?",
     "Yes. Connect any standard thermal printer and each order prints as a KOT — or skip paper entirely and use the kitchen display screen instead.": "हाँ। किसी भी सामान्य थर्मल प्रिंटर को जोड़ें और हर ऑर्डर KOT के रूप में प्रिंट होगा — या कागज़ छोड़कर किचन डिस्प्ले स्क्रीन इस्तेमाल करें।",
@@ -277,8 +277,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Can I show my menu in more than one language?": "क्या मेन्यू एक से ज़्यादा भाषाओं में दिखा सकते हैं?",
     "Yes. Item names and descriptions can be entered in the language your guests read, and this site itself is available in English, Hindi, Marathi and Kannada.": "हाँ। आइटम के नाम और विवरण उसी भाषा में डाल सकते हैं जो आपके मेहमान पढ़ते हैं, और यह साइट ख़ुद अंग्रेज़ी, हिंदी, मराठी और कन्नड़ में उपलब्ध है।",
     "What happens if my internet goes down?": "अगर इंटरनेट बंद हो जाए तो क्या होगा?",
-    "PlatesOS is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.": "PlatesOS क्लाउड-आधारित है, इसलिए कनेक्शन ज़रूरी है। मेहमान अपने मोबाइल डेटा से ऑर्डर करते हैं, इसलिए आपका Wi-Fi बंद होने पर भी टेबल ऑर्डरिंग चलती रहती है — बिलिंग के लिए बैकअप हॉटस्पॉट रखें।",
-    "How much does PlatesOS cost?": "PlatesOS की कीमत कितनी है?",
+    "DineEatz is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.": "DineEatz क्लाउड-आधारित है, इसलिए कनेक्शन ज़रूरी है। मेहमान अपने मोबाइल डेटा से ऑर्डर करते हैं, इसलिए आपका Wi-Fi बंद होने पर भी टेबल ऑर्डरिंग चलती रहती है — बिलिंग के लिए बैकअप हॉटस्पॉट रखें।",
+    "How much does DineEatz cost?": "DineEatz की कीमत कितनी है?",
     "Starter is ₹999 a month and Growth is ₹2,499 a month, both billed flat with no commission. Enterprise is priced to your chain — talk to sales for a quote.": "स्टार्टर ₹999 प्रति महीना और ग्रोथ ₹2,499 प्रति महीना — दोनों फ़िक्स फ़ीस, कोई कमीशन नहीं। एंटरप्राइज़ की कीमत आपकी चेन के हिसाब से तय होती है — कोटेशन के लिए सेल्स से बात करें।",
     "Are there any setup or hidden fees?": "क्या कोई सेटअप या छिपा हुआ चार्ज है?",
     "No setup fee and no hidden charges — your plan price is what you pay. Printed QR table products are the only separate, optional cost.": "कोई सेटअप फ़ीस नहीं और कोई छिपा चार्ज नहीं — जो प्लान की कीमत है, वही आप देते हैं। सिर्फ़ प्रिंटेड QR टेबल प्रोडक्ट अलग और वैकल्पिक खर्च हैं।",
@@ -288,7 +288,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "The {days}-day trial means you only pay once you're sure. After that you can cancel any time and you won't be billed from the next cycle — write to support for anything specific to your account.": "{days} दिन के ट्रायल का मतलब है कि आप तभी पैसे देते हैं जब पूरी तरह आश्वस्त हों। उसके बाद कभी भी कैंसिल करें और अगले साइकल से बिलिंग नहीं होगी — अपने अकाउंट से जुड़ी किसी ख़ास बात के लिए सपोर्ट को लिखें।",
     "Is there a discount for annual billing or multiple outlets?": "सालाना बिलिंग या कई आउटलेट पर डिस्काउंट मिलता है?",
     "Yes — annual plans and multi-outlet accounts are priced lower per outlet. Tell us your outlet count and we'll share a quote.": "हाँ — सालाना प्लान और मल्टी-आउटलेट अकाउंट पर प्रति आउटलेट कीमत कम होती है। अपने आउटलेट की संख्या बताएं, हम कोटेशन भेज देंगे।",
-    "Can I try PlatesOS before paying?": "पैसे देने से पहले PlatesOS आज़मा सकता हूँ?",
+    "Can I try DineEatz before paying?": "पैसे देने से पहले DineEatz आज़मा सकता हूँ?",
     "Yes. Start a {days}-day free trial with no card details, set up your real menu, and decide at the end of it.": "हाँ। बिना कार्ड डिटेल {days} दिन का फ्री ट्रायल शुरू करें, अपना असली मेन्यू सेट करें, और अंत में फ़ैसला लें।",
     "Can I book a demo with your team?": "क्या मैं आपकी टीम के साथ डेमो बुक कर सकता हूँ?",
     "Yes. Pick “Book a demo” in the contact form or message us on WhatsApp, and we'll walk you through the product on a call at a time that suits you.": "हाँ। कॉन्टैक्ट फ़ॉर्म में “डेमो बुक करें” चुनें या WhatsApp पर मैसेज करें — हम आपके समय के अनुसार कॉल पर पूरा प्रोडक्ट दिखा देंगे।",
@@ -298,7 +298,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Download print-ready QR PDFs from your dashboard and use any local printer, or order our printed table tents, tissue boxes and condiment caddies.": "डैशबोर्ड से प्रिंट-रेडी QR PDF डाउनलोड करें और किसी भी लोकल प्रिंटर से छपवाएं, या हमारे प्रिंटेड टेबल टेंट, टिश्यू बॉक्स और कॉन्डिमेंट कैडी ऑर्डर करें।",
     "How quickly do you reply to support requests?": "सपोर्ट रिक्वेस्ट का जवाब कितनी जल्दी मिलता है?",
     "Email gets a reply within 24 hours, and WhatsApp or phone is usually answered within the same working hour, Mon – Fri, 9:00 AM – 6:00 PM.": "ईमेल का जवाब 24 घंटे में मिलता है, और WhatsApp या फ़ोन पर सोम – शुक्र, सुबह 9:00 से शाम 6:00 के बीच आमतौर पर उसी घंटे में जवाब मिल जाता है।",
-    "Which languages is PlatesOS available in?": "PlatesOS किन भाषाओं में उपलब्ध है?",
+    "Which languages is DineEatz available in?": "DineEatz किन भाषाओं में उपलब्ध है?",
     "The platform and this site are available in English, Hindi, Marathi and Kannada, and support is available in all four.": "प्लेटफ़ॉर्म और यह साइट अंग्रेज़ी, हिंदी, मराठी और कन्नड़ में उपलब्ध हैं, और सपोर्ट भी चारों भाषाओं में मिलता है।",
     // agent bot copy
     "💬 Ask a question": "💬 सवाल पूछें",
@@ -322,8 +322,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Kitchen Operations": "किचन ऑपरेशन्स", "Analytics": "अ‍ॅनालिटिक्स",
     "Everything you need": "तुम्हाला हवं ते सर्व",
     "Powerful features for": "तुमच्या रेस्टॉरंटसाठी", "your restaurant": "सशक्त वैशिष्ट्ये",
-    "From online orders to detailed reports, PlatesOS gives you the tools to run your restaurant smoothly and efficiently.":
-      "ऑनलाइन ऑर्डरपासून सविस्तर अहवालांपर्यंत, PlatesOS तुम्हाला रेस्टॉरंट सहज चालवण्याची साधनं देतं.",
+    "From online orders to detailed reports, DineEatz gives you the tools to run your restaurant smoothly and efficiently.":
+      "ऑनलाइन ऑर्डरपासून सविस्तर अहवालांपर्यंत, DineEatz तुम्हाला रेस्टॉरंट सहज चालवण्याची साधनं देतं.",
     "Let customers order from anywhere.": "ग्राहक कुठूनही ऑर्डर करू शकतात.",
     "Delivery & takeaway": "डिलिव्हरी आणि टेकअवे",
     "Unique QR codes for every table.": "प्रत्येक टेबलसाठी वेगळा QR कोड.", "Scan · Order · Pay": "स्कॅन · ऑर्डर · पेमेंट",
@@ -336,8 +336,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "No Commission": "कमिशन नाही", "Keep 100% of your earnings.": "तुमची संपूर्ण कमाई तुमच्याकडेच.", "0% per order": "प्रत्येक ऑर्डरवर 0%",
     "On every table": "प्रत्येक टेबलावर",
     "Premium QR products for": "तुमच्या टेबलसाठी", "your tables": "प्रीमियम QR प्रॉडक्ट्स",
-    "Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your PlatesOS menu.":
-      "एकदाच छपाई, तुमच्या रेस्टॉरंटचं ब्रँडिंग आणि रोजच्या वापरासाठी टिकाऊ. प्रत्येक प्रॉडक्ट थेट तुमच्या PlatesOS मेन्यूशी जोडलेलं.",
+    "Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your DineEatz menu.":
+      "एकदाच छपाई, तुमच्या रेस्टॉरंटचं ब्रँडिंग आणि रोजच्या वापरासाठी टिकाऊ. प्रत्येक प्रॉडक्ट थेट तुमच्या DineEatz मेन्यूशी जोडलेलं.",
     "Condiment Holder QR": "कंडिमेंट होल्डर QR", "Best seller": "सर्वाधिक लोकप्रिय",
     "One caddy for spoons, forks, salt, pepper and napkins — with your ordering QR printed on the front face.":
       "चमचे, काटे, मीठ, मिरी आणि नॅपकिनसाठी एकच स्टँड — पुढच्या बाजूला तुमचा ऑर्डरिंग QR छापलेला.",
@@ -351,7 +351,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Front": "पुढे", "Back": "मागे", "Left": "डावी", "Right": "उजवी",
     "Product images are indicative mockups — hover or tap the arrows to see all four sides. Custom sizes, colours and branding available on request.":
       "प्रॉडक्ट प्रतिमा प्रातिनिधिक मॉकअप आहेत — चारही बाजू पाहण्यासाठी बाणांवर टॅप करा. कस्टम आकार, रंग आणि ब्रँडिंग मागणीनुसार उपलब्ध.",
-    "Why choose PlatesOS": "PlatesOS का निवडावं",
+    "Why choose DineEatz": "DineEatz का निवडावं",
     "Built for modern": "आधुनिक रेस्टॉरंटसाठी", "restaurants": "तयार केलेलं",
     "Simple to use, powerful behind the scenes, and designed to help you serve better, manage easier, and grow faster.":
       "वापरायला सोपं, आतून सशक्त — उत्तम सेवा, सोपं व्यवस्थापन आणि वेगवान वाढीसाठी.",
@@ -388,8 +388,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Ready to grow your restaurant?": "तुमचं रेस्टॉरंट वाढवायला तयार?",
     "Set up in minutes. No commission. Cancel anytime.": "काही मिनिटांत सेटअप. कमिशन नाही. कधीही रद्द करा.",
     "Privacy Policy": "प्रायव्हसी पॉलिसी", "Terms of Service": "सेवा अटी", "All rights reserved.": "सर्व हक्क राखीव.",
-    "PlatesOS Agent": "PlatesOS एजंट", "Online · replies fast": "ऑनलाइन · लवकर उत्तर", "typing…": "टाइप करत आहे…",
-    "Hi! I'm the PlatesOS Agent 👋": "नमस्कार! मी PlatesOS एजंट आहे 👋",
+    "DineEatz Agent": "DineEatz एजंट", "Online · replies fast": "ऑनलाइन · लवकर उत्तर", "typing…": "टाइप करत आहे…",
+    "Hi! I'm the DineEatz Agent 👋": "नमस्कार! मी DineEatz एजंट आहे 👋",
     "Want to know more about our platform? Chat with us.": "आमच्या प्लॅटफॉर्मबद्दल अधिक जाणून घ्यायचंय? आमच्याशी चॅट करा.",
     "Want to know more about our platform?": "आमच्या प्लॅटफॉर्मबद्दल अधिक जाणून घ्यायचंय?",
     "Chat with us": "आमच्याशी चॅट करा", "💰 Pricing": "💰 किंमत", "📅 Book a demo": "📅 डेमो बुक करा", "📱 QR ordering": "📱 QR ऑर्डरिंग",
@@ -413,8 +413,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Continue on WhatsApp": "WhatsApp वर पुढे जा", "Start over": "पुन्हा सुरू करा",
     // faq knowledge base — used by the agent bot
     // faq — features
-    "What exactly does PlatesOS do?": "PlatesOS नेमकं काय करतं?",
-    "PlatesOS runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.": "PlatesOS तुमच्या रेस्टॉरंटचं रोजचं कामकाज एकाच ठिकाणी सांभाळतं — QR टेबल ऑर्डरिंग, ऑनलाइन ऑर्डरिंग, टेबल बुकिंग, किचन तिकिटं, बिलिंग, अहवाल आणि इनव्हॉइस.",
+    "What exactly does DineEatz do?": "DineEatz नेमकं काय करतं?",
+    "DineEatz runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.": "DineEatz तुमच्या रेस्टॉरंटचं रोजचं कामकाज एकाच ठिकाणी सांभाळतं — QR टेबल ऑर्डरिंग, ऑनलाइन ऑर्डरिंग, टेबल बुकिंग, किचन तिकिटं, बिलिंग, अहवाल आणि इनव्हॉइस.",
     "How does QR table ordering work?": "QR टेबल ऑर्डरिंग कशी चालते?",
     "Every table gets its own QR code. Guests scan, browse your live menu, order and pay from their phone, and the order reaches your kitchen with the table number already attached.": "प्रत्येक टेबलला स्वतःचा QR कोड असतो. पाहुणे स्कॅन करतात, लाइव्ह मेन्यू पाहतात, फोनवरून ऑर्डर आणि पेमेंट करतात, आणि ऑर्डर टेबल नंबरसह थेट किचनमध्ये पोहोचते.",
     "Can guests pay from their own phone?": "पाहुणे स्वतःच्या फोनवरून पेमेंट करू शकतात का?",
@@ -425,8 +425,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Yes. The Enterprise plan adds multi-branch control from a single login, with branch-level menus and pricing plus consolidated reporting across outlets.": "हो. एंटरप्राइझ प्लॅनमध्ये एकाच लॉगिनमधून मल्टी-ब्रँच नियंत्रण मिळतं — शाखानिहाय मेन्यू व किंमतींसह सर्व आउटलेटचा एकत्रित अहवाल.",
     "Do I get GST-ready invoices and reports?": "GST-रेडी इनव्हॉइस आणि अहवाल मिळतात का?",
     "Yes. Every order produces a GST-ready invoice, and daily, item-wise and payment-mode reports can be viewed or exported at any time.": "हो. प्रत्येक ऑर्डरवर GST-रेडी इनव्हॉइस तयार होते, आणि दैनिक, आयटमनिहाय व पेमेंट-मोड अहवाल कधीही पाहता किंवा एक्सपोर्ट करता येतात.",
-    "Do I need special hardware to use PlatesOS?": "PlatesOS वापरण्यासाठी खास हार्डवेअर लागतं का?",
-    "No. PlatesOS runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.": "नाही. PlatesOS कोणत्याही आधुनिक ब्राउझरमध्ये चालतं — फोन, टॅबलेट, लॅपटॉप किंवा तुमच्या सध्याच्या बिलिंग संगणकावर. थर्मल प्रिंटर आणि किचन डिस्प्ले स्क्रीन ऐच्छिक आहेत.",
+    "Do I need special hardware to use DineEatz?": "DineEatz वापरण्यासाठी खास हार्डवेअर लागतं का?",
+    "No. DineEatz runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.": "नाही. DineEatz कोणत्याही आधुनिक ब्राउझरमध्ये चालतं — फोन, टॅबलेट, लॅपटॉप किंवा तुमच्या सध्याच्या बिलिंग संगणकावर. थर्मल प्रिंटर आणि किचन डिस्प्ले स्क्रीन ऐच्छिक आहेत.",
     // faq — pricing
     "Do you charge commission on orders?": "तुम्ही ऑर्डरवर कमिशन घेता का?",
     "Never. You keep 100% of every order value and pay only a flat monthly plan fee, no matter how many orders you take.": "कधीच नाही. प्रत्येक ऑर्डरची पूर्ण रक्कम तुमचीच राहते — तुम्ही फक्त ठरलेली मासिक प्लॅन फी भरता, ऑर्डर कितीही असले तरी.",
@@ -442,7 +442,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Do you help with menu upload and onboarding?": "मेन्यू अपलोड आणि ऑनबोर्डिंगमध्ये तुम्ही मदत करता का?",
     "Yes. Share your existing menu in any format — PDF, Excel or even photos — and our team sets it up and walks your staff through the basics.": "हो. तुमचा सध्याचा मेन्यू कोणत्याही स्वरूपात पाठवा — PDF, Excel किंवा फोटो — आमची टीम तो सेट करते आणि तुमच्या स्टाफला मूलभूत गोष्टी शिकवते.",
     "Can I keep my current POS or billing software?": "माझं सध्याचं POS किंवा बिलिंग सॉफ्टवेअर ठेवू शकतो का?",
-    "In most cases yes — PlatesOS can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.": "बहुतेक वेळा हो — PlatesOS तुमच्या बिलिंग सिस्टमसोबत चालू शकतं आणि ऑर्डर डिजिटल पद्धतीने येत राहतात. तुम्ही काय वापरता ते सांगा, आम्ही आधी खात्री करून देतो.",
+    "In most cases yes — DineEatz can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.": "बहुतेक वेळा हो — DineEatz तुमच्या बिलिंग सिस्टमसोबत चालू शकतं आणि ऑर्डर डिजिटल पद्धतीने येत राहतात. तुम्ही काय वापरता ते सांगा, आम्ही आधी खात्री करून देतो.",
     // faq — products
     "What QR table products do you supply?": "तुम्ही कोणती QR टेबल प्रॉडक्ट्स पुरवता?",
     "Table tents, tissue-box holders and condiment-caddy wraps, each printed with your branding and a QR code mapped to a specific table.": "टेबल टेंट, टिश्यू-बॉक्स होल्डर आणि कॉन्डिमेंट-कॅडी रॅप — प्रत्येकावर तुमची ब्रँडिंग आणि त्या टेबलचा QR कोड छापलेला असतो.",
@@ -467,7 +467,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Yes. Guests can request a table from your page, and you confirm, move or cancel bookings on a live floor plan that shows which tables are free.": "हो. पाहुणे तुमच्या पेजवरून टेबलची विनंती करू शकतात, आणि तुम्ही लाइव्ह फ्लोर प्लॅनवर बुकिंग मंजूर, बदल किंवा रद्द करू शकता — त्यात रिकामी टेबल दिसतात.",
     "Can I see live table status and a floor plan?": "लाइव्ह टेबल स्टेटस आणि फ्लोर प्लॅन दिसतो का?",
     "Yes. The floor plan shows which tables are occupied, which have ordered and which are waiting to pay, updating as orders come in.": "हो. फ्लोर प्लॅनवर कोणतं टेबल भरलं आहे, कोणी ऑर्डर दिली आहे आणि कोण पेमेंटच्या प्रतीक्षेत आहे ते दिसतं — ऑर्डर आल्यावर ते अपडेट होत राहतं.",
-    "Does PlatesOS handle delivery and takeaway orders?": "PlatesOS डिलिव्हरी आणि टेकअवे ऑर्डर हाताळतं का?",
+    "Does DineEatz handle delivery and takeaway orders?": "DineEatz डिलिव्हरी आणि टेकअवे ऑर्डर हाताळतं का?",
     "Yes. Your online ordering page accepts delivery and takeaway orders directly, with no commission taken on any of them.": "हो. तुमचं ऑनलाइन ऑर्डरिंग पेज डिलिव्हरी व टेकअवे ऑर्डर थेट स्वीकारतं, आणि त्यावर कोणतंही कमिशन लागत नाही.",
     "Does it print KOT tickets for the kitchen?": "किचनसाठी KOT प्रिंट होते का?",
     "Yes. Connect any standard thermal printer and each order prints as a KOT — or skip paper entirely and use the kitchen display screen instead.": "हो. कोणताही सामान्य थर्मल प्रिंटर जोडा आणि प्रत्येक ऑर्डर KOT म्हणून प्रिंट होईल — किंवा कागद टाळून किचन डिस्प्ले स्क्रीन वापरा.",
@@ -480,8 +480,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Can I show my menu in more than one language?": "मेन्यू एकापेक्षा जास्त भाषांमध्ये दाखवता येतो का?",
     "Yes. Item names and descriptions can be entered in the language your guests read, and this site itself is available in English, Hindi, Marathi and Kannada.": "हो. आयटमची नावं व वर्णनं तुमचे पाहुणे वाचतील त्या भाषेत टाकता येतात, आणि ही साइट स्वतः इंग्रजी, हिंदी, मराठी व कन्नडमध्ये उपलब्ध आहे.",
     "What happens if my internet goes down?": "इंटरनेट बंद पडलं तर काय होतं?",
-    "PlatesOS is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.": "PlatesOS क्लाउड-आधारित आहे, त्यामुळे कनेक्शन आवश्यक आहे. पाहुणे त्यांच्या मोबाइल डेटावरून ऑर्डर करतात, म्हणून तुमचं Wi-Fi बंद पडलं तरी टेबल ऑर्डरिंग चालू राहते — बिलिंगसाठी बॅकअप हॉटस्पॉट ठेवा.",
-    "How much does PlatesOS cost?": "PlatesOS ची किंमत किती आहे?",
+    "DineEatz is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.": "DineEatz क्लाउड-आधारित आहे, त्यामुळे कनेक्शन आवश्यक आहे. पाहुणे त्यांच्या मोबाइल डेटावरून ऑर्डर करतात, म्हणून तुमचं Wi-Fi बंद पडलं तरी टेबल ऑर्डरिंग चालू राहते — बिलिंगसाठी बॅकअप हॉटस्पॉट ठेवा.",
+    "How much does DineEatz cost?": "DineEatz ची किंमत किती आहे?",
     "Starter is ₹999 a month and Growth is ₹2,499 a month, both billed flat with no commission. Enterprise is priced to your chain — talk to sales for a quote.": "स्टार्टर ₹999 दरमहा आणि ग्रोथ ₹2,499 दरमहा — दोन्ही ठरलेली फी, कमिशन नाही. एंटरप्राइझची किंमत तुमच्या चेननुसार ठरते — कोटेशनसाठी सेल्सशी बोला.",
     "Are there any setup or hidden fees?": "सेटअप किंवा छुपे शुल्क आहेत का?",
     "No setup fee and no hidden charges — your plan price is what you pay. Printed QR table products are the only separate, optional cost.": "सेटअप फी नाही आणि छुपे शुल्क नाहीत — प्लॅनची किंमत तेवढीच तुम्ही भरता. फक्त छापील QR टेबल प्रॉडक्ट्स हा वेगळा व ऐच्छिक खर्च आहे.",
@@ -491,7 +491,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "The {days}-day trial means you only pay once you're sure. After that you can cancel any time and you won't be billed from the next cycle — write to support for anything specific to your account.": "{days} दिवसांच्या ट्रायलमुळे तुम्ही खात्री झाल्यावरच पैसे भरता. त्यानंतर कधीही रद्द करा आणि पुढच्या सायकलपासून बिलिंग होणार नाही — तुमच्या अकाउंटशी संबंधित विशेष बाबीसाठी सपोर्टला लिहा.",
     "Is there a discount for annual billing or multiple outlets?": "वार्षिक बिलिंग किंवा अनेक आउटलेटसाठी सूट मिळते का?",
     "Yes — annual plans and multi-outlet accounts are priced lower per outlet. Tell us your outlet count and we'll share a quote.": "हो — वार्षिक प्लॅन आणि अनेक आउटलेट असलेल्या अकाउंटसाठी प्रति आउटलेट किंमत कमी असते. तुमच्या आउटलेटची संख्या सांगा, आम्ही कोटेशन पाठवतो.",
-    "Can I try PlatesOS before paying?": "पैसे भरण्यापूर्वी PlatesOS वापरून पाहता येईल का?",
+    "Can I try DineEatz before paying?": "पैसे भरण्यापूर्वी DineEatz वापरून पाहता येईल का?",
     "Yes. Start a {days}-day free trial with no card details, set up your real menu, and decide at the end of it.": "हो. कार्ड तपशिलाशिवाय {days} दिवसांची मोफत ट्रायल सुरू करा, तुमचा खरा मेन्यू सेट करा, आणि शेवटी ठरवा.",
     "Can I book a demo with your team?": "तुमच्या टीमसोबत डेमो बुक करू शकतो का?",
     "Yes. Pick “Book a demo” in the contact form or message us on WhatsApp, and we'll walk you through the product on a call at a time that suits you.": "हो. कॉन्टॅक्ट फॉर्ममध्ये “डेमो बुक करा” निवडा किंवा WhatsApp वर मेसेज करा — तुमच्या सोयीच्या वेळी कॉलवर आम्ही संपूर्ण प्रॉडक्ट दाखवतो.",
@@ -501,7 +501,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Download print-ready QR PDFs from your dashboard and use any local printer, or order our printed table tents, tissue boxes and condiment caddies.": "डॅशबोर्डवरून प्रिंट-रेडी QR PDF डाउनलोड करा आणि कोणत्याही स्थानिक प्रिंटरकडून छापा, किंवा आमचे छापील टेबल टेंट, टिश्यू बॉक्स व कॉन्डिमेंट कॅडी मागवा.",
     "How quickly do you reply to support requests?": "सपोर्ट विनंतीला किती लवकर उत्तर मिळतं?",
     "Email gets a reply within 24 hours, and WhatsApp or phone is usually answered within the same working hour, Mon – Fri, 9:00 AM – 6:00 PM.": "ईमेलला 24 तासांत उत्तर मिळतं, आणि WhatsApp किंवा फोनवर सोम – शुक्र, सकाळी 9:00 ते संध्याकाळी 6:00 दरम्यान सामान्यतः त्याच तासात उत्तर मिळतं.",
-    "Which languages is PlatesOS available in?": "PlatesOS कोणत्या भाषांमध्ये उपलब्ध आहे?",
+    "Which languages is DineEatz available in?": "DineEatz कोणत्या भाषांमध्ये उपलब्ध आहे?",
     "The platform and this site are available in English, Hindi, Marathi and Kannada, and support is available in all four.": "प्लॅटफॉर्म आणि ही साइट इंग्रजी, हिंदी, मराठी व कन्नडमध्ये उपलब्ध आहेत, आणि सपोर्टही चारही भाषांमध्ये मिळतो.",
     // agent bot copy
     "💬 Ask a question": "💬 प्रश्न विचारा",
@@ -529,8 +529,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     // features
     "Everything you need": "ನಿಮಗೆ ಬೇಕಾದ ಎಲ್ಲವೂ",
     "Powerful features for": "ನಿಮ್ಮ ರೆಸ್ಟೋರೆಂಟ್‌ಗೆ", "your restaurant": "ಶಕ್ತಿಶಾಲಿ ವೈಶಿಷ್ಟ್ಯಗಳು",
-    "From online orders to detailed reports, PlatesOS gives you the tools to run your restaurant smoothly and efficiently.":
-      "ಆನ್‌ಲೈನ್ ಆರ್ಡರ್‌ಗಳಿಂದ ವಿವರವಾದ ವರದಿಗಳವರೆಗೆ, ರೆಸ್ಟೋರೆಂಟ್ ಸರಾಗವಾಗಿ ನಡೆಸಲು ಬೇಕಾದ ಎಲ್ಲ ಸಾಧನಗಳನ್ನು PlatesOS ನೀಡುತ್ತದೆ.",
+    "From online orders to detailed reports, DineEatz gives you the tools to run your restaurant smoothly and efficiently.":
+      "ಆನ್‌ಲೈನ್ ಆರ್ಡರ್‌ಗಳಿಂದ ವಿವರವಾದ ವರದಿಗಳವರೆಗೆ, ರೆಸ್ಟೋರೆಂಟ್ ಸರಾಗವಾಗಿ ನಡೆಸಲು ಬೇಕಾದ ಎಲ್ಲ ಸಾಧನಗಳನ್ನು DineEatz ನೀಡುತ್ತದೆ.",
     "Let customers order from anywhere.": "ಗ್ರಾಹಕರು ಎಲ್ಲಿಂದಲಾದರೂ ಆರ್ಡರ್ ಮಾಡಬಹುದು.",
     "Delivery & takeaway": "ಡೆಲಿವರಿ ಮತ್ತು ಟೇಕ್‌ಅವೇ",
     "Unique QR codes for every table.": "ಪ್ರತಿ ಟೇಬಲ್‌ಗೆ ಪ್ರತ್ಯೇಕ QR ಕೋಡ್.", "Scan · Order · Pay": "ಸ್ಕ್ಯಾನ್ · ಆರ್ಡರ್ · ಪಾವತಿ",
@@ -544,8 +544,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     // products
     "On every table": "ಪ್ರತಿ ಟೇಬಲ್ ಮೇಲೆ",
     "Premium QR products for": "ನಿಮ್ಮ ಟೇಬಲ್‌ಗಳಿಗೆ", "your tables": "ಪ್ರೀಮಿಯಂ QR ಉತ್ಪನ್ನಗಳು",
-    "Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your PlatesOS menu.":
-      "ಒಮ್ಮೆ ಮುದ್ರಣ, ನಿಮ್ಮ ರೆಸ್ಟೋರೆಂಟ್‌ನ ಬ್ರಾಂಡಿಂಗ್ ಮತ್ತು ದೈನಂದಿನ ಬಳಕೆಗೆ ಬಾಳಿಕೆ. ಪ್ರತಿ ಉತ್ಪನ್ನವೂ ನೇರವಾಗಿ ನಿಮ್ಮ PlatesOS ಮೆನುಗೆ ಜೋಡಣೆಯಾಗುತ್ತದೆ.",
+    "Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your DineEatz menu.":
+      "ಒಮ್ಮೆ ಮುದ್ರಣ, ನಿಮ್ಮ ರೆಸ್ಟೋರೆಂಟ್‌ನ ಬ್ರಾಂಡಿಂಗ್ ಮತ್ತು ದೈನಂದಿನ ಬಳಕೆಗೆ ಬಾಳಿಕೆ. ಪ್ರತಿ ಉತ್ಪನ್ನವೂ ನೇರವಾಗಿ ನಿಮ್ಮ DineEatz ಮೆನುಗೆ ಜೋಡಣೆಯಾಗುತ್ತದೆ.",
     "Condiment Holder QR": "ಕಂಡಿಮೆಂಟ್ ಹೋಲ್ಡರ್ QR", "Best seller": "ಅತಿ ಹೆಚ್ಚು ಮಾರಾಟ",
     "One caddy for spoons, forks, salt, pepper and napkins — with your ordering QR printed on the front face.":
       "ಚಮಚ, ಫೋರ್ಕ್, ಉಪ್ಪು, ಮೆಣಸು ಮತ್ತು ನ್ಯಾಪ್‌ಕಿನ್‌ಗಳಿಗೆ ಒಂದೇ ಸ್ಟ್ಯಾಂಡ್ — ಮುಂಭಾಗದಲ್ಲಿ ನಿಮ್ಮ ಆರ್ಡರಿಂಗ್ QR ಮುದ್ರಿತ.",
@@ -560,7 +560,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Product images are indicative mockups — hover or tap the arrows to see all four sides. Custom sizes, colours and branding available on request.":
       "ಉತ್ಪನ್ನದ ಚಿತ್ರಗಳು ಸಾಂಕೇತಿಕ ಮಾಕಪ್‌ಗಳು — ನಾಲ್ಕೂ ಬದಿಗಳನ್ನು ನೋಡಲು ಬಾಣಗಳ ಮೇಲೆ ಟ್ಯಾಪ್ ಮಾಡಿ. ಕಸ್ಟಮ್ ಗಾತ್ರ, ಬಣ್ಣ ಮತ್ತು ಬ್ರಾಂಡಿಂಗ್ ಕೋರಿಕೆಯ ಮೇರೆಗೆ ಲಭ್ಯ.",
     // why
-    "Why choose PlatesOS": "PlatesOS ಏಕೆ",
+    "Why choose DineEatz": "DineEatz ಏಕೆ",
     "Built for modern": "ಆಧುನಿಕ ರೆಸ್ಟೋರೆಂಟ್‌ಗಳಿಗಾಗಿ", "restaurants": "ನಿರ್ಮಿಸಲಾಗಿದೆ",
     "Simple to use, powerful behind the scenes, and designed to help you serve better, manage easier, and grow faster.":
       "ಬಳಸಲು ಸುಲಭ, ಒಳಗಿನಿಂದ ಶಕ್ತಿಶಾಲಿ — ಉತ್ತಮ ಸೇವೆ, ಸುಲಭ ನಿರ್ವಹಣೆ ಮತ್ತು ವೇಗದ ಬೆಳವಣಿಗೆಗಾಗಿ.",
@@ -601,8 +601,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Set up in minutes. No commission. Cancel anytime.": "ನಿಮಿಷಗಳಲ್ಲಿ ಸೆಟಪ್. ಕಮಿಷನ್ ಇಲ್ಲ. ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದು.",
     "Privacy Policy": "ಗೌಪ್ಯತಾ ನೀತಿ", "Terms of Service": "ಸೇವಾ ನಿಯಮಗಳು", "All rights reserved.": "ಎಲ್ಲ ಹಕ್ಕುಗಳು ಕಾಯ್ದಿರಿಸಲಾಗಿವೆ.",
     // agent
-    "PlatesOS Agent": "PlatesOS ಏಜೆಂಟ್", "Online · replies fast": "ಆನ್‌ಲೈನ್ · ಶೀಘ್ರ ಉತ್ತರ", "typing…": "ಟೈಪ್ ಮಾಡುತ್ತಿದ್ದಾರೆ…",
-    "Hi! I'm the PlatesOS Agent 👋": "ನಮಸ್ಕಾರ! ನಾನು PlatesOS ಏಜೆಂಟ್ 👋",
+    "DineEatz Agent": "DineEatz ಏಜೆಂಟ್", "Online · replies fast": "ಆನ್‌ಲೈನ್ · ಶೀಘ್ರ ಉತ್ತರ", "typing…": "ಟೈಪ್ ಮಾಡುತ್ತಿದ್ದಾರೆ…",
+    "Hi! I'm the DineEatz Agent 👋": "ನಮಸ್ಕಾರ! ನಾನು DineEatz ಏಜೆಂಟ್ 👋",
     "Want to know more about our platform? Chat with us.": "ನಮ್ಮ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಬಗ್ಗೆ ಇನ್ನಷ್ಟು ತಿಳಿಯಬೇಕೇ? ನಮ್ಮೊಂದಿಗೆ ಚಾಟ್ ಮಾಡಿ.",
     "Want to know more about our platform?": "ನಮ್ಮ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಬಗ್ಗೆ ಇನ್ನಷ್ಟು ತಿಳಿಯಬೇಕೇ?",
     "Chat with us": "ನಮ್ಮೊಂದಿಗೆ ಚಾಟ್ ಮಾಡಿ", "💰 Pricing": "💰 ಬೆಲೆ", "📅 Book a demo": "📅 ಡೆಮೊ ಬುಕ್ ಮಾಡಿ", "📱 QR ordering": "📱 QR ಆರ್ಡರಿಂಗ್",
@@ -625,8 +625,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
       "ಧನ್ಯವಾದ! WhatsApp ನಲ್ಲಿ ಮುಂದುವರಿಯಲು ಕೆಳಗೆ ಟ್ಯಾಪ್ ಮಾಡಿ — ನಮ್ಮ ತಂಡ ಶೀಘ್ರದಲ್ಲಿ ಉತ್ತರಿಸುತ್ತದೆ.",
     "Continue on WhatsApp": "WhatsApp ನಲ್ಲಿ ಮುಂದುವರಿಸಿ", "Start over": "ಮತ್ತೆ ಆರಂಭಿಸಿ",
     // faq — features
-    "What exactly does PlatesOS do?": "PlatesOS ನಿಜವಾಗಿ ಏನು ಮಾಡುತ್ತದೆ?",
-    "PlatesOS runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.": "PlatesOS ನಿಮ್ಮ ರೆಸ್ಟೋರೆಂಟ್‌ನ ದೈನಂದಿನ ಕೆಲಸಗಳನ್ನು ಒಂದೇ ಕಡೆ ನಿರ್ವಹಿಸುತ್ತದೆ — QR ಟೇಬಲ್ ಆರ್ಡರಿಂಗ್, ಆನ್‌ಲೈನ್ ಆರ್ಡರಿಂಗ್, ಟೇಬಲ್ ಬುಕಿಂಗ್, ಕಿಚನ್ ಟಿಕೆಟ್, ಬಿಲ್ಲಿಂಗ್, ವರದಿ ಮತ್ತು ಇನ್‌ವಾಯ್ಸ್.",
+    "What exactly does DineEatz do?": "DineEatz ನಿಜವಾಗಿ ಏನು ಮಾಡುತ್ತದೆ?",
+    "DineEatz runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.": "DineEatz ನಿಮ್ಮ ರೆಸ್ಟೋರೆಂಟ್‌ನ ದೈನಂದಿನ ಕೆಲಸಗಳನ್ನು ಒಂದೇ ಕಡೆ ನಿರ್ವಹಿಸುತ್ತದೆ — QR ಟೇಬಲ್ ಆರ್ಡರಿಂಗ್, ಆನ್‌ಲೈನ್ ಆರ್ಡರಿಂಗ್, ಟೇಬಲ್ ಬುಕಿಂಗ್, ಕಿಚನ್ ಟಿಕೆಟ್, ಬಿಲ್ಲಿಂಗ್, ವರದಿ ಮತ್ತು ಇನ್‌ವಾಯ್ಸ್.",
     "How does QR table ordering work?": "QR ಟೇಬಲ್ ಆರ್ಡರಿಂಗ್ ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ?",
     "Every table gets its own QR code. Guests scan, browse your live menu, order and pay from their phone, and the order reaches your kitchen with the table number already attached.": "ಪ್ರತಿ ಟೇಬಲ್‌ಗೆ ತನ್ನದೇ QR ಕೋಡ್ ಇರುತ್ತದೆ. ಅತಿಥಿಗಳು ಸ್ಕ್ಯಾನ್ ಮಾಡಿ, ಲೈವ್ ಮೆನು ನೋಡಿ, ಫೋನ್‌ನಿಂದಲೇ ಆರ್ಡರ್ ಮತ್ತು ಪಾವತಿ ಮಾಡುತ್ತಾರೆ, ಮತ್ತು ಆರ್ಡರ್ ಟೇಬಲ್ ಸಂಖ್ಯೆಯೊಂದಿಗೆ ನೇರವಾಗಿ ಕಿಚನ್‌ಗೆ ತಲುಪುತ್ತದೆ.",
     "Can guests pay from their own phone?": "ಅತಿಥಿಗಳು ತಮ್ಮ ಫೋನ್‌ನಿಂದ ಪಾವತಿಸಬಹುದೇ?",
@@ -637,8 +637,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Yes. The Enterprise plan adds multi-branch control from a single login, with branch-level menus and pricing plus consolidated reporting across outlets.": "ಹೌದು. ಎಂಟರ್‌ಪ್ರೈಸ್ ಪ್ಲಾನ್‌ನಲ್ಲಿ ಒಂದೇ ಲಾಗಿನ್‌ನಿಂದ ಮಲ್ಟಿ-ಬ್ರಾಂಚ್ ನಿಯಂತ್ರಣ ಸಿಗುತ್ತದೆ — ಶಾಖೆವಾರು ಮೆನು ಮತ್ತು ಬೆಲೆಯೊಂದಿಗೆ ಎಲ್ಲ ಔಟ್‌ಲೆಟ್‌ಗಳ ಒಟ್ಟು ವರದಿ.",
     "Do I get GST-ready invoices and reports?": "GST-ರೆಡಿ ಇನ್‌ವಾಯ್ಸ್ ಮತ್ತು ವರದಿ ಸಿಗುತ್ತವೆಯೇ?",
     "Yes. Every order produces a GST-ready invoice, and daily, item-wise and payment-mode reports can be viewed or exported at any time.": "ಹೌದು. ಪ್ರತಿ ಆರ್ಡರ್‌ಗೂ GST-ರೆಡಿ ಇನ್‌ವಾಯ್ಸ್ ತಯಾರಾಗುತ್ತದೆ, ಮತ್ತು ದೈನಂದಿನ, ಐಟಂವಾರು ಹಾಗೂ ಪಾವತಿ-ಮೋಡ್ ವರದಿಗಳನ್ನು ಯಾವಾಗ ಬೇಕಾದರೂ ನೋಡಬಹುದು ಅಥವಾ ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಮಾಡಬಹುದು.",
-    "Do I need special hardware to use PlatesOS?": "PlatesOS ಬಳಸಲು ವಿಶೇಷ ಹಾರ್ಡ್‌ವೇರ್ ಬೇಕೇ?",
-    "No. PlatesOS runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.": "ಇಲ್ಲ. PlatesOS ಯಾವುದೇ ಆಧುನಿಕ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಚಲಿಸುತ್ತದೆ — ಫೋನ್, ಟ್ಯಾಬ್ಲೆಟ್, ಲ್ಯಾಪ್‌ಟಾಪ್ ಅಥವಾ ನಿಮ್ಮ ಈಗಿನ ಬಿಲ್ಲಿಂಗ್ ಕಂಪ್ಯೂಟರ್‌ನಲ್ಲಿ. ಥರ್ಮಲ್ ಪ್ರಿಂಟರ್ ಮತ್ತು ಕಿಚನ್ ಡಿಸ್‌ಪ್ಲೇ ಸ್ಕ್ರೀನ್ ಐಚ್ಛಿಕ.",
+    "Do I need special hardware to use DineEatz?": "DineEatz ಬಳಸಲು ವಿಶೇಷ ಹಾರ್ಡ್‌ವೇರ್ ಬೇಕೇ?",
+    "No. DineEatz runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.": "ಇಲ್ಲ. DineEatz ಯಾವುದೇ ಆಧುನಿಕ ಬ್ರೌಸರ್‌ನಲ್ಲಿ ಚಲಿಸುತ್ತದೆ — ಫೋನ್, ಟ್ಯಾಬ್ಲೆಟ್, ಲ್ಯಾಪ್‌ಟಾಪ್ ಅಥವಾ ನಿಮ್ಮ ಈಗಿನ ಬಿಲ್ಲಿಂಗ್ ಕಂಪ್ಯೂಟರ್‌ನಲ್ಲಿ. ಥರ್ಮಲ್ ಪ್ರಿಂಟರ್ ಮತ್ತು ಕಿಚನ್ ಡಿಸ್‌ಪ್ಲೇ ಸ್ಕ್ರೀನ್ ಐಚ್ಛಿಕ.",
     // faq — pricing
     "Do you charge commission on orders?": "ನೀವು ಆರ್ಡರ್‌ಗಳ ಮೇಲೆ ಕಮಿಷನ್ ತೆಗೆದುಕೊಳ್ಳುತ್ತೀರಾ?",
     "Never. You keep 100% of every order value and pay only a flat monthly plan fee, no matter how many orders you take.": "ಎಂದಿಗೂ ಇಲ್ಲ. ಪ್ರತಿ ಆರ್ಡರ್‌ನ ಪೂರ್ಣ ಮೊತ್ತ ನಿಮ್ಮದೇ — ನೀವು ಕೇವಲ ನಿಗದಿತ ಮಾಸಿಕ ಪ್ಲಾನ್ ಶುಲ್ಕ ಪಾವತಿಸುತ್ತೀರಿ, ಎಷ್ಟೇ ಆರ್ಡರ್ ಬಂದರೂ.",
@@ -654,7 +654,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Do you help with menu upload and onboarding?": "ಮೆನು ಅಪ್‌ಲೋಡ್ ಮತ್ತು ಆನ್‌ಬೋರ್ಡಿಂಗ್‌ನಲ್ಲಿ ನೀವು ಸಹಾಯ ಮಾಡುತ್ತೀರಾ?",
     "Yes. Share your existing menu in any format — PDF, Excel or even photos — and our team sets it up and walks your staff through the basics.": "ಹೌದು. ನಿಮ್ಮ ಈಗಿನ ಮೆನುವನ್ನು ಯಾವುದೇ ರೂಪದಲ್ಲಿ ಕಳುಹಿಸಿ — PDF, Excel ಅಥವಾ ಫೋಟೋ — ನಮ್ಮ ತಂಡ ಅದನ್ನು ಸೆಟ್ ಮಾಡಿ ನಿಮ್ಮ ಸಿಬ್ಬಂದಿಗೆ ಮೂಲ ವಿಷಯಗಳನ್ನು ಕಲಿಸುತ್ತದೆ.",
     "Can I keep my current POS or billing software?": "ನನ್ನ ಈಗಿನ POS ಅಥವಾ ಬಿಲ್ಲಿಂಗ್ ಸಾಫ್ಟ್‌ವೇರ್ ಉಳಿಸಿಕೊಳ್ಳಬಹುದೇ?",
-    "In most cases yes — PlatesOS can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.": "ಹೆಚ್ಚಿನ ಸಂದರ್ಭಗಳಲ್ಲಿ ಹೌದು — PlatesOS ನಿಮ್ಮ ಬಿಲ್ಲಿಂಗ್ ಸಿಸ್ಟಂ ಜೊತೆಜೊತೆಗೆ ಚಲಿಸಬಹುದು ಮತ್ತು ಆರ್ಡರ್‌ಗಳು ಡಿಜಿಟಲ್ ಆಗಿ ಬರುತ್ತಿರುತ್ತವೆ. ನೀವು ಏನು ಬಳಸುತ್ತೀರಿ ಎಂದು ತಿಳಿಸಿ, ನಾವು ಮೊದಲೇ ಖಚಿತಪಡಿಸುತ್ತೇವೆ.",
+    "In most cases yes — DineEatz can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.": "ಹೆಚ್ಚಿನ ಸಂದರ್ಭಗಳಲ್ಲಿ ಹೌದು — DineEatz ನಿಮ್ಮ ಬಿಲ್ಲಿಂಗ್ ಸಿಸ್ಟಂ ಜೊತೆಜೊತೆಗೆ ಚಲಿಸಬಹುದು ಮತ್ತು ಆರ್ಡರ್‌ಗಳು ಡಿಜಿಟಲ್ ಆಗಿ ಬರುತ್ತಿರುತ್ತವೆ. ನೀವು ಏನು ಬಳಸುತ್ತೀರಿ ಎಂದು ತಿಳಿಸಿ, ನಾವು ಮೊದಲೇ ಖಚಿತಪಡಿಸುತ್ತೇವೆ.",
     // faq — products
     "What QR table products do you supply?": "ನೀವು ಯಾವ QR ಟೇಬಲ್ ಉತ್ಪನ್ನಗಳನ್ನು ಪೂರೈಸುತ್ತೀರಿ?",
     "Table tents, tissue-box holders and condiment-caddy wraps, each printed with your branding and a QR code mapped to a specific table.": "ಟೇಬಲ್ ಟೆಂಟ್, ಟಿಶ್ಯೂ-ಬಾಕ್ಸ್ ಹೋಲ್ಡರ್ ಮತ್ತು ಕಂಡಿಮೆಂಟ್-ಕ್ಯಾಡಿ ರ್ಯಾಪ್ — ಪ್ರತಿಯೊಂದರ ಮೇಲೂ ನಿಮ್ಮ ಬ್ರಾಂಡಿಂಗ್ ಮತ್ತು ಆ ಟೇಬಲ್‌ನ QR ಕೋಡ್ ಮುದ್ರಿತವಾಗಿರುತ್ತದೆ.",
@@ -678,7 +678,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Yes. Guests can request a table from your page, and you confirm, move or cancel bookings on a live floor plan that shows which tables are free.": "ಹೌದು. ಅತಿಥಿಗಳು ನಿಮ್ಮ ಪುಟದಿಂದ ಟೇಬಲ್ ಕೋರಬಹುದು, ಮತ್ತು ಖಾಲಿ ಟೇಬಲ್‌ಗಳನ್ನು ತೋರಿಸುವ ಲೈವ್ ಫ್ಲೋರ್ ಪ್ಲಾನ್‌ನಲ್ಲಿ ನೀವು ಬುಕಿಂಗ್ ದೃಢಪಡಿಸಬಹುದು, ಬದಲಿಸಬಹುದು ಅಥವಾ ರದ್ದು ಮಾಡಬಹುದು.",
     "Can I see live table status and a floor plan?": "ಲೈವ್ ಟೇಬಲ್ ಸ್ಥಿತಿ ಮತ್ತು ಫ್ಲೋರ್ ಪ್ಲಾನ್ ಕಾಣಿಸುತ್ತದೆಯೇ?",
     "Yes. The floor plan shows which tables are occupied, which have ordered and which are waiting to pay, updating as orders come in.": "ಹೌದು. ಯಾವ ಟೇಬಲ್ ಭರ್ತಿಯಾಗಿದೆ, ಯಾರು ಆರ್ಡರ್ ಮಾಡಿದ್ದಾರೆ ಮತ್ತು ಯಾರು ಪಾವತಿಗೆ ಕಾಯುತ್ತಿದ್ದಾರೆ ಎಂಬುದನ್ನು ಫ್ಲೋರ್ ಪ್ಲಾನ್ ತೋರಿಸುತ್ತದೆ — ಆರ್ಡರ್ ಬಂದಂತೆ ಅದು ಅಪ್‌ಡೇಟ್ ಆಗುತ್ತದೆ.",
-    "Does PlatesOS handle delivery and takeaway orders?": "PlatesOS ಡೆಲಿವರಿ ಮತ್ತು ಟೇಕ್‌ಅವೇ ಆರ್ಡರ್ ನಿರ್ವಹಿಸುತ್ತದೆಯೇ?",
+    "Does DineEatz handle delivery and takeaway orders?": "DineEatz ಡೆಲಿವರಿ ಮತ್ತು ಟೇಕ್‌ಅವೇ ಆರ್ಡರ್ ನಿರ್ವಹಿಸುತ್ತದೆಯೇ?",
     "Yes. Your online ordering page accepts delivery and takeaway orders directly, with no commission taken on any of them.": "ಹೌದು. ನಿಮ್ಮ ಆನ್‌ಲೈನ್ ಆರ್ಡರಿಂಗ್ ಪುಟ ಡೆಲಿವರಿ ಮತ್ತು ಟೇಕ್‌ಅವೇ ಆರ್ಡರ್‌ಗಳನ್ನು ನೇರವಾಗಿ ಸ್ವೀಕರಿಸುತ್ತದೆ, ಮತ್ತು ಅವುಗಳ ಮೇಲೆ ಯಾವುದೇ ಕಮಿಷನ್ ಇಲ್ಲ.",
     "Does it print KOT tickets for the kitchen?": "ಕಿಚನ್‌ಗೆ KOT ಟಿಕೆಟ್ ಪ್ರಿಂಟ್ ಆಗುತ್ತದೆಯೇ?",
     "Yes. Connect any standard thermal printer and each order prints as a KOT — or skip paper entirely and use the kitchen display screen instead.": "ಹೌದು. ಯಾವುದೇ ಸಾಮಾನ್ಯ ಥರ್ಮಲ್ ಪ್ರಿಂಟರ್ ಜೋಡಿಸಿ, ಪ್ರತಿ ಆರ್ಡರ್ KOT ಆಗಿ ಪ್ರಿಂಟ್ ಆಗುತ್ತದೆ — ಅಥವಾ ಕಾಗದ ಬಿಟ್ಟು ಕಿಚನ್ ಡಿಸ್‌ಪ್ಲೇ ಸ್ಕ್ರೀನ್ ಬಳಸಿ.",
@@ -691,8 +691,8 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Can I show my menu in more than one language?": "ಮೆನುವನ್ನು ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಭಾಷೆಗಳಲ್ಲಿ ತೋರಿಸಬಹುದೇ?",
     "Yes. Item names and descriptions can be entered in the language your guests read, and this site itself is available in English, Hindi, Marathi and Kannada.": "ಹೌದು. ಐಟಂಗಳ ಹೆಸರು ಮತ್ತು ವಿವರಣೆಯನ್ನು ನಿಮ್ಮ ಅತಿಥಿಗಳು ಓದುವ ಭಾಷೆಯಲ್ಲಿ ನಮೂದಿಸಬಹುದು, ಮತ್ತು ಈ ಸೈಟ್ ಸ್ವತಃ ಇಂಗ್ಲಿಷ್, ಹಿಂದಿ, ಮರಾಠಿ ಮತ್ತು ಕನ್ನಡದಲ್ಲಿ ಲಭ್ಯವಿದೆ.",
     "What happens if my internet goes down?": "ಇಂಟರ್ನೆಟ್ ಬಂದ್ ಆದರೆ ಏನಾಗುತ್ತದೆ?",
-    "PlatesOS is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.": "PlatesOS ಕ್ಲೌಡ್ ಆಧಾರಿತ, ಆದ್ದರಿಂದ ಸಂಪರ್ಕ ಅಗತ್ಯ. ಅತಿಥಿಗಳು ತಮ್ಮ ಮೊಬೈಲ್ ಡೇಟಾದಿಂದ ಆರ್ಡರ್ ಮಾಡುತ್ತಾರೆ, ಆದ್ದರಿಂದ ನಿಮ್ಮ Wi-Fi ಹೋದರೂ ಟೇಬಲ್ ಆರ್ಡರಿಂಗ್ ಚಾಲ್ತಿಯಲ್ಲಿರುತ್ತದೆ — ಬಿಲ್ಲಿಂಗ್‌ಗೆ ಬ್ಯಾಕಪ್ ಹಾಟ್‌ಸ್ಪಾಟ್ ಇಟ್ಟುಕೊಳ್ಳಿ.",
-    "How much does PlatesOS cost?": "PlatesOS ನ ಬೆಲೆ ಎಷ್ಟು?",
+    "DineEatz is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.": "DineEatz ಕ್ಲೌಡ್ ಆಧಾರಿತ, ಆದ್ದರಿಂದ ಸಂಪರ್ಕ ಅಗತ್ಯ. ಅತಿಥಿಗಳು ತಮ್ಮ ಮೊಬೈಲ್ ಡೇಟಾದಿಂದ ಆರ್ಡರ್ ಮಾಡುತ್ತಾರೆ, ಆದ್ದರಿಂದ ನಿಮ್ಮ Wi-Fi ಹೋದರೂ ಟೇಬಲ್ ಆರ್ಡರಿಂಗ್ ಚಾಲ್ತಿಯಲ್ಲಿರುತ್ತದೆ — ಬಿಲ್ಲಿಂಗ್‌ಗೆ ಬ್ಯಾಕಪ್ ಹಾಟ್‌ಸ್ಪಾಟ್ ಇಟ್ಟುಕೊಳ್ಳಿ.",
+    "How much does DineEatz cost?": "DineEatz ನ ಬೆಲೆ ಎಷ್ಟು?",
     "Starter is ₹999 a month and Growth is ₹2,499 a month, both billed flat with no commission. Enterprise is priced to your chain — talk to sales for a quote.": "ಸ್ಟಾರ್ಟರ್ ತಿಂಗಳಿಗೆ ₹999 ಮತ್ತು ಗ್ರೋತ್ ತಿಂಗಳಿಗೆ ₹2,499 — ಎರಡೂ ನಿಗದಿತ ಶುಲ್ಕ, ಕಮಿಷನ್ ಇಲ್ಲ. ಎಂಟರ್‌ಪ್ರೈಸ್ ಬೆಲೆ ನಿಮ್ಮ ಚೈನ್‌ಗೆ ತಕ್ಕಂತೆ — ಕೊಟೇಶನ್‌ಗಾಗಿ ಸೇಲ್ಸ್‌ನೊಂದಿಗೆ ಮಾತನಾಡಿ.",
     "Are there any setup or hidden fees?": "ಸೆಟಪ್ ಅಥವಾ ಗುಪ್ತ ಶುಲ್ಕ ಇದೆಯೇ?",
     "No setup fee and no hidden charges — your plan price is what you pay. Printed QR table products are the only separate, optional cost.": "ಸೆಟಪ್ ಶುಲ್ಕ ಇಲ್ಲ, ಗುಪ್ತ ಶುಲ್ಕವೂ ಇಲ್ಲ — ಪ್ಲಾನ್‌ನ ಬೆಲೆಯಷ್ಟೇ ನೀವು ಪಾವತಿಸುತ್ತೀರಿ. ಮುದ್ರಿತ QR ಟೇಬಲ್ ಉತ್ಪನ್ನಗಳಷ್ಟೇ ಪ್ರತ್ಯೇಕ ಹಾಗೂ ಐಚ್ಛಿಕ ವೆಚ್ಚ.",
@@ -702,7 +702,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "The {days}-day trial means you only pay once you're sure. After that you can cancel any time and you won't be billed from the next cycle — write to support for anything specific to your account.": "{days} ದಿನಗಳ ಟ್ರಯಲ್ ಎಂದರೆ ನಿಮಗೆ ಖಚಿತವಾದ ಮೇಲೆಯೇ ನೀವು ಪಾವತಿಸುತ್ತೀರಿ. ನಂತರ ಯಾವಾಗ ಬೇಕಾದರೂ ರದ್ದು ಮಾಡಿ, ಮುಂದಿನ ಸೈಕಲ್‌ನಿಂದ ಬಿಲ್ ಆಗುವುದಿಲ್ಲ — ನಿಮ್ಮ ಖಾತೆಗೆ ಸಂಬಂಧಿಸಿದ ವಿಶೇಷ ವಿಷಯಕ್ಕೆ ಬೆಂಬಲ ತಂಡಕ್ಕೆ ಬರೆಯಿರಿ.",
     "Is there a discount for annual billing or multiple outlets?": "ವಾರ್ಷಿಕ ಬಿಲ್ಲಿಂಗ್ ಅಥವಾ ಹಲವು ಔಟ್‌ಲೆಟ್‌ಗಳಿಗೆ ರಿಯಾಯಿತಿ ಇದೆಯೇ?",
     "Yes — annual plans and multi-outlet accounts are priced lower per outlet. Tell us your outlet count and we'll share a quote.": "ಹೌದು — ವಾರ್ಷಿಕ ಪ್ಲಾನ್ ಮತ್ತು ಹಲವು ಔಟ್‌ಲೆಟ್ ಖಾತೆಗಳಿಗೆ ಪ್ರತಿ ಔಟ್‌ಲೆಟ್ ಬೆಲೆ ಕಡಿಮೆ. ನಿಮ್ಮ ಔಟ್‌ಲೆಟ್‌ಗಳ ಸಂಖ್ಯೆ ತಿಳಿಸಿ, ನಾವು ಕೊಟೇಶನ್ ಕಳುಹಿಸುತ್ತೇವೆ.",
-    "Can I try PlatesOS before paying?": "ಪಾವತಿಸುವ ಮೊದಲು PlatesOS ಬಳಸಿ ನೋಡಬಹುದೇ?",
+    "Can I try DineEatz before paying?": "ಪಾವತಿಸುವ ಮೊದಲು DineEatz ಬಳಸಿ ನೋಡಬಹುದೇ?",
     "Yes. Start a {days}-day free trial with no card details, set up your real menu, and decide at the end of it.": "ಹೌದು. ಕಾರ್ಡ್ ವಿವರಗಳಿಲ್ಲದೆ {days} ದಿನಗಳ ಉಚಿತ ಟ್ರಯಲ್ ಆರಂಭಿಸಿ, ನಿಮ್ಮ ನಿಜವಾದ ಮೆನು ಸೆಟ್ ಮಾಡಿ, ಕೊನೆಯಲ್ಲಿ ನಿರ್ಧರಿಸಿ.",
     "Can I book a demo with your team?": "ನಿಮ್ಮ ತಂಡದೊಂದಿಗೆ ಡೆಮೊ ಬುಕ್ ಮಾಡಬಹುದೇ?",
     "Yes. Pick “Book a demo” in the contact form or message us on WhatsApp, and we'll walk you through the product on a call at a time that suits you.": "ಹೌದು. ಸಂಪರ್ಕ ಫಾರ್ಮ್‌ನಲ್ಲಿ “ಡೆಮೊ ಬುಕ್ ಮಾಡಿ” ಆರಿಸಿ ಅಥವಾ WhatsApp ನಲ್ಲಿ ಸಂದೇಶ ಕಳುಹಿಸಿ — ನಿಮಗೆ ಅನುಕೂಲವಾದ ಸಮಯದಲ್ಲಿ ಕರೆಯಲ್ಲಿ ಪೂರ್ಣ ಉತ್ಪನ್ನ ತೋರಿಸುತ್ತೇವೆ.",
@@ -712,7 +712,7 @@ const TRANSLATIONS: Record<Exclude<Lang, "en">, Record<string, string>> = {
     "Download print-ready QR PDFs from your dashboard and use any local printer, or order our printed table tents, tissue boxes and condiment caddies.": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ನಿಂದ ಪ್ರಿಂಟ್-ರೆಡಿ QR PDF ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ ಯಾವುದೇ ಸ್ಥಳೀಯ ಪ್ರಿಂಟರ್‌ನಲ್ಲಿ ಮುದ್ರಿಸಿ, ಅಥವಾ ನಮ್ಮ ಮುದ್ರಿತ ಟೇಬಲ್ ಟೆಂಟ್, ಟಿಶ್ಯೂ ಬಾಕ್ಸ್ ಮತ್ತು ಕಂಡಿಮೆಂಟ್ ಕ್ಯಾಡಿ ಆರ್ಡರ್ ಮಾಡಿ.",
     "How quickly do you reply to support requests?": "ಬೆಂಬಲ ವಿನಂತಿಗೆ ಎಷ್ಟು ಬೇಗ ಉತ್ತರ ಸಿಗುತ್ತದೆ?",
     "Email gets a reply within 24 hours, and WhatsApp or phone is usually answered within the same working hour, Mon – Fri, 9:00 AM – 6:00 PM.": "ಇಮೇಲ್‌ಗೆ 24 ಗಂಟೆಗಳಲ್ಲಿ ಉತ್ತರ ಸಿಗುತ್ತದೆ, ಮತ್ತು WhatsApp ಅಥವಾ ಫೋನ್‌ಗೆ ಸೋಮ – ಶುಕ್ರ, ಬೆಳಿಗ್ಗೆ 9:00 ರಿಂದ ಸಂಜೆ 6:00 ರ ನಡುವೆ ಸಾಮಾನ್ಯವಾಗಿ ಅದೇ ಗಂಟೆಯಲ್ಲಿ ಉತ್ತರ ಸಿಗುತ್ತದೆ.",
-    "Which languages is PlatesOS available in?": "PlatesOS ಯಾವ ಭಾಷೆಗಳಲ್ಲಿ ಲಭ್ಯವಿದೆ?",
+    "Which languages is DineEatz available in?": "DineEatz ಯಾವ ಭಾಷೆಗಳಲ್ಲಿ ಲಭ್ಯವಿದೆ?",
     "The platform and this site are available in English, Hindi, Marathi and Kannada, and support is available in all four.": "ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಮತ್ತು ಈ ಸೈಟ್ ಇಂಗ್ಲಿಷ್, ಹಿಂದಿ, ಮರಾಠಿ ಮತ್ತು ಕನ್ನಡದಲ್ಲಿ ಲಭ್ಯವಿದೆ, ಮತ್ತು ಬೆಂಬಲವೂ ನಾಲ್ಕೂ ಭಾಷೆಗಳಲ್ಲಿ ಸಿಗುತ್ತದೆ.",
     // agent bot copy
     "💬 Ask a question": "💬 ಪ್ರಶ್ನೆ ಕೇಳಿ",
@@ -780,24 +780,24 @@ const LanguageMenu = () => {
 // ====================
 // SHARED UI
 // ====================
-// Uploaded logo from Platform settings; the built-in PlatesOS mark when none
+// Uploaded logo from Platform settings; the bundled DineEatz logo when none
 // is set or the image fails to load.
 const Logo = () => {
   const { logoUrl } = useSite();
   const [broken, setBroken] = useState(false);
-  const src = broken ? null : safeUrl(logoUrl);
+  const src = broken ? null : safeUrl(logoUrl) || "/brand/dineeatz-logo.png?v=2";
   useEffect(() => setBroken(false), [logoUrl]);
   return (
     <button onClick={() => scrollTo("home")} className="flex items-center gap-2" aria-label={BRAND.name}>
       {src ? (
-        <img src={src} alt={BRAND.name} className="h-9 w-auto max-w-[180px] object-contain" onError={() => setBroken(true)} />
+        <img src={src} alt={BRAND.name} className="h-14 md:h-[4.5rem] w-auto max-w-[300px] md:max-w-[380px] object-contain" onError={() => setBroken(true)} />
       ) : (
         <>
           <span className="h-9 w-9 rounded-xl grid place-items-center text-white" style={{ background: BRAND.primary }}>
             <Utensils className="h-5 w-5" />
           </span>
           <span className="text-xl font-bold" style={{ color: BRAND.dark }}>
-            Plates<span style={{ color: BRAND.primary }}>OS</span>
+            {BRAND.name}
           </span>
         </>
       )}
@@ -867,7 +867,7 @@ const Navbar = () => {
   }, []);
   return (
     <header className="sticky top-0 z-50 bg-white/85 backdrop-blur border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 h-16 md:h-20 flex items-center justify-between">
         <Logo />
         <nav className="hidden md:flex items-center gap-8 text-sm">
           {NAV.map((n) => (
@@ -969,7 +969,7 @@ const Phone_ = ({ children }: { children: ReactNode }) => (
 const Sidebar = ({ active }: { active: string }) => (
   <div className="w-24 border-r border-slate-100 p-2 space-y-1">
     <div className="flex items-center gap-1 font-bold mb-2" style={{ color: BRAND.dark }}>
-      <span className="h-4 w-4 rounded grid place-items-center text-white" style={{ background: BRAND.primary }}><Utensils className="h-2.5 w-2.5"/></span>PlatesOS
+      <span className="h-4 w-4 rounded grid place-items-center text-white" style={{ background: BRAND.primary }}><Utensils className="h-2.5 w-2.5"/></span>DineEatz
     </div>
     {["Dashboard", "Orders", "Menu", "Tables", "Kitchen", "Reports", "Settings"].map((i) => (
       <div key={i} className="rounded px-1.5 py-1"
@@ -988,7 +988,7 @@ const DashboardSlide = () => (
     <div className="relative z-10 -mr-16 mb-[-10px]">
       <Phone_>
         <div className="p-2">
-          <div className="font-bold mb-1" style={{ color: BRAND.primary }}>PlatesOS</div>
+          <div className="font-bold mb-1" style={{ color: BRAND.primary }}>DineEatz</div>
           <div className="h-24 rounded-lg bg-gradient-to-br from-orange-200 via-amber-300 to-red-300 grid place-items-center text-2xl">🍛</div>
           <div className="font-semibold mt-2">Paneer Butter Masala</div>
           <div className="text-slate-400">Rich & creamy, served with naan</div>
@@ -1067,7 +1067,7 @@ const QRSlide = () => (
       <div className="font-bold text-lg" style={{ color: BRAND.dark }}>Table 5</div>
       <div className="text-xs text-slate-400 mb-3">Scan to order</div>
       <QRCodeMock />
-      <div className="mt-3 text-xs font-medium" style={{ color: BRAND.primary }}>platesos.com/t/5</div>
+      <div className="mt-3 text-xs font-medium" style={{ color: BRAND.primary }}>dineeatz.com/t/5</div>
     </div>
     <Phone_>
       <div className="p-2 space-y-1.5">
@@ -1252,13 +1252,13 @@ const VideoModal = ({ open, onClose }: { open: boolean; onClose: () => void }) =
       {open && (
         <motion.div className="fixed inset-0 z-[100] grid place-items-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-sm"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
-          role="dialog" aria-modal="true" aria-label="PlatesOS demo video">
+          role="dialog" aria-modal="true" aria-label="DineEatz demo video">
           <motion.div className="relative w-full max-w-4xl" onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.92, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
             <div className="relative aspect-video w-full overflow-hidden rounded-xl sm:rounded-2xl bg-black shadow-2xl">
               {embed ? (
-                <iframe src={embed} title="PlatesOS demo" className="h-full w-full"
+                <iframe src={embed} title="DineEatz demo" className="h-full w-full"
                   allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
               ) : (
                 <video src={DEMO_VIDEO_URL} className="h-full w-full" autoPlay muted controls playsInline />
@@ -1285,7 +1285,7 @@ const Hero = () => {
   return (
     <section id="home" className="relative overflow-hidden scroll-mt-16">
       <div className="absolute inset-0 -z-10" style={{ background: `radial-gradient(ellipse at 80% 0%, ${BRAND.soft}, transparent 60%), linear-gradient(180deg,#fff, #F6F9FF)` }} />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-14 lg:py-20 grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-8 sm:gap-10 lg:gap-6 items-center overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 lg:py-8 grid grid-cols-1 lg:grid-cols-[1fr_1.15fr] gap-8 sm:gap-10 lg:gap-6 items-center overflow-hidden">
         <Reveal>
           <Pill>{t("Modern Restaurant Management Platform")}</Pill>
           <h1 className="mt-4 sm:mt-5 text-[clamp(2.15rem,8.3vw,3.7rem)] font-extrabold tracking-tight leading-[1.08]" style={{ color: BRAND.dark }}>
@@ -1366,7 +1366,7 @@ const Features = () => {
             <h2 className="mt-4 text-3xl md:text-4xl font-extrabold" style={{ color: BRAND.dark }}>
               {t("Powerful features for")} <span style={{ color: BRAND.primary }}>{t("your restaurant")}</span>
             </h2>
-            <p className="mt-4 text-slate-600">{t("From online orders to detailed reports, PlatesOS gives you the tools to run your restaurant smoothly and efficiently.")}</p>
+            <p className="mt-4 text-slate-600">{t("From online orders to detailed reports, DineEatz gives you the tools to run your restaurant smoothly and efficiently.")}</p>
           </div>
         </Reveal>
         <div className="mt-10 sm:mt-14 grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
@@ -1434,7 +1434,7 @@ const Flip = ({ on, children }: { on: boolean; children: ReactNode }) => (
 const Wordmark = ({ x, y, w = 72, h = 26, fs = 13 }: { x: number; y: number; w?: number; h?: number; fs?: number }) => (
   <g>
     <rect x={x} y={y} width={w} height={h} rx={h / 3.5} fill="url(#pbrand)" />
-    <text x={x + w / 2} y={y + h / 2 + fs * 0.36} textAnchor="middle" fill="#fff" fontSize={fs} fontWeight="700" fontFamily="system-ui">PlatesOS</text>
+    <text x={x + w / 2} y={y + h / 2 + fs * 0.36} textAnchor="middle" fill="#fff" fontSize={fs} fontWeight="700" fontFamily="system-ui">DineEatz</text>
   </g>
 );
 
@@ -1525,7 +1525,7 @@ const CondimentArt = ({ view }: ArtProps) => {
           <Napkins x={216} />
           <Caddy x={68} w={184} />
           <text x="160" y="162" textAnchor="middle" fill={BRAND.dark} fontSize="10" fontWeight="700" fontFamily="system-ui">Cutlery · Condiments · Napkins</text>
-          <text x="160" y="180" textAnchor="middle" fill="#94A3B8" fontSize="8" fontWeight="600" fontFamily="system-ui">POWERED BY PLATESOS</text>
+          <text x="160" y="180" textAnchor="middle" fill="#94A3B8" fontSize="8" fontWeight="600" fontFamily="system-ui">POWERED BY DINEEATZ</text>
         </g>
       )}
     </TableScene>
@@ -1626,13 +1626,13 @@ const TissueBoxArt = ({ view }: ArtProps) => {
 const PRODUCTS = [
   { name: "Condiment Holder QR", Art: CondimentArt, tag: "Best seller",
     body: "One caddy for spoons, forks, salt, pepper and napkins — with your ordering QR printed on the front face.",
-    message: "Hi PlatesOS! I'm interested in the Condiment Holder QR for my restaurant." },
+    message: "Hi DineEatz! I'm interested in the Condiment Holder QR for my restaurant." },
   { name: "L-Shaped Table Tent QR", Art: TableTentArt, tag: "Table numbering",
     body: "Slim L-stand printed with your table number on both faces, so guests and servers always know the table.",
-    message: "Hi PlatesOS! I'm interested in the L-Shaped Table Tent QR for my restaurant." },
+    message: "Hi DineEatz! I'm interested in the L-Shaped Table Tent QR for my restaurant." },
   { name: "Tissue Box QR Branding", Art: TissueBoxArt, tag: "Everyday branding",
     body: "Custom-printed tissue boxes carrying your logo and ordering QR — useful on the table, seen at every meal.",
-    message: "Hi PlatesOS! I'm interested in Tissue Box QR Branding for my restaurant." },
+    message: "Hi DineEatz! I'm interested in Tissue Box QR Branding for my restaurant." },
 ];
 
 const ProductViewer = ({ p }: { p: (typeof PRODUCTS)[number] }) => {
@@ -1717,7 +1717,7 @@ const Products = () => {
             <h2 className="mt-4 text-3xl md:text-4xl font-extrabold" style={{ color: BRAND.dark }}>
               {t("Premium QR products for")} <span style={{ color: BRAND.primary }}>{t("your tables")}</span>
             </h2>
-            <p className="mt-4 text-slate-600">{t("Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your PlatesOS menu.")}</p>
+            <p className="mt-4 text-slate-600">{t("Printed once, branded to your restaurant, and built to survive daily service. Every product links straight to your DineEatz menu.")}</p>
           </div>
         </Reveal>
         <div className="mt-10 sm:mt-14 grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
@@ -1736,7 +1736,7 @@ const Products = () => {
 };
 
 // ====================
-// WHY PLATESOS — rotating showcase
+// WHY DINEEATZ — rotating showcase
 // ====================
 const TablesSlide = () => {
   const st = ["busy", "free", "busy", "reserved", "busy", "busy", "free", "busy", "reserved", "busy", "free", "busy"];
@@ -1855,15 +1855,15 @@ const WhyShowcase = () => {
 };
 
 // ====================
-// WHY PLATESOS (ABOUT)
+// WHY DINEEATZ (ABOUT)
 // ====================
-const WhyPlatesOS = () => {
+const WhyDineEatz = () => {
   const t = useT();
   return (
     <section id="about" className="py-14 sm:py-20 scroll-mt-16" style={{ background: "#F4F8FF" }}>
       <div className="max-w-7xl mx-auto px-5 sm:px-6 grid grid-cols-1 gap-8 sm:gap-10 lg:grid-cols-2 lg:gap-12 items-center">
         <Reveal>
-          <Pill>{t("Why choose PlatesOS")}</Pill>
+          <Pill>{t("Why choose DineEatz")}</Pill>
           <h2 className="mt-4 text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight" style={{ color: BRAND.dark }}>{t("Built for modern")}<br />
             {t("restaurants")}
           </h2>
@@ -2115,8 +2115,8 @@ const FAQS: Faq[] = [
   // ---------- Features ----------
   {
     c: "Features",
-    q: "What exactly does PlatesOS do?",
-    a: "PlatesOS runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.",
+    q: "What exactly does DineEatz do?",
+    a: "DineEatz runs your day-to-day restaurant operations in one place — QR table ordering, online ordering, table bookings, kitchen tickets, billing, reports and invoices.",
   },
   {
     c: "Features",
@@ -2155,7 +2155,7 @@ const FAQS: Faq[] = [
   },
   {
     c: "Features",
-    q: "Does PlatesOS handle delivery and takeaway orders?",
+    q: "Does DineEatz handle delivery and takeaway orders?",
     a: "Yes. Your online ordering page accepts delivery and takeaway orders directly, with no commission taken on any of them.",
   },
   {
@@ -2195,19 +2195,19 @@ const FAQS: Faq[] = [
   },
   {
     c: "Features",
-    q: "Do I need special hardware to use PlatesOS?",
-    a: "No. PlatesOS runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.",
+    q: "Do I need special hardware to use DineEatz?",
+    a: "No. DineEatz runs in any modern browser — on a phone, tablet, laptop or your existing billing computer. A thermal printer and a kitchen display screen are optional.",
   },
   {
     c: "Features",
     q: "What happens if my internet goes down?",
-    a: "PlatesOS is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.",
+    a: "DineEatz is cloud-based, so it needs a connection. Guests order over their own mobile data, so table ordering keeps working even when your Wi-Fi drops — keep a backup hotspot for billing.",
   },
 
   // ---------- Pricing ----------
   {
     c: "Pricing",
-    q: "How much does PlatesOS cost?",
+    q: "How much does DineEatz cost?",
     a: "Starter is ₹999 a month and Growth is ₹2,499 a month, both billed flat with no commission. Enterprise is priced to your chain — talk to sales for a quote.",
   },
   {
@@ -2259,7 +2259,7 @@ const FAQS: Faq[] = [
   },
   {
     c: "Setup",
-    q: "Can I try PlatesOS before paying?",
+    q: "Can I try DineEatz before paying?",
     a: "Yes. Start a {days}-day free trial with no card details, set up your real menu, and decide at the end of it.",
   },
   {
@@ -2285,7 +2285,7 @@ const FAQS: Faq[] = [
   {
     c: "Setup",
     q: "Can I keep my current POS or billing software?",
-    a: "In most cases yes — PlatesOS can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.",
+    a: "In most cases yes — DineEatz can run alongside your billing system while orders flow in digitally. Tell us what you use and we'll confirm before you commit.",
   },
 
   // ---------- Products ----------
@@ -2318,7 +2318,7 @@ const FAQS: Faq[] = [
   },
   {
     c: "Support",
-    q: "Which languages is PlatesOS available in?",
+    q: "Which languages is DineEatz available in?",
     a: "The platform and this site are available in English, Hindi, Marathi and Kannada, and support is available in all four.",
   },
   {
@@ -2338,7 +2338,7 @@ const FAQ_CATEGORIES: FaqCategory[] = ["Features", "Pricing", "Setup", "Products
 
 // Offered first, before any topic is picked. Each must match a question above exactly.
 const FAQ_POPULAR = [
-  "How much does PlatesOS cost?",
+  "How much does DineEatz cost?",
   "Do you charge commission on orders?",
   "Is there a free trial?",
   "Do my customers need to download an app?",
@@ -2352,7 +2352,7 @@ const faqFor = (q: string) => FAQS.find((f) => f.q === q);
 const buildAskMessage = (asked: Faq[]) =>
   asked.length
     ? [
-        "Hi PlatesOS! I read these answers on your site:",
+        "Hi DineEatz! I read these answers on your site:",
         ...asked.map((f) => `• ${f.q}`),
         "",
         "I'd like to know more.",
@@ -2360,7 +2360,7 @@ const buildAskMessage = (asked: Faq[]) =>
     : whatsappChatMessage;
 
 // ====================
-// FLOATING PLATESOS AGENT (robot launcher + panel)
+// FLOATING DINEEATZ AGENT (robot launcher + panel)
 // ====================
 const AgentAvatar = () => {
   const reduce = useReducedMotion();
@@ -2412,7 +2412,7 @@ const AgentAvatar = () => {
 };
 
 const AGENT_COPY = {
-  title: "Hi! I'm the PlatesOS Agent 👋",
+  title: "Hi! I'm the DineEatz Agent 👋",
   body: "Want to know more about our platform? Chat with us.",
 };
 
@@ -2468,7 +2468,7 @@ const AgentHeader = ({ typing, touch, onClose }: { typing: boolean; touch: boole
     <div className="flex items-center gap-3 px-4 py-3 text-white" style={{ background: `linear-gradient(135deg, #3D9BFF, ${BRAND.primary})` }}>
       <div className="h-11 w-11 shrink-0 rounded-full bg-white/20 p-0.5"><AgentAvatar /></div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm">{t("PlatesOS Agent")}</div>
+        <div className="font-semibold text-sm">{t("DineEatz Agent")}</div>
         <div className="flex items-center gap-1.5 text-[11px] text-white/90">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />{typing ? t("typing…") : t("Online · replies fast")}
         </div>
@@ -2482,7 +2482,7 @@ const AgentHeader = ({ typing, touch, onClose }: { typing: boolean; touch: boole
 const CardPanel = ({ touch, onClose }: PanelProps) => {
   const t = useT();
   return (
-    <motion.div {...panelMotion} id="platesos-agent" role="dialog" aria-label="PlatesOS Agent"
+    <motion.div {...panelMotion} id="dineeatz-agent" role="dialog" aria-label="DineEatz Agent"
       className="relative w-[300px] max-w-[calc(100vw-2.5rem)]">
       <motion.div className="absolute -top-10 left-3 z-10 h-24 w-24"
         initial={{ y: 24, opacity: 0, rotate: -10 }} animate={{ y: 0, opacity: 1, rotate: 0 }}
@@ -2492,7 +2492,7 @@ const CardPanel = ({ touch, onClose }: PanelProps) => {
       <div className="relative rounded-2xl bg-white/95 backdrop-blur border border-slate-100 shadow-2xl shadow-slate-900/15 p-5">
         {touch && <CloseBtn onClose={onClose} className="absolute top-3 right-3" />}
         <div className="pl-24 min-h-[2.75rem]">
-          <div className="font-bold text-sm" style={{ color: BRAND.dark }}>{t("PlatesOS Agent")}</div>
+          <div className="font-bold text-sm" style={{ color: BRAND.dark }}>{t("DineEatz Agent")}</div>
           <div className="mt-0.5"><OnlineStatus /></div>
         </div>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
@@ -2549,7 +2549,7 @@ const ChatPanel = ({ touch, onClose }: PanelProps) => {
   const typing = step < 2;
 
   return (
-    <motion.div {...panelMotion} id="platesos-agent" role="dialog" aria-label="PlatesOS Agent"
+    <motion.div {...panelMotion} id="dineeatz-agent" role="dialog" aria-label="DineEatz Agent"
       className="w-[320px] max-w-[calc(100vw-2.5rem)] overflow-hidden rounded-2xl bg-white border border-slate-100 shadow-2xl shadow-slate-900/20">
       <AgentHeader typing={typing} touch={touch} onClose={onClose} />
 
@@ -2654,7 +2654,7 @@ const FLOW: Record<string, FlowStep> = {
 
 // Always sent in English so your team reads a consistent format
 const buildFlowMessage = (answers: Answer[]) =>
-  ["Hi PlatesOS! Here are my details:", ...answers.map((a) => `• ${FLOW[a.stepId].question} → ${a.label}`)].join("\n");
+  ["Hi DineEatz! Here are my details:", ...answers.map((a) => `• ${FLOW[a.stepId].question} → ${a.label}`)].join("\n");
 
 const GuidedPanel = ({ touch, onClose }: PanelProps) => {
   const t = useT();
@@ -2732,7 +2732,7 @@ const GuidedPanel = ({ touch, onClose }: PanelProps) => {
   const unread = (list: Faq[]) => list.filter((f) => !asked.includes(f) && !faqMissing(f.a, site));
 
   return (
-    <motion.div {...panelMotion} id="platesos-agent" role="dialog" aria-label="PlatesOS Agent"
+    <motion.div {...panelMotion} id="dineeatz-agent" role="dialog" aria-label="DineEatz Agent"
       className="w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-white border border-slate-100 shadow-2xl shadow-slate-900/20">
       <AgentHeader typing={typing || thinking} touch={touch} onClose={onClose} />
 
@@ -2835,7 +2835,7 @@ const GuidedPanel = ({ touch, onClose }: PanelProps) => {
 const PeekPanel = ({ touch, onClose }: PanelProps) => {
   const t = useT();
   return (
-    <motion.div id="platesos-agent" role="dialog" aria-label="PlatesOS Agent"
+    <motion.div id="dineeatz-agent" role="dialog" aria-label="DineEatz Agent"
       className="relative flex items-end gap-2 -mb-6 -mr-5"
       initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 1 }}>
       <motion.div initial={{ opacity: 0, scale: 0.6, x: 20 }} animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -2863,7 +2863,7 @@ const PeekPanel = ({ touch, onClose }: PanelProps) => {
 const PillPanel = (_props: PanelProps) => {
   const t = useT();
   return (
-    <motion.div id="platesos-agent" role="dialog" aria-label="PlatesOS Agent"
+    <motion.div id="dineeatz-agent" role="dialog" aria-label="DineEatz Agent"
       initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }}
       transition={{ type: "spring", stiffness: 260, damping: 28 }}
       className="overflow-hidden max-w-[calc(100vw-7rem)]">
@@ -2884,7 +2884,7 @@ const AGENT_PANELS: Record<AgentStyle, ComponentType<PanelProps>> = {
 };
 
 // ---- Container: hover (desktop) / tap (mobile); "guided" is always click-to-open ----
-// The floating launcher is the PlatesOS Agent robot itself — it bobs, waves and
+// The floating launcher is the DineEatz Agent robot itself — it bobs, waves and
 // blinks (all motion is dropped automatically when the visitor prefers reduced motion).
 const AgentFloat = () => {
   const reduce = useReducedMotion();
@@ -2932,8 +2932,8 @@ const AgentFloat = () => {
         </>
       )}
       <motion.button type="button" onClick={() => setOpen(!open)}
-        aria-expanded={open} aria-controls="platesos-agent"
-        aria-label={open ? "Close PlatesOS Agent" : "Open PlatesOS Agent"}
+        aria-expanded={open} aria-controls="dineeatz-agent"
+        aria-label={open ? "Close DineEatz Agent" : "Open DineEatz Agent"}
         className="relative grid h-16 w-16 sm:h-[72px] sm:w-[72px] place-items-center rounded-full bg-white ring-1 ring-blue-100 shadow-xl shadow-blue-600/25 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
         whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.94 }}
         animate={reduce || open ? { y: 0 } : { y: [0, -6, 0] }}
@@ -2981,7 +2981,7 @@ const AgentFloat = () => {
 // ====================
 // MAIN APP
 // ====================
-function PlatesOS() {
+function DineEatz() {
   // Language resets to English on every load/refresh (nothing is persisted)
   const [lang, setLang] = useState<Lang>("en");
   const settings = Route.useLoaderData();
@@ -3003,7 +3003,7 @@ function PlatesOS() {
             <Hero />
             <Features />
             <Products />
-            <WhyPlatesOS />
+            <WhyDineEatz />
             <Pricing />
             <ContactSection />
             <FinalCTA />

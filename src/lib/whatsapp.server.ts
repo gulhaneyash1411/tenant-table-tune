@@ -19,13 +19,13 @@ export function platformCreds(): TwilioCreds | null {
 export function resolveCreds(
   _settings?: unknown,
 ): TwilioCreds | null {
-  // PlateOS is the sole sender. Restaurant credentials are intentionally ignored.
+  // DineEatz is the sole sender. Restaurant credentials are intentionally ignored.
   return platformCreds();
 }
 
 export function brandedBody(body: string, restaurant: string) {
   const trimmed = body.trim();
-  return `*${restaurant}*\n\n${trimmed}\n\n_Powered by PlateOS_`;
+  return `*${restaurant}*\n\n${trimmed}\n\n_Powered by DineEatz_`;
 }
 
 // Twilio needs strict E.164. Most stored numbers are local (10-digit India) so
@@ -82,7 +82,7 @@ export async function sendWhatsApp(
     if (!res.ok) {
       console.error(`Twilio send failed [${res.status}]: ${JSON.stringify(json)}`);
       const error = json.code === 63015
-        ? "This recipient has not joined the PlateOS WhatsApp sandbox. They must join it before receiving test messages."
+        ? "This recipient has not joined the DineEatz WhatsApp sandbox. They must join it before receiving test messages."
         : json.code === 63038
           ? "The WhatsApp account has hit its daily message limit (trial accounts allow only a few messages per day). Upgrade the WhatsApp/Twilio account to keep sending."
           : json.message || `Twilio error ${res.status}`;
