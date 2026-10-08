@@ -97,7 +97,7 @@ type CartLine = {
   stock: number;
 };
 
-const CART_KEY = "plateos.product-cart";
+const CART_KEY = "dineeatz.product-cart";
 const lineKey = (l: { product_id: string; variant: string | null }) => `${l.product_id}|${l.variant ?? ""}`;
 
 const dateTime = (iso: string) =>

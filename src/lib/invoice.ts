@@ -162,7 +162,7 @@ export async function downloadInvoicePdf(order: any, rawItems: any[], tenant?: I
   y += 2;
   doc.setFont("helvetica", "bold").text("Total", 430, y, { align: "right" }); doc.text(rs(order.total), 547, y, { align: "right" });
   y += 40; doc.setFont("helvetica", "italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
-  y += 20; doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(160).text("Powered by PlateOS", 48, y);
+  y += 20; doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(160).text("Powered by DineEatz", 48, y);
 
   doc.save(`Invoice-${order.order_number}.pdf`);
 }

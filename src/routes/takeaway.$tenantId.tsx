@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, ShoppingBag, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { BrandedLoader } from "@/components/branded-loader";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
 
@@ -28,7 +27,7 @@ async function loadTakeawayData(tenantId: string): Promise<{ tenant: any; cats: 
 // it has no tenant data yet (the loader hasn't resolved), and must never
 // change appearance once shown, so it never tries to guess a logo.
 function TakeawayPending() {
-  return <BrandedLoader label="Loading Menu..." />;
+  return null;
 }
 
 function TakeawayError() {
@@ -289,7 +288,6 @@ function TakeawayOrder() {
     }
   }
 
-  if (placing) return <BrandedLoader tenant={tenant} label="Placing your order…" />;
   if (!tenant) return (
     <div className="min-h-screen grid place-items-center p-6 text-center">
       <div>

@@ -131,6 +131,18 @@ export const getOrderDetail = createServerFn({ method: "GET" })
     return { order, items: items ?? [], tenant };
   });
 
+export const getReviewTarget = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => z.object({ tenant_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: tenant } = await (supabaseAdmin as any)
+      .from("tenants")
+      .select("name,google_review_url")
+      .eq("id", data.tenant_id)
+      .maybeSingle();
+    return { name: tenant?.name ?? null, google_review_url: tenant?.google_review_url ?? null };
+  });
+
 export const getActiveTableOrder = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ table_id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {

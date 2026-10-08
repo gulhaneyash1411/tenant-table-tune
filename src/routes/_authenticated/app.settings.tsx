@@ -47,9 +47,10 @@ function SettingsPage() {
       name: t.name, owner_name: t.owner_name, owner_phone: t.owner_phone,
       address: t.address, city: t.city, state: t.state, pincode: t.pincode,
       gst_number: t.gst_number, business_type: t.business_type, brand_color: t.brand_color,
-      currency: t.currency, timezone: t.timezone, settings: t.settings || {},
+      currency: t.currency, timezone: "Asia/Kolkata", settings: t.settings || {},
       slogan: t.slogan, opening_time: t.opening_time, closing_time: t.closing_time, logo_url: t.logo_url,
-    }).eq("id", t.id);
+      google_review_url: t.google_review_url || null,
+    } as any).eq("id", t.id);
     setSaving(false);
     if (error) return toast.error(error.message);
     // Push the freshly-saved row into the layout's cached tenant so the
@@ -112,8 +113,27 @@ function SettingsPage() {
               <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
               <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
               <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
-              <Field type="time" label="Opening time" v={t.opening_time||""} on={v=>set("opening_time",v)} />
-              <Field type="time" label="Closing time" v={t.closing_time||""} on={v=>set("closing_time",v)} />
+              <Field label="Google review link" v={t.google_review_url||""} on={v=>set("google_review_url",v)} />
+              <div className="col-span-2">
+                <Label>Business hours</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    aria-label="Opening time"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={t.opening_time||"09:00"}
+                    onChange={e=>set("opening_time",e.target.value)}
+                  />
+                  <span className="text-sm text-muted-foreground">to</span>
+                  <input
+                    type="time"
+                    aria-label="Closing time"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={t.closing_time||""}
+                    onChange={e=>set("closing_time",e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
             {t.logo_url && <img src={t.logo_url} alt="logo" className="h-16 w-16 rounded object-cover border"/>}
           </Card>
@@ -132,19 +152,16 @@ function SettingsPage() {
               <Field label="GST number" v={t.gst_number||""} on={v=>set("gst_number",v)} />
               <Field label="Tax rate (%)" v={t.settings?.tax_rate||"5"} on={v=>setJ("tax_rate", v)} />
               <Field label="Currency" v={t.currency||"INR"} on={v=>set("currency",v)} />
-              <Field label="Timezone" v={t.timezone||"Asia/Kolkata"} on={v=>set("timezone",v)} />
+              <div>
+                <Label>Timezone</Label>
+                <Input value="Asia/Kolkata" readOnly disabled />
+              </div>
             </div>
           </Card>
           <Card className="p-5 space-y-4">
-            <div className="font-medium">Branding, hours, printers, KDS, Twilio, UPI</div>
+            <div className="font-medium">Printer</div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Brand color" v={t.brand_color||"#0ea5e9"} on={v=>set("brand_color",v)} />
-              <Field label="Business hours" v={t.settings?.hours||"11:00 - 23:00"} on={v=>setJ("hours",v)} />
               <Field label="Kitchen printer IP" v={t.settings?.printer_ip||""} on={v=>setJ("printer_ip",v)} />
-              <Field label="KDS token" v={t.settings?.kds_token||""} on={v=>setJ("kds_token",v)} />
-              <Field label="Twilio Account SID" v={t.settings?.twilio_sid||""} on={v=>setJ("twilio_sid",v)} />
-              <Field label="Twilio number" v={t.settings?.twilio_number||""} on={v=>setJ("twilio_number",v)} />
-              <Field label="UPI VPA" v={t.settings?.upi_vpa||""} on={v=>setJ("upi_vpa",v)} />
             </div>
           </Card>
           </fieldset>

@@ -1,7 +1,7 @@
 // UPI payment settings used to build the checkout QR.
 // Replace with your real business UPI ID and name (or set them in .env).
 export const UPI_ID = import.meta.env.VITE_UPI_ID || "platesos@okaxis";
-export const UPI_PAYEE_NAME = import.meta.env.VITE_UPI_PAYEE_NAME || "PlatesOS";
+export const UPI_PAYEE_NAME = import.meta.env.VITE_UPI_PAYEE_NAME || "DineEatz";
 
 export const PAYMENT_METHOD_UPI = "upi_qr";
 

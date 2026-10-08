@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/use-session";
-import { BrandedLoader } from "@/components/branded-loader";
 import {
   SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
@@ -81,13 +80,10 @@ function AdminBrand() {
       {logo ? (
         <img src={logo} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" />
       ) : (
-        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sidebar-primary
-          text-sm font-semibold text-sidebar-primary-foreground">
-          P
-        </div>
+        <img src="/brand/dineeatz-logo.png?v=3" alt="DineEatz" className="h-7 w-auto max-w-[120px] shrink-0 object-contain group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7" />
       )}
       <div className="flex min-w-0 items-baseline gap-1.5 group-data-[collapsible=icon]:hidden">
-        <span className="truncate text-sm font-semibold text-sidebar-accent-foreground">PlateOS</span>
+        <span className="sr-only">DineEatz</span>
         <span className="shrink-0 text-xs text-sidebar-foreground/70">· Super admin</span>
       </div>
     </SidebarHeader>
@@ -123,7 +119,7 @@ function AdminLayout() {
   }, [loading, isSuperAdmin, isKitchenUser, isSalesUser, navigate]);
 
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  if (loading || !isSuperAdmin) return <BrandedLoader label="Loading admin console…" />;
+  if (loading || !isSuperAdmin) return null;
 
   const current = SECTIONS.flatMap((s) => s.items).find((it) => isActive(pathname, it));
 

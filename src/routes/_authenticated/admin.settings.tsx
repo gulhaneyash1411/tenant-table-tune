@@ -151,7 +151,7 @@ function PlatformSettings() {
       <Card className="p-5 space-y-3">
         <div>
           <div className="font-medium">Website logo</div>
-          <p className="text-xs text-muted-foreground">Shown in the public website header and footer. Leave empty to use the default PlatesOS logo.</p>
+          <p className="text-xs text-muted-foreground">Shown in the public website header and footer. Leave empty to use the default DineEatz logo.</p>
         </div>
         <div className="flex items-start gap-4">
           <div className="h-16 w-16 shrink-0 rounded border grid place-items-center bg-muted/40 overflow-hidden">

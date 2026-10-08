@@ -8,7 +8,6 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin, UtensilsCrossed, X, ChevronLeft, ChevronRight, CalendarClock, Ban } from "lucide-react";
-import { BrandedLoader } from "@/components/branded-loader";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { appendPublicOrderItems, getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
 
@@ -81,7 +80,7 @@ async function loadTableData(qrKey: string) {
 // it has no tenant data yet (the loader hasn't resolved), and must never
 // change appearance once shown, so it never tries to guess a logo.
 function TablePending() {
-  return <BrandedLoader label="Loading Menu..." />;
+  return null;
 }
 
 function TableError() {
@@ -433,7 +432,6 @@ function TableOrder() {
     }
   }
 
-  if (placing) return <BrandedLoader tenant={tenant} label={resumeOrder ? "Adding to your order…" : "Placing your order…"} />;
   if (!table) return (
     <div className="min-h-screen grid place-items-center p-6 text-center">
       <div>

@@ -14,7 +14,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 - **Forgot-password flow UI.** On `/auth`, clicking "Forgot password?" now hides the "Sign in" / "Register restaurant" tab toggle while the reset-password form is shown, so it no longer appears alongside an unrelated flow (`src/routes/auth.tsx`).
-- **Global branded loader now shows the PlateOS mark and rotates.** `BrandedLoader` (`src/components/branded-loader.tsx`), the shared full-screen loader used across the dashboard, admin console, and menu-loading screens, now renders the PlateOS Utensils mark (instead of a plain letter placeholder) when no tenant logo is available, and the logo itself continuously rotates (`animate-spin`, 1.6s per revolution) as a loading cue — no separate spinner ring.
+- **Global branded loader now shows the DineEatz mark and rotates.** `BrandedLoader` (`src/components/branded-loader.tsx`), the shared full-screen loader used across the dashboard, admin console, and menu-loading screens, now renders the DineEatz Utensils mark (instead of a plain letter placeholder) when no tenant logo is available, and the logo itself continuously rotates (`animate-spin`, 1.6s per revolution) as a loading cue — no separate spinner ring.
 - **Settings page updates the dashboard instantly.** `SettingsPage` (`src/routes/_authenticated/app.settings.tsx`) now calls `setTenant()` after a successful save, so the "complete your restaurant profile" banner and sidebar (`src/routes/_authenticated/app.tsx`) reflect the saved profile data immediately — previously this required a full page reload because the layout's tenant data was only fetched once on mount.
 
 ### Fixed
