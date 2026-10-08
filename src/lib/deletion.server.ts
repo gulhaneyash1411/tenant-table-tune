@@ -40,14 +40,14 @@ export async function getOrganizationDeletionImpact(
 }> {
   try {
     // Get outlets for this organization
-    const { data: outlets, error: outletsError } = await supabase
+    const { data: outlets, error: outletsError } = await (supabase as any)
       .from("tenants")
       .select("id")
       .eq("organization_id", organizationId);
 
     if (outletsError) throw outletsError;
 
-    const outletIds = (outlets || []).map((o) => o.id);
+    const outletIds = ((outlets ?? []) as { id: string }[]).map((o) => o.id);
 
     if (outletIds.length === 0) {
       return {
@@ -218,7 +218,7 @@ export async function deleteOrganization(
 export async function deleteOutlet(outletId: string): Promise<DeleteResult> {
   try {
     // Validation: Check if outlet exists
-    const { data: outlet, error: outletError } = await supabase
+    const { data: outlet, error: outletError } = await (supabase as any)
       .from("tenants")
       .select("id, name, organization_id")
       .eq("id", outletId)

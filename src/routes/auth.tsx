@@ -26,7 +26,7 @@ function AuthPage() {
     <div className="min-h-screen grid md:grid-cols-2 bg-background">
       <div className="hidden md:flex flex-col justify-between p-10 bg-gradient-to-br from-primary/10 via-accent/10 to-background border-r border-border">
         <Link to="/" className="flex items-center gap-2 font-semibold">
-          <img src="/brand/dineeatz-logo.png?v=2" alt="DineEatz" className="h-20 w-auto object-contain" />
+          <img src="/brand/dineeatz-logo.png?v=3" alt="DineEatz" className="h-20 w-auto object-contain" />
         </Link>
         <div>
           <h2 className="text-3xl font-semibold tracking-tight">Restaurant portal</h2>

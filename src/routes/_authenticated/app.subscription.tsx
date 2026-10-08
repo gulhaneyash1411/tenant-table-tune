@@ -109,7 +109,7 @@ function downloadInvoice(r: any, tenantName: string, trialDays: number) {
       <body>
         <div class="header">
           ${INVOICE_LOGO_SVG}
-          <img src="${window.location.origin}/brand/dineeatz-logo.png?v=2" alt="${PLATFORM_NAME}" />
+          <img src="${window.location.origin}/brand/dineeatz-logo.png?v=3" alt="${PLATFORM_NAME}" />
         </div>
         <h1>Invoice ${invoiceNo}</h1>
         <div class="muted">Issued ${issuedDate}</div>

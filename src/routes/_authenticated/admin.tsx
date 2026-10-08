@@ -80,7 +80,7 @@ function AdminBrand() {
       {logo ? (
         <img src={logo} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" />
       ) : (
-        <img src="/brand/dineeatz-logo.png?v=2" alt="DineEatz" className="h-7 w-auto max-w-[120px] shrink-0 object-contain group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7" />
+        <img src="/brand/dineeatz-logo.png?v=3" alt="DineEatz" className="h-7 w-auto max-w-[120px] shrink-0 object-contain group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7" />
       )}
       <div className="flex min-w-0 items-baseline gap-1.5 group-data-[collapsible=icon]:hidden">
         <span className="sr-only">DineEatz</span>

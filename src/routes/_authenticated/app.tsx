@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "@/components/sign-out-button";
+import { DashboardLoader } from "@/components/dashboard-loader";
 import { format } from "date-fns";
 import {
   ALL_ITEMS, MOBILE_TAB_KEYS, findItemByPath, isActivePath, sectionOfItem,
@@ -177,16 +178,12 @@ function AppLayout() {
       .on("postgres_changes", { event: "*", schema: "public", table: "invoices", filter: `tenant_id=eq.${tenantId}` }, () => loadSub())
       .subscribe();
 
-    // Fallback: re-fetch every 3 seconds to ensure subscription status is current
-    const pollInterval = setInterval(() => loadSub(), 3000);
-
     // Also refresh when window comes back to focus
     const handleFocus = () => loadSub();
     window.addEventListener("focus", handleFocus);
 
     return () => {
       cancelled = true;
-      clearInterval(pollInterval);
       window.removeEventListener("focus", handleFocus);
       supabase.removeChannel(subsSub);
       supabase.removeChannel(invSub);
@@ -204,13 +201,13 @@ function AppLayout() {
     }
   }, [loading, tenant, navigate]);
 
-  if (status === "loading") return null;
+  if (status === "loading") return <DashboardLoader />;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
   if ((tenant as any)?.must_reset_password) return null;
   // Wait for the visibility rules before painting a sidebar we may have to
   // redraw a frame later.
-  if (navLoading) return null;
+  if (navLoading) return <DashboardLoader />;
   const missing: string[] = [];
   if (!tenant?.address) missing.push("address");
   if (!tenant?.city) missing.push("city");
