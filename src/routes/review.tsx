@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getReviewTarget } from "@/lib/public-orders.functions";
 
 export const Route = createFileRoute("/review")({
   component: ReviewPage,
@@ -35,6 +36,14 @@ function ReviewPage() {
   const [done, setDone] = useState(false);
 
   const shown = hovered || rating;
+  const [reviewUrl, setReviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!t) return;
+    getReviewTarget({ data: { tenant_id: t } })
+      .then((r) => setReviewUrl(r.google_review_url))
+      .catch(() => setReviewUrl(null));
+  }, [t]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,15 +86,6 @@ function ReviewPage() {
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Your feedback helps us serve you better. We hope to see you again soon.
           </p>
-          {rating >= 4 && (
-            <p className="mt-5 border-t border-border/60 pt-4 text-sm text-muted-foreground">
-              Loved your visit? A public review means a lot to us.
-              {/* Drop the tenant's Google review link here when available:
-              <Button asChild variant="outline" className="mt-3 w-full">
-                <a href={googleReviewUrl} target="_blank" rel="noreferrer">Review us on Google</a>
-              </Button> */}
-            </p>
-          )}
         </div>
       </Shell>
     );
@@ -107,6 +107,7 @@ function ReviewPage() {
             <div
               role="radiogroup"
               aria-label="Overall rating"
+              aria-required="true"
               onKeyDown={onStarKeyDown}
               onMouseLeave={() => setHovered(0)}
               className="flex justify-center gap-1"
@@ -141,7 +142,7 @@ function ReviewPage() {
                 shown ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              {RATING_LABELS[shown]}
+              {shown ? RATING_LABELS[shown] : "Rating required: tap a star"}
             </p>
           </fieldset>
 
@@ -174,6 +175,14 @@ function ReviewPage() {
               />
             </Field>
           </div>
+
+          {reviewUrl && (
+            <p className="text-center text-sm">
+              <a href={reviewUrl} target="_blank" rel="noreferrer" className="font-medium text-primary underline-offset-4 hover:underline">
+                Review us on Google
+              </a>
+            </p>
+          )}
 
           <Button type="submit" disabled={submitting} className="mt-1 h-11 w-full">
             {submitting ? (
