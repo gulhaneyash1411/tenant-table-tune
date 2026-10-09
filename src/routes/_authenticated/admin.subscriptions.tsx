@@ -40,6 +40,8 @@ const DAY = 86_400_000;
 
 type Plan = { id: string; name: string; monthly_price: number | null; half_yearly_price: number | null; yearly_price: number | null };
 type SubRow = {
+  price_amount?: number | null;
+  billing_cycle?: string | null;
   id: string; tenant_id: string; plan_id: string | null; status: string;
   current_period_start: string | null; current_period_end: string | null; created_at: string;
   tenants: {
@@ -126,8 +128,12 @@ const periodDays = (s: SubRow) =>
   s.current_period_start && s.current_period_end
     ? (new Date(s.current_period_end).getTime() - new Date(s.current_period_start).getTime()) / DAY
     : 0;
-const cycleOf = (s: SubRow) => (periodDays(s) > 320 ? "yearly" : periodDays(s) > 120 ? "half_yearly" : "monthly");
+// The cycle saved on the subscription; older rows fall back to the period length.
+const cycleOf = (s: SubRow) => (s.billing_cycle as "monthly" | "half_yearly" | "yearly" | undefined)
+  ?? (periodDays(s) > 320 ? "yearly" : periodDays(s) > 120 ? "half_yearly" : "monthly");
 const amountOf = (s: SubRow) => {
+  // The price this subscription was bought at, not the plan's current price.
+  if (s.price_amount != null) return s.price_amount;
   const c = cycleOf(s);
   return c === "yearly" ? s.subscription_plans?.yearly_price : c === "half_yearly" ? s.subscription_plans?.half_yearly_price : s.subscription_plans?.monthly_price;
 };
@@ -270,7 +276,7 @@ function AdminSubscriptions() {
           .select(
             "id,tenant_id,plan_id,status,current_period_start,current_period_end,created_at," +
             "tenants!inner(id,name,city,state,outlet_status,organization_id,organizations(name))," +
-            "subscription_plans(name,monthly_price,half_yearly_price,yearly_price)",
+            "price_amount,billing_cycle,subscription_plans(name,monthly_price,half_yearly_price,yearly_price)",
             { count: "exact" },
           );
         const now = new Date().toISOString();

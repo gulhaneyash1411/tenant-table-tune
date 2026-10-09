@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { money } from "@/lib/format";
 import { format } from "date-fns";
 import {
-  CalendarClock, Check, CheckCircle2, Clock, CreditCard, Download, History, QrCode, Smartphone, XCircle,
+  CalendarClock, Check, CheckCircle2, Clock, CreditCard, Download, History, QrCode, Smartphone, X, XCircle,
 } from "lucide-react";
 import {
   UPI_ID,
@@ -28,6 +28,8 @@ import {
 import { useTrialDays } from "@/lib/site-settings";
 import { downloadInvoiceById } from "@/lib/invoice-download";
 import { BILLING_CYCLES, addBillingCycle, type BillingCycle } from "@/lib/payment-config";
+import { FEATURE_GROUPS, planAllows } from "@/config/plan-features";
+import { PlanIconGlyph } from "@/config/plan-icons";
 
 export const Route = createFileRoute("/_authenticated/app/subscription")({ component: SubscriptionPage });
 
@@ -35,6 +37,11 @@ type Cycle = BillingCycle;
 // Label shown after the price on each plan card
 const CYCLE_SUFFIX: Record<Cycle, string> = { monthly: "mo", half_yearly: "6 mo", yearly: "yr" };
 const CYCLE_NAME: Record<Cycle, string> = { monthly: "monthly", half_yearly: "half-yearly", yearly: "yearly" };
+const CYCLE_OPTIONS: { value: Cycle; label: string; months: number }[] = [
+  { value: "monthly", label: "Monthly", months: 1 },
+  { value: "half_yearly", label: "Half-yearly", months: 6 },
+  { value: "yearly", label: "Yearly", months: 12 },
+];
 type Checkout = { plan: any; cycle: Cycle; amount: number; invoiceNumber: string; startsAfter: Date | null };
 
 // Compact, rounded, scrollable modal shell shared by both dialogs
@@ -95,6 +102,9 @@ function SubscriptionPage() {
   const [subs, setSubs] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [cycle, setCycle] = useState<Cycle>("monthly");
+  // Billing cycle chosen on each plan card (keyed by plan id).
+  const [cycleByPlan, setCycleByPlan] = useState<Record<string, Cycle>>({});
+  function setCardCycle(id: string, c: Cycle) { setCycleByPlan((prev) => ({ ...prev, [id]: c })); }
 
   const [checkout, setCheckout] = useState<Checkout | null>(null);
   const [step, setStep] = useState<"pay" | "done">("pay");
@@ -155,7 +165,7 @@ function SubscriptionPage() {
   const currentCycle: Cycle | null = current ? (invoiceCycle ?? cycleFromLength(current)) : null;
   const onCurrentCycle = currentCycle === cycle;
   // "Current" means this plan on this billing cycle. Other cycles of the same plan are not current.
-  const isCurrentCard = (p: any) => p.id === currentPlanId && onCurrentCycle;
+  const isCurrentCard = (p: any, c: Cycle = cycle) => p.id === currentPlanId && currentCycle === c;
   const currentPlan = plans.find((x) => x.id === currentPlanId) || current?.plan;
 
   const latestRequest = history.find((r) => r.payment_method === PAYMENT_METHOD_UPI) || null;
@@ -197,33 +207,33 @@ function SubscriptionPage() {
     return (BILLING_CYCLES as readonly string[]).includes(c) ? (c as Cycle) : cycleFromLength(x);
   };
   // A card is "scheduled" only for the plan AND cycle that is scheduled, not for every cycle of that plan.
-  const isScheduledCard = (p: any) => scheduledSubs.some((x) => x.plan_id === p.id && cycleOfSub(x) === cycle);
-  const isPendingCard = (p: any) => pending && latestRequest?.plan_id === p.id && latestRequest?.billing_cycle === cycle;
-  const isRequestedCard = (p: any) => isScheduledCard(p) || isPendingCard(p);
+  const isScheduledCard = (p: any, c: Cycle = cycle) => scheduledSubs.some((x) => x.plan_id === p.id && cycleOfSub(x) === c);
+  const isPendingCard = (p: any, c: Cycle = cycle) => pending && latestRequest?.plan_id === p.id && latestRequest?.billing_cycle === c;
+  const isRequestedCard = (p: any, c: Cycle = cycle) => isScheduledCard(p, c) || isPendingCard(p, c);
 
-  function planButton(p: any): { label: string; disabled: boolean } {
+  function planButton(p: any, c: Cycle = cycle): { label: string; disabled: boolean } {
     const isCurrent = p.id === currentPlanId;
     if (!canBuy) return { label: isCurrent && activeNow ? "Current plan" : "Owner only", disabled: true };
-    if (isScheduledCard(p)) return { label: "Scheduled", disabled: true };
-    if (isPendingCard(p)) return queuedPending
+    if (isScheduledCard(p, c)) return { label: "Scheduled", disabled: true };
+    if (isPendingCard(p, c)) return queuedPending
       ? { label: "Next plan", disabled: true }
       : { label: "Awaiting approval", disabled: true };
-    if (isCurrent && activeNow && !onCurrentCycle) return { label: "Switch plan", disabled: locked };
+    if (isCurrent && activeNow && currentCycle !== c) return { label: "Switch plan", disabled: locked };
     if (isCurrent && activeNow) return { label: "Current plan", disabled: true };
     if (isCurrent) return { label: "Renew", disabled: locked };
     if (!activeNow) return { label: "Buy plan", disabled: locked };
-    const label = priceOf(p, cycle) > priceOf(currentPlan, cycle) ? "Upgrade" : "Switch plan";
+    const label = priceOf(p, c) > priceOf(currentPlan, c) ? "Upgrade" : "Switch plan";
     return { label, disabled: locked };
   }
 
-  function openCheckout(plan: any) {
+  function openCheckout(plan: any, c: Cycle = cycle) {
     if (!canBuy) return toast.error("Only the owner can buy or change the subscription");
     if (locked) return toast.error("You already have a next plan selected");
-    const amount = priceOf(plan, cycle);
+    const amount = priceOf(plan, c);
     if (amount <= 0) return toast.error("This plan has no price set. Contact support.");
     setCheckout({
       plan,
-      cycle,
+      cycle: c,
       amount,
       invoiceNumber: "INV-" + Date.now().toString().slice(-8),
       startsAfter: activeNow ? currentEnd : null,
@@ -327,13 +337,14 @@ function SubscriptionPage() {
         </Card>
       )}
 
+      <div className="grid gap-3 md:grid-cols-2">
         {scheduledSubs.map((x, i) => {
           const inv = history.find((h) => h.subscription_id === x.id);
           const cycleName = inv?.billing_cycle ? CYCLE_NAME[inv.billing_cycle as Cycle] ?? inv.billing_cycle : null;
           const start = new Date(x.current_period_start);
           const end = new Date(x.current_period_end);
           return (
-            <Card key={x.id} className="p-5 border-dashed border-primary/40 bg-primary/5">
+            <Card key={x.id} className="p-4 border-dashed border-primary/40 bg-primary/5">
               <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <CalendarClock className="h-3.5 w-3.5" />
                 {i === 0 ? "Next plan" : `Plan ${i + 2}`}
@@ -353,7 +364,7 @@ function SubscriptionPage() {
           );
         })}
         {queuedPending && (
-          <Card className="p-5 border-dashed border-orange-500/50 bg-orange-500/5">
+          <Card className="p-4 border-dashed border-orange-500/50 bg-orange-500/5">
             <div className="text-xs text-muted-foreground flex items-center gap-1">
               <CalendarClock className="h-3.5 w-3.5" />
               Next plan
@@ -378,9 +389,8 @@ function SubscriptionPage() {
             </div>
           </Card>
         )}
-      <div className="grid gap-4">
         {current && (
-          <Card className="p-5">
+          <Card className="p-4">
             <div className="text-xs text-muted-foreground">Current plan</div>
             <div className="text-xl font-semibold flex items-center gap-2 mt-0.5">
               {current.plan?.name}{currentCycle && <span className="text-sm font-normal text-muted-foreground">({CYCLE_NAME[currentCycle]})</span>}
@@ -423,15 +433,8 @@ function SubscriptionPage() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex rounded-lg border p-1 bg-muted/40">
-          <button onClick={() => setCycle("monthly")} className={`px-3 py-1 text-sm rounded ${cycle === "monthly" ? "bg-background shadow" : ""}`}>Monthly</button>
-          <button onClick={() => setCycle("half_yearly")} className={`px-3 py-1 text-sm rounded ${cycle === "half_yearly" ? "bg-background shadow" : ""}`}>Half-yearly</button>
-          <button onClick={() => setCycle("yearly")} className={`px-3 py-1 text-sm rounded ${cycle === "yearly" ? "bg-background shadow" : ""}`}>
-            Yearly <span className="text-xs text-success">−17%</span>
-          </button>
-        </div>
         {locked && (
-          <div className="text-xs text-muted-foreground">
+          <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
             {hasNextPlan
               ? "Your next plan is already selected. You can choose another plan after it starts."
               : "You can choose another plan after your current request is reviewed."}
@@ -439,42 +442,110 @@ function SubscriptionPage() {
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        {plans.map((p) => {
-          const price = priceOf(p, cycle);
-          const isCurrent = isCurrentCard(p);
-          const isRequested = isRequestedCard(p);
-          const btn = planButton(p);
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Cheapest first, for the billing cycle on screen */}
+        {[...plans].sort((a, b) => priceOf(a, "monthly") - priceOf(b, "monthly")).map((p) => {
+          // This card's own billing cycle: the one it's on, else monthly.
+          const cardCycle: Cycle = cycleByPlan[p.id] ?? (p.id === currentPlanId && currentCycle ? currentCycle : "monthly");
+          const price = priceOf(p, cardCycle);
+          const isCurrent = isCurrentCard(p, cardCycle);
+          const isRequested = isRequestedCard(p, cardCycle);
+          const btn = planButton(p, cardCycle);
+          // Each billing cycle for this plan, with the saving against paying monthly.
+          const cycleRows = CYCLE_OPTIONS.map((o) => {
+            const total = priceOf(p, o.value);
+            const monthlyTotal = priceOf(p, "monthly") * o.months;
+            return { ...o, monthlyEquiv: total / o.months, saved: Math.max(0, monthlyTotal - total) };
+          });
+          // What this plan includes, read from its feature switches and limits.
+          const cap = (v: number | null | undefined) => (v == null ? "Unlimited" : v);
+          const included = FEATURE_GROUPS.map((g) => ({
+            title: g.title,
+            items: g.items.filter((i) => planAllows(p.features, i.key)).map((i) => i.label),
+          })).filter((g) => g.items.length > 0);
+          const groups = [
+            ...included,
+            { title: "Limits", items: [`${cap(p.max_tables)} tables`, `${cap(p.max_orders_month)} orders/mo`, `${cap(p.max_menu_items)} menu items`, `${cap(p.max_staff)} staff`] },
+          ];
+          const notIncluded = FEATURE_GROUPS.flatMap((g) => g.items.filter((i) => !planAllows(p.features, i.key)).map((i) => i.label));
           return (
             <Card
               key={p.id}
-              className={`p-5 flex flex-col ${
+              onClick={() => { if (!btn.disabled) openCheckout(p, cardCycle); }}
+              className={`p-5 flex flex-col transition-transform duration-200 ${
+                btn.disabled ? "" : "cursor-pointer hover:scale-[1.03] hover:shadow-lg"
+              } ${
                 isCurrent && activeNow ? "border-primary ring-1 ring-primary" : isRequested ? "border-dashed border-primary/60" : ""
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-semibold text-lg">{p.name}</div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2 font-semibold text-lg"><PlanIconGlyph name={p.icon} className="h-5 w-5 shrink-0 text-primary" />{p.name}</div>
                 <div className="flex flex-wrap justify-end gap-1">
+                  {p.tag && <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">{p.tag}</span>}
                   {isCurrent && <Badge>{activeNow ? "Current" : completed ? "Completed" : "Expired"}</Badge>}
                   {isRequested && <Badge variant="outline">{hasNextPlan ? "Next plan" : "Requested"}</Badge>}
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground min-h-[32px]">{p.description}</div>
+              <div className="text-sm text-muted-foreground mt-1 min-h-[40px]">{p.description}</div>
               <div className="text-2xl font-semibold mt-3">
                 {money(price)}
-                <span className="text-xs text-muted-foreground font-normal">/{CYCLE_SUFFIX[cycle]}</span>
+                <span className="text-xs text-muted-foreground font-normal">/{CYCLE_SUFFIX[cardCycle]}</span>
               </div>
-              <ul className="text-xs space-y-1 mt-3 flex-1">
-                {p.max_tables && <li className="flex gap-1"><Check className="h-3 w-3 text-success" />{p.max_tables} tables</li>}
-                {p.max_orders_month && <li className="flex gap-1"><Check className="h-3 w-3 text-success" />{p.max_orders_month} orders/mo</li>}
-                {p.max_menu_items && <li className="flex gap-1"><Check className="h-3 w-3 text-success" />{p.max_menu_items} menu items</li>}
-                {p.max_staff && <li className="flex gap-1"><Check className="h-3 w-3 text-success" />{p.max_staff} staff</li>}
-              </ul>
+              <div className="mt-3 grid gap-1.5">
+                {cycleRows.map((r) => {
+                  const on = cardCycle === r.value;
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={(e) => { e.stopPropagation(); setCardCycle(p.id, r.value); }}
+                      className={`flex items-center justify-between rounded-lg border px-3 py-1.5 text-left text-xs transition-colors ${on ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                    >
+                      <span className="flex items-center gap-1 font-medium">
+                        {activeNow && p.id === currentPlanId && currentCycle === r.value && <Check className="h-4 w-4 text-success" strokeWidth={3} />}
+                        {r.label}
+                      </span>
+                      <span className="text-right">
+                        <span className="font-semibold">{money(Math.round(r.monthlyEquiv))}/mo</span>
+                        {r.saved > 0 && <span className="ml-2 font-semibold text-success">Save {money(Math.round(r.saved))}</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 border-t pt-4 flex-1">
+                <div className="text-sm font-semibold">Included features</div>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  {groups.map((g) => (
+                    <div key={g.title} className="flex gap-2">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{g.title}</div>
+                        <div className="text-xs text-muted-foreground">{g.items.join(", ")}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {notIncluded.length > 0 && (
+                <div className="mt-4 border-t pt-4">
+                  <div className="text-sm font-semibold">Not included</div>
+                  <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {notIncluded.map((n) => (
+                      <span key={n} className="flex items-center gap-1.5">
+                        <X className="h-3.5 w-3.5 shrink-0 text-destructive" strokeWidth={3} />
+                        {n}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Button
                 className="mt-4 w-full"
                 variant={btn.disabled ? "outline" : "default"}
                 disabled={btn.disabled}
-                onClick={() => openCheckout(p)}
+                onClick={(e) => { e.stopPropagation(); openCheckout(p, cardCycle); }}
               >
                 {btn.label}
               </Button>

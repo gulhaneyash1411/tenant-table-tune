@@ -33,6 +33,9 @@ export const Route = createFileRoute("/_authenticated/app")({ component: AppLayo
 // Single source for the lock icon. Change it here to swap it everywhere.
 const LockIcon = LockKeyhole;
 
+// Billing-cycle names shown after the plan name in the top bar, e.g. "Growth.Monthly".
+const CYCLE_LABEL: Record<string, string> = { monthly: "Monthly", half_yearly: "Half Yearly", yearly: "Yearly" };
+
 // The nav itself now lives in src/config/nav-registry.ts, because the super
 // admin console needs the same list to decide what each owner may see.
 const SECURE_ROUTES = ALL_ITEMS.filter((i) => i.secure).map((i) => i.to);
@@ -175,7 +178,10 @@ function AppLayout() {
           .maybeSingle();
         // "paid" = the subscription is active and not past its end date.
         const paid = activeSub.status === "active" && new Date(activeSub.current_period_end) > new Date();
-        setSub({ plan: plan ?? { name: "Plan" }, paid });
+        // Billing cycle: saved on the subscription, else from its period length.
+        const days = (new Date(activeSub.current_period_end).getTime() - new Date(activeSub.current_period_start).getTime()) / 86400000;
+        const cycle = (activeSub as any).billing_cycle ??(days > 320 ? "yearly" : days > 120 ? "half_yearly" : "monthly");
+        setSub({ plan: plan ?? { name: "Plan" }, paid, cycle });
       } else if (latestInvoice?.status === "pending_approval") {
         setSub({ plan: { name: `${latestInvoice.plan} (pending approval)` }, paid: false });
       } else {
@@ -387,7 +393,12 @@ function AppLayout() {
                   className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs hover:bg-accent/40 md:flex"
                 >
                   <CreditCard className="h-3 w-3 text-primary" />
-                  <span className="font-medium">{sub?.plan?.name || "Free trial"}</span>
+                  <span className="font-medium">{sub?.plan?.name ?? "Free trial"}</span>
+                  {sub?.paid && sub?.cycle && (
+                    <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      {CYCLE_LABEL[sub.cycle as string] ?? sub.cycle}
+                    </span>
+                  )}
                   {sub?.current_period_end && (
                     <span className="text-muted-foreground">
                       · renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}
