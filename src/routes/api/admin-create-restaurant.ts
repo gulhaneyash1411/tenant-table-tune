@@ -47,7 +47,7 @@ type CreateBusinessBody = {
   outlets: OutletInput[];
   /** Optional: give every outlet this plan and activate it right away. */
   plan_id?: string;
-  billing_cycle?: "monthly" | "yearly";
+  billing_cycle?: "monthly" | "half_yearly" | "yearly";
   /** Without a plan: single outlets start ACTIVE (as before), multi outlets PENDING_PAYMENT. */
   activate_outlets?: boolean;
 };
@@ -118,7 +118,7 @@ async function handle(request: Request) {
     if (body.plan_id) {
       const { data: plan } = await supabaseAdmin.from("subscription_plans").select("id").eq("id", body.plan_id).maybeSingle();
       if (!plan) return bad("Plan not found");
-      planCycle = body.billing_cycle === "yearly" ? "yearly" : "monthly";
+      planCycle = body.billing_cycle === "yearly" || body.billing_cycle === "half_yearly" ? body.billing_cycle : "monthly";
     }
     // Outlets are operational immediately only when a plan is assigned or the
     // admin explicitly activates them; a single restaurant keeps its old behaviour.
@@ -187,6 +187,7 @@ async function handle(request: Request) {
     if (planCycle && body.plan_id) {
       const end = new Date();
       if (planCycle === "yearly") end.setFullYear(end.getFullYear() + 1);
+      else if (planCycle === "half_yearly") end.setMonth(end.getMonth() + 6);
       else end.setMonth(end.getMonth() + 1);
       await loose.from("subscriptions").insert(
         tenantIds.map((tenant_id) => ({

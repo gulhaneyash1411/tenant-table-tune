@@ -44,7 +44,7 @@ export type InvoicePdfData = {
   logo_url?: string | null;
 };
 
-const LOGO_PT = 44;
+const LOGO_PT = 150;
 
 // Same approach as src/lib/invoice.ts: fetch the bytes, downscale to what is
 // actually printed and flatten to JPEG so the PDF stays small.
@@ -85,11 +85,8 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<jsPDF> {
   const logo = await loadLogo(d.logo_url);
   if (logo) {
     const h = Math.min(LOGO_PT, (logo.h / logo.w) * LOGO_PT);
-    try { doc.addImage(logo.data, "JPEG", L, y - 20, LOGO_PT, h, undefined, "FAST"); } catch { /* ignore bad image */ }
+    try { doc.addImage(logo.data, "JPEG", L, y - h / 2 + 1, LOGO_PT, h, undefined, "FAST"); } catch { /* ignore bad image */ }
   }
-  const brandX = logo ? L + LOGO_PT + 10 : L;
-  doc.setTextColor(0).setFont("helvetica", "bold").setFontSize(20).text("DineEatz", brandX, y);
-  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(120).text("Restaurant ordering platform", brandX, y + 13);
 
   doc.setTextColor(0).setFont("helvetica", "bold").setFontSize(16).text("INVOICE", R, y, { align: "right" });
   doc.setFont("helvetica", "bold").setFontSize(9).setTextColor(90)
@@ -103,7 +100,7 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<jsPDF> {
   doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(90);
   doc.text(`Issue date: ${fmtD(d.issued_at)}`, R, y, { align: "right" });
   y += 14;
-  doc.text(`Due date: ${fmtD(d.due_date)}`, R, y, { align: "right" });
+  doc.text(`Expiry date: ${fmtD(d.due_date)}`, R, y, { align: "right" });
   if (d.plan) {
     doc.text(`Plan: ${d.plan}${d.billing_cycle ? ` (${d.billing_cycle})` : ""}`, L, y);
   }
@@ -175,7 +172,8 @@ export async function buildInvoicePdf(d: InvoicePdfData): Promise<jsPDF> {
   y += 4;
   row("Grand total", rs(d.total), true);
   row("Amount paid", rs(d.amount_paid));
-  row("Balance due", rs(d.balance), true);
+  // Only shown while something is still owed.
+  if (d.balance > 0) row("Balance due", rs(d.balance), true);
 
   // Notes
   const notes = [d.description && d.line_items.length ? d.description : null, d.notes].filter(Boolean) as string[];

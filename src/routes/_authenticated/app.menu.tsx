@@ -8,6 +8,8 @@ import {
   UtensilsCrossed, ImagePlus, Loader2, CornerDownRight,
 } from "lucide-react";
 import { money } from "@/lib/format";
+import { useTenantContext } from "@/hooks/use-session";
+import { planLimitError } from "@/lib/plan-limits";
 
 export const Route = createFileRoute("/_authenticated/app/menu")({ component: Menu });
 
@@ -345,6 +347,7 @@ function ItemEditor({
 // PAGE
 // ====================
 function Menu() {
+  const { plan: ownerPlan } = useTenantContext();
   const [tenant, setTenant] = useState<any>(null);
   const [cats, setCats] = useState<Category[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -475,6 +478,8 @@ function Menu() {
   async function addItem() {
     const name = draft.name.trim();
     if (!name || !tenant || !activeId) return;
+    const limitMsg = await planLimitError({ plan: ownerPlan, limit: "max_menu_items", tenantId: tenant.id, table: "menu_items", label: "menu items" });
+    if (limitMsg) return toast.error(limitMsg);
     setBusy(true);
     const { error } = await supabase.from("menu_items").insert({
       tenant_id: tenant.id,

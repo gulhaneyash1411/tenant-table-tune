@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
+import { planLimitError, startOfMonth } from "@/lib/plan-limits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -459,6 +461,7 @@ async function appendToOrder(orderId: string, lines: Line[]): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSaved: () => void }) {
+  const { plan: ownerPlan } = useTenantContext();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -548,6 +551,10 @@ export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSav
         "Could not work out which restaurant this order belongs to — sign out and back in, then try again",
       );
     }
+
+    // Orders this calendar month count against the plan
+    const limitMsg = await planLimitError({ plan: ownerPlan, limit: "max_orders_month", tenantId, table: "orders", label: "orders a month", since: startOfMonth() });
+    if (limitMsg) { setSaving(false); return toast.error(limitMsg); }
 
     const payload: any = {
       tenant_id: tenantId,

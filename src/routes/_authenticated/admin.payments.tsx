@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Search, X, SlidersHorizontal, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, X, SlidersHorizontal, ChevronDown, ChevronUp, ArrowUp, ArrowDown, MoreHorizontal, Check, Ban, Download } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ADMIN_PAGE_SIZE, Pager, StatusBadge, adminRpc, fmtDate, fmtMoney, likeTerm, useDebounced } from "@/components/admin/admin-ui";
+import { approvePendingInvoice, rejectPendingInvoice, type PendingInvoice as ApprovalInvoice } from "@/lib/invoice-approval";
+import { downloadInvoiceById } from "@/lib/invoice-download";
 
 const db = supabase as any;
 
@@ -162,6 +165,71 @@ function PaymentsPage() {
     setFrom(""); setTo(""); setMinAmt(""); setMaxAmt("");
   }
 
+  const approvals = usePendingApprovals();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<PendingInvoice | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [approveTarget, setApproveTarget] = useState<PendingInvoice | null>(null);
+
+  // Opens the approve modal. Nothing is recorded until the admin confirms there.
+  function approveInvoice(inv: PendingInvoice) {
+    if (!balanceOf(inv)) return toast.error("Nothing left to approve on this invoice");
+    setApproveTarget(inv);
+  }
+
+  async function submitApprove() {
+    const inv = approveTarget;
+    if (!inv) return;
+    setBusyId(inv.id);
+    try {
+      await approvePendingInvoice(inv as ApprovalInvoice);
+      toast.success("Payment approved and plan activated");
+      setApproveTarget(null);
+      approvals.reload();
+      load();
+    } catch (e: any) {
+      toast.error(e.message ?? "Could not approve the payment");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function downloadInvoice(invoiceId: string) {
+    try {
+      toast.loading("Generating PDF...");
+      await downloadInvoiceById(invoiceId);
+      toast.dismiss();
+      toast.success("Invoice downloaded");
+    } catch (e: any) {
+      toast.dismiss();
+      toast.error(`Failed to download: ${e?.message ?? "Unknown error"}`);
+    }
+  }
+
+  // Opens the reject modal. The reason is written on the invoice and shown to the owner.
+  function rejectInvoice(inv: PendingInvoice) {
+    setRejectReason("");
+    setRejectTarget(inv);
+  }
+
+  async function submitReject() {
+    const inv = rejectTarget;
+    if (!inv) return;
+    if (!rejectReason.trim()) return toast.error("Enter a reason so the owner knows what to fix");
+    setBusyId(inv.id);
+    try {
+      await rejectPendingInvoice(inv.id, rejectReason);
+      toast.success("Payment rejected");
+      setRejectTarget(null);
+      approvals.reload();
+      load();
+    } catch (e: any) {
+      toast.error(e.message ?? "Could not reject the payment");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const pageTotal = rows.filter((r) => r.status === "completed").reduce((s, r) => s + Number(r.amount || 0), 0);
 
   return (
@@ -188,7 +256,7 @@ function PaymentsPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <Card className="p-4"><div className="text-xs text-muted-foreground">Matching payments</div><div className="text-2xl font-semibold">{total}</div></Card>
         <Card className="p-4"><div className="text-xs text-muted-foreground">Completed on this page</div><div className="text-2xl font-semibold">{fmtMoney(pageTotal)}</div></Card>
-        <Card className="p-4"><div className="text-xs text-muted-foreground">Rows on this page</div><div className="text-2xl font-semibold">{rows.length}</div></Card>
+        <Card className="p-4"><div className="text-xs text-muted-foreground">Awaiting approval</div><div className="text-2xl font-semibold">{approvals.rows.length}</div><div className="text-xs text-muted-foreground">{fmtMoney(approvals.rows.reduce((s, i) => s + balanceOf(i), 0))} to verify</div></Card>
       </div>
 
       <Card>
@@ -277,10 +345,42 @@ function PaymentsPage() {
               <TableHead>Method</TableHead>
               <TableHead>Reference</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Recorded by</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
+            {status === "all" && approvals.rows.map((inv) => (
+              <TableRow key={`pending-${inv.id}`} className="bg-orange-500/5">
+                <TableCell className="whitespace-nowrap text-xs">{fmtDate(inv.issued_at)}</TableCell>
+                <TableCell>{inv.tenants?.organizations?.name ?? "—"}</TableCell>
+                <TableCell>{inv.tenants?.name ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{inv.invoice_number || inv.id.slice(0, 8)}</TableCell>
+                <TableCell className="text-right">{fmtMoney(balanceOf(inv))}</TableCell>
+                <TableCell>UPI</TableCell>
+                <TableCell className="font-mono text-xs">{inv.utr || "—"}</TableCell>
+                <TableCell><span className="rounded bg-orange-500/15 px-2 py-0.5 text-xs text-orange-600">Awaiting approval</span></TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Actions for ${inv.tenants?.name ?? "this payment"}`} disabled={busyId === inv.id}>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onSelect={() => downloadInvoice(inv.id)}>
+                        <Download className="mr-2 h-4 w-4" /> Download invoice
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => approveInvoice(inv)}>
+                        <Check className="mr-2 h-4 w-4" /> Approve
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => rejectInvoice(inv)}>
+                        <Ban className="mr-2 h-4 w-4" /> Reject
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
             {loading && <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Loading payments…</TableCell></TableRow>}
             {!loading && error && (
               <TableRow>
@@ -306,13 +406,76 @@ function PaymentsPage() {
                 <TableCell>{METHOD_LABEL[p.method] ?? p.method}</TableCell>
                 <TableCell className="font-mono text-xs">{p.reference || "—"}</TableCell>
                 <TableCell><StatusBadge status={p.status} /></TableCell>
-                <TableCell className="text-xs">{p.recorded_by ? people[p.recorded_by] ?? "…" : "—"}</TableCell>
+                <TableCell className="text-right">
+                  {p.invoice_id && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Payment actions">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onSelect={() => downloadInvoice(p.invoice_id as string)}>
+                          <Download className="mr-2 h-4 w-4" /> Download invoice
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
         <div className="px-3 pb-3"><Pager page={page} total={total} onPage={setPage} /></div>
       </Card>
+
+      <Dialog open={!!approveTarget} onOpenChange={o => { if (!o && !busyId) setApproveTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Approve payment</DialogTitle>
+            <DialogDescription>{approveTarget?.tenants?.name ?? "This restaurant"}</DialogDescription>
+          </DialogHeader>
+          {approveTarget && (
+            <div className="space-y-3 text-sm">
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <div className="text-xs text-muted-foreground">UTR, check this in your bank app</div>
+                <div className="mt-0.5 font-mono text-lg tracking-wide">{approveTarget.utr || "—"}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div><div className="text-xs text-muted-foreground">Plan</div><div>{approveTarget.plan ?? "—"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Amount</div><div className="font-medium">{fmtMoney(balanceOf(approveTarget))}</div></div>
+              </div>
+              <p className="text-muted-foreground">Approving records this payment and activates the plan for the restaurant.</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" disabled={!!busyId} onClick={() => setApproveTarget(null)}>Cancel</Button>
+            <Button disabled={!!busyId} onClick={submitApprove}>
+              {busyId ? "Approving…" : "Approve payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!rejectTarget} onOpenChange={o => { if (!o && !busyId) setRejectTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject payment</DialogTitle>
+            <DialogDescription>{rejectTarget?.tenants?.name ?? "This restaurant"} · UTR {rejectTarget?.utr ?? "—"}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label htmlFor="reject-reason">Reason the owner will see</Label>
+            <Textarea id="reject-reason" rows={3} value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+              placeholder="e.g. UTR not found in our account" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={!!busyId} onClick={() => setRejectTarget(null)}>Cancel</Button>
+            <Button variant="destructive" disabled={!!busyId} onClick={submitReject}>
+              {busyId ? "Rejecting…" : "Reject payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ManualPaymentDialog open={formOpen} onOpenChange={setFormOpen} orgs={orgs} onSaved={load} />
     </div>
@@ -321,6 +484,32 @@ function PaymentsPage() {
 
 type PayableInvoice = { id: string; invoice_number: string | null; amount: number; amount_paid: number | null; status: string };
 const balanceOf = (i: PayableInvoice) => Math.max(0, Math.round((Number(i.amount) - Number(i.amount_paid || 0)) * 100) / 100);
+
+type PendingInvoice = {
+  id: string; invoice_number: string | null; tenant_id: string; plan: string | null; billing_cycle: string | null;
+  amount: number; amount_paid: number | null; status: string; utr: string | null; issued_at: string;
+  tenants: { name: string; organizations?: { name: string } | null } | null;
+};
+
+// Owner UPI payments waiting for the platform to check the UTR. They appear as rows in the payments table.
+function usePendingApprovals() {
+  const [rows, setRows] = useState<PendingInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await db.from("invoices")
+      .select("id, invoice_number, tenant_id, plan, billing_cycle, amount, amount_paid, status, utr, issued_at, tenants(name, organizations(name))")
+      .eq("status", "pending_approval")
+      .order("issued_at", { ascending: true });
+    if (error) toast.error(error.message);
+    setRows((data ?? []) as PendingInvoice[]);
+    setLoading(false);
+  }, []);
+  useEffect(() => { reload(); }, [reload]);
+
+  return { rows, loading, reload };
+}
 
 function ManualPaymentDialog({
   open, onOpenChange, orgs, onSaved,

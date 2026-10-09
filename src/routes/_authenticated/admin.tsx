@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/use-session";
+import { DashboardLoader } from "@/components/dashboard-loader";
 import {
   SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
@@ -119,7 +120,8 @@ function AdminLayout() {
   }, [loading, isSuperAdmin, isKitchenUser, isSalesUser, navigate]);
 
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  if (loading || !isSuperAdmin) return null;
+  if (loading) return <DashboardLoader />;
+  if (!isSuperAdmin) return null;
 
   const current = SECTIONS.flatMap((s) => s.items).find((it) => isActive(pathname, it));
 

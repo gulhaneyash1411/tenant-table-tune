@@ -417,7 +417,7 @@ function OverviewTab({ org, outlets, outletsLoading, onChanged }: {
 }
 
 // ---------- Outlets ---------------------------------------------------------------------------------
-type Plan = { id: string; name: string; monthly_price: number | null; yearly_price: number | null };
+type Plan = { id: string; name: string; monthly_price: number | null; half_yearly_price: number | null; yearly_price: number | null };
 const blankOutlet = {
   name: "", code: "", address: "", city: "", state: "", pincode: "", contact: "", email: "", gst: "", opening: "", closing: "",
 };
@@ -447,7 +447,7 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
   }, [idKey]);
 
   const plans = useAsync(async () => {
-    const { data, error } = await sb.from("subscription_plans").select("id, name, monthly_price, yearly_price").eq("is_active", true).order("monthly_price");
+    const { data, error } = await sb.from("subscription_plans").select("id, name, monthly_price, half_yearly_price, yearly_price").eq("is_active", true).order("monthly_price");
     if (error) throw new Error(error.message);
     return data as Plan[];
   }, []);
@@ -729,6 +729,7 @@ function SubscribeDialog({ outlet, plans, onClose, onDone }: { outlet: Outlet | 
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="half_yearly">Half-yearly</SelectItem>
                 <SelectItem value="yearly">Yearly</SelectItem>
               </SelectContent>
             </Select>

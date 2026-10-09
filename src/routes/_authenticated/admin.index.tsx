@@ -51,14 +51,14 @@ function AdminDash() {
           .from("tenants")
           .select("id,status,name,city,created_at,owner_email,owner_name,owner_phone")
           .order("created_at", { ascending: false }),
-        supabase.from("subscriptions").select("*, subscription_plans(monthly_price)"),
+        supabase.from("subscriptions").select("*"),
         supabase.from("orders").select("id", { count: "exact", head: true }),
         supabase.from("customers").select("id", { count: "exact", head: true }),
         supabase.from("reviews").select("id", { count: "exact", head: true }),
       ]);
       if (tErr) toast.error(tErr.message);
       const list = t || [];
-      const mrr = (subs || []).filter((x: any) => x.status === "active").reduce((a: number, b: any) => a + Number(b.subscription_plans?.monthly_price || 0), 0);
+      const mrr = (subs || []).filter((x: any) => x.status === "active").reduce((a: number, b: any) => a + Number(b.price_amount || 0) / (b.billing_cycle === "yearly" ? 12 : b.billing_cycle === "half_yearly" ? 6 : 1), 0);
       setTenants(list);
       setS({
         total: list.length,

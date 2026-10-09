@@ -90,8 +90,8 @@ export async function createPublicOrder(input: PublicOrderInput) {
     throw new Error(`Minimum order for delivery is ${minOrder}`);
   }
 
-  const configuredTax = Number(settings["tax_rate"] ?? 5);
-  const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 5;
+  const configuredTax = Number(settings["tax_rate"] ?? 0);
+  const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 0;
   const tax = Math.round(subtotal * taxRate) / 100;
 
   const { data: order, error: orderError } = await supabaseAdmin
@@ -236,8 +236,8 @@ export async function appendPublicOrderItems(input: AppendOrderInput) {
   const settings = tenant.settings && typeof tenant.settings === "object" && !Array.isArray(tenant.settings)
     ? tenant.settings as Record<string, unknown>
     : {};
-  const configuredTax = Number(settings["tax_rate"] ?? 5);
-  const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 5;
+  const configuredTax = Number(settings["tax_rate"] ?? 0);
+  const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 0;
   const tax = Math.round(subtotal * taxRate) / 100;
   const deliveryFee = Number((order as any).delivery_fee ?? 0) || 0;
 

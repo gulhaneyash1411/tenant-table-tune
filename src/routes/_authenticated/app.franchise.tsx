@@ -29,7 +29,7 @@ const STATUS_LABEL: Record<OutletStatus, string> = {
 
 const EMPTY = { name: "", address: "", city: "", state: "", pincode: "", contact: "", opening: "09:00", closing: "23:00" };
 
-type Plan = { id: string; name: string; description: string | null; monthly_price: number; yearly_price: number | null };
+type Plan = { id: string; name: string; description: string | null; monthly_price: number; half_yearly_price: number | null; yearly_price: number | null };
 
 function OutletsPage() {
   const { tenant, outlets, organization } = useOutletContext();
@@ -47,9 +47,9 @@ function OutletsPage() {
     if (step !== "subscribe" || plans.length) return;
     (async () => {
       const { data } = await supabase
-        .from("subscription_plans").select("id,name,description,monthly_price,yearly_price")
+        .from("subscription_plans").select("id,name,description,monthly_price,half_yearly_price,yearly_price")
         .eq("is_active", true).order("monthly_price");
-      setPlans(((data ?? []) as any[]).map((p) => ({ ...p, monthly_price: Number(p.monthly_price), yearly_price: p.yearly_price == null ? null : Number(p.yearly_price) })));
+      setPlans(((data ?? []) as any[]).map((p) => ({ ...p, monthly_price: Number(p.monthly_price), half_yearly_price: p.half_yearly_price == null ? null : Number(p.half_yearly_price), yearly_price: p.yearly_price == null ? null : Number(p.yearly_price) })));
     })();
   }, [step, plans.length]);
 
@@ -62,7 +62,7 @@ function OutletsPage() {
 
   // The outlet is only created once the owner commits to buying its subscription,
   // and it stays closed (PENDING_PAYMENT) until that payment is approved.
-  async function createAndPay() {
+  async function createAndPay(planId?: string) {
     setSaving(true);
     const { data: created, error } = await (supabase as any).rpc("add_outlet", {
       p_name: f.name,
@@ -77,7 +77,7 @@ function OutletsPage() {
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Outlet created — buy its subscription to open it.");
-    if (created?.id) switchTo(created.id, "/app/subscription");
+    if (created?.id) switchTo(created.id, planId ? `/app/subscription?plan=${planId}` : "/app/subscription");
     else window.location.reload();
   }
 
@@ -155,24 +155,31 @@ function OutletsPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {plans.map((p) => (
-              <div key={p.id} className="rounded-lg border p-3">
+              <button
+                key={p.id}
+                type="button"
+                disabled={saving}
+                onClick={() => createAndPay(p.id)}
+                className="rounded-lg border p-3 text-left transition hover:border-primary hover:shadow-sm disabled:opacity-60"
+              >
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{p.name}</span>
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="mt-1 text-lg font-semibold">{money(p.monthly_price)}<span className="text-xs font-normal text-muted-foreground"> / month</span></div>
+                {p.half_yearly_price ? <div className="text-xs text-muted-foreground">or {money(p.half_yearly_price)} / 6 months</div> : null}
                 {p.yearly_price ? <div className="text-xs text-muted-foreground">or {money(p.yearly_price)} / year</div> : null}
                 {p.description && <div className="mt-1 text-xs text-muted-foreground">{p.description}</div>}
-              </div>
+                <div className="mt-3 text-sm font-medium text-primary">{saving ? "Creating…" : "Buy now →"}</div>
+              </button>
             ))}
             {plans.length === 0 && <div className="text-sm text-muted-foreground">Loading plans…</div>}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={createAndPay} disabled={saving}>{saving ? "Creating…" : "Buy subscription"}</Button>
             <Button variant="outline" onClick={() => setStep("details")} disabled={saving}>Back</Button>
             <Button variant="ghost" onClick={closeAdd} disabled={saving}>Cancel</Button>
           </div>
-          <p className="text-xs text-muted-foreground">You'll choose the plan and pay on the next screen.</p>
+          <p className="text-xs text-muted-foreground">Pick a plan to continue to payment.</p>
         </Card>
       )}
 

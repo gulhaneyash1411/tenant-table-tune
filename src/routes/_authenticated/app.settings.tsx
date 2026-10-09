@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { useTenantContext } from "@/hooks/use-session";
+import { planAllows } from "@/config/plan-features";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/app/settings")({ component: SettingsPage });
 
 function SettingsPage() {
-  const { setTenant, isOutletManager } = useTenantContext();
+  const { setTenant, isOutletManager, plan } = useTenantContext();
   // Outlet managers can look at everything here but change nothing — the owner sets
   // the profile, address, PIN and kitchen login (the database enforces it too).
   const readOnly = !!isOutletManager;
@@ -42,13 +43,28 @@ function SettingsPage() {
   }, []);
   async function save() {
     if (!t || readOnly) return;
+    const requiredFields: [string, unknown][] = [
+      ["Restaurant name", t.name],
+      ["Owner name", t.owner_name],
+      ["Owner phone", t.owner_phone],
+      ["Slogan / tagline", t.slogan],
+      ["Logo URL", t.logo_url],
+      ["Opening time", t.opening_time || "09:00"],
+      ["Closing time", t.closing_time],
+      ["Address", t.address],
+      ["City", t.city],
+      ["State", t.state],
+      ["Pincode", t.pincode],
+    ];
+    const missing = requiredFields.filter(([, v]) => !String(v ?? "").trim()).map(([label]) => label);
+    if (missing.length) return toast.error(`Please fill: ${missing.join(", ")}`);
     setSaving(true);
     const { error } = await supabase.from("tenants").update({
       name: t.name, owner_name: t.owner_name, owner_phone: t.owner_phone,
       address: t.address, city: t.city, state: t.state, pincode: t.pincode,
       gst_number: t.gst_number, business_type: t.business_type, brand_color: t.brand_color,
       currency: t.currency, timezone: "Asia/Kolkata", settings: t.settings || {},
-      slogan: t.slogan, opening_time: t.opening_time, closing_time: t.closing_time, logo_url: t.logo_url,
+      slogan: t.slogan, opening_time: t.opening_time || "09:00", closing_time: t.closing_time, logo_url: t.logo_url,
       google_review_url: t.google_review_url || null,
     } as any).eq("id", t.id);
     setSaving(false);
@@ -62,6 +78,11 @@ function SettingsPage() {
   if (!t) return <div>Loading…</div>;
   const set = (k: string, v: any) => setT({ ...t, [k]: v });
   const setJ = (k: string, v: any) => setT({ ...t, settings: { ...(t.settings || {}), [k]: v } });
+  const settingsTabs = [
+    { value: "restaurant", label: "Restaurant", feature: undefined },
+    { value: "pin", label: "Lock PIN", feature: "settings_lock_pin" },
+    { value: "kitchen", label: "Kitchen account", feature: "settings_kitchen_account" },
+  ].filter((tab) => (!readOnly || tab.value === "kitchen") && planAllows(plan?.features, tab.feature));
   return (
     <div className="space-y-6 max-w-3xl">
       {readOnly && (
@@ -70,18 +91,15 @@ function SettingsPage() {
         </div>
       )}
 
-      <Tabs defaultValue={readOnly ? "kitchen" : "restaurant"} className="space-y-6">
+      {/* Tabs the owner's plan includes; a manager only ever sees the kitchen account tab. */}
+      <Tabs defaultValue={settingsTabs[0]?.value ?? "restaurant"} className="space-y-6">
         {/* Same underline bar as Tables & QR — these switch the whole page, so
             it reads as navigation. shadcn's TabsList brings its own background,
             padding and rounding and TabsTrigger its own active pill, so all of
             that is nulled out here rather than added to. overflow-x-auto keeps
             the three labels on one row at 360px instead of wrapping. */}
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0 overflow-x-auto">
-          {[
-            { value: "restaurant", label: "Restaurant" },
-            { value: "pin", label: "Lock PIN" },
-            { value: "kitchen", label: "Kitchen account" },
-          ].filter(tab => !readOnly || tab.value === "kitchen").map(tab => (
+          {settingsTabs.map(tab => (
             <TabsTrigger
               key={tab.value}
               value={tab.value}
@@ -93,7 +111,7 @@ function SettingsPage() {
         </TabsList>
 
         <TabsContent value="restaurant" className="space-y-6">
-          {!readOnly && (
+          {!readOnly && planAllows(plan?.features, "settings_outlets") && (
             <Card className="p-5 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="font-medium">Outlets</div>
@@ -107,18 +125,21 @@ function SettingsPage() {
           <Card className="p-5 space-y-4">
             <div className="font-medium">Restaurant profile</div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Restaurant name" v={t.name} on={v=>set("name",v)} />
-              <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} />
-              <div><Label>Owner phone</Label><Input type="tel" inputMode="numeric" maxLength={10} value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/></div>
-              <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
-              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
-              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
+              <Field label="Restaurant name" v={t.name} on={v=>set("name",v)} required />
+              <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} required />
+              <div>
+                <Label>Owner phone<span className="text-destructive"> *</span></Label>
+                <Input type="tel" inputMode="numeric" maxLength={10} required value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/>
+              </div>
+              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} required />
+              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} required />
               <Field label="Google review link" v={t.google_review_url||""} on={v=>set("google_review_url",v)} />
               <div className="col-span-2">
-                <Label>Business hours</Label>
+                <Label>Business hours<span className="text-destructive"> *</span></Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="time"
+                    required
                     aria-label="Opening time"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                     value={t.opening_time||"09:00"}
@@ -127,6 +148,7 @@ function SettingsPage() {
                   <span className="text-sm text-muted-foreground">to</span>
                   <input
                     type="time"
+                    required
                     aria-label="Closing time"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                     value={t.closing_time||""}
@@ -139,18 +161,18 @@ function SettingsPage() {
           </Card>
           <Card className="p-5 space-y-4">
             <div className="font-medium">Address</div>
-            <Field label="Address" v={t.address||""} on={v=>set("address",v)} />
+            <Field label="Address" v={t.address||""} on={v=>set("address",v)} required />
             <div className="grid grid-cols-3 gap-3">
-              <Field label="City" v={t.city||""} on={v=>set("city",v)} />
-              <Field label="State" v={t.state||""} on={v=>set("state",v)} />
-              <Field label="Pincode" v={t.pincode||""} on={v=>set("pincode",v)} />
+              <Field label="City" v={t.city||""} on={v=>set("city",v)} required />
+              <Field label="State" v={t.state||""} on={v=>set("state",v)} required />
+              <Field label="Pincode" v={t.pincode||""} on={v=>set("pincode",v)} required />
             </div>
           </Card>
           <Card className="p-5 space-y-4">
             <div className="font-medium">Invoice & tax</div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="GST number" v={t.gst_number||""} on={v=>set("gst_number",v)} />
-              <Field label="Tax rate (%)" v={t.settings?.tax_rate||"5"} on={v=>setJ("tax_rate", v)} />
+              <Field label="Tax rate (%)" v={t.settings?.tax_rate ?? "0"} on={v=>setJ("tax_rate", v.replace(/^0+(?=\d)/, ""))} />
               <Field label="Currency" v={t.currency||"INR"} on={v=>set("currency",v)} />
               <div>
                 <Label>Timezone</Label>
@@ -522,6 +544,11 @@ function KitchenAccountCard({ tenantId, readOnly = false }: { tenantId: string; 
   );
 }
 
-function Field({ label, v, on, type = "text" }: { label: string; v: any; on: (v: string)=>void; type?: string }) {
-  return <div><Label>{label}</Label><Input type={type} value={v} onChange={e=>on(e.target.value)}/></div>;
+function Field({ label, v, on, type = "text", required = false }: { label: string; v: any; on: (v: string)=>void; type?: string; required?: boolean }) {
+  return (
+    <div>
+      <Label>{label}{required && <span className="text-destructive"> *</span>}</Label>
+      <Input type={type} value={v} required={required} onChange={e=>on(e.target.value)}/>
+    </div>
+  );
 }
