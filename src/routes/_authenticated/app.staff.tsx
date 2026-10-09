@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
+import { planLimitError } from "@/lib/plan-limits";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1260,6 +1262,7 @@ function ConfirmDialog({
 }
 
 function StaffPage() {
+  const { plan: ownerPlan } = useTenantContext();
   const [tenantId, setTenantId] = useState<string>("");
   const [business, setBusiness] = useState<{ name: string; address?: string; phone?: string }>({ name: "" });
   const [staff, setStaff] = useState<any[]>([]);
@@ -1381,6 +1384,10 @@ function StaffPage() {
       join_date: f.join_date || null,
       status: f.status || "active",
     };
+    if (!editingId) {
+      const limitMsg = await planLimitError({ plan: ownerPlan, limit: "max_staff", tenantId, table: "staff_members", label: "staff members" });
+      if (limitMsg) return toast.error(limitMsg);
+    }
     const { error } = editingId
       ? await (supabase as any).from("staff_members").update(payload).eq("id", editingId)
       : await (supabase as any).from("staff_members").insert({ ...payload, tenant_id: tenantId });

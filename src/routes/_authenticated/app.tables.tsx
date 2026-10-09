@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QRCard } from "@/components/qr-card";
+import { useTenantContext } from "@/hooks/use-session";
+import { planAllows } from "@/config/plan-features";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format, isToday, isTomorrow } from "date-fns";
@@ -217,6 +219,7 @@ function RequiredMark() {
 }
 
 function TablesPage() {
+  const { plan: ownerPlan } = useTenantContext();
   const [tenant, setTenant] = useState<any>(null);
   const [tables, setTables] = useState<any[]>([]);
   // table id -> its secure QR token and status (see qr_codes)
@@ -372,6 +375,11 @@ function TablesPage() {
 
   async function add() {
     if (!label || !tenant) return;
+    // Table limit from the owner's plan (blank in the plan form = unlimited)
+    const maxTables = ownerPlan?.max_tables;
+    if (maxTables != null && tables.length >= maxTables) {
+      return toast.error(`Your plan allows up to ${maxTables} tables. Upgrade to add more.`);
+    }
     const { error } = await supabase
       .from("restaurant_tables")
       .insert({ tenant_id: tenant.id, label, seats });
@@ -846,9 +854,16 @@ function TablesPage() {
   const settings = (tenant?.settings && typeof tenant.settings === "object" ? tenant.settings : {}) as Record<string, any>;
   const deliveryEnabled = settings.delivery_enabled !== false;
 
+  // Tabs the owner's plan includes (QR codes / Floor plan / Bookings)
+  const tableTabs = [
+    { value: "qr", label: "QR codes", feature: "tables_qr" },
+    { value: "floor", label: "Floor plan", feature: "floor_plan" },
+    { value: "bookings", label: "Bookings", feature: "bookings" },
+  ].filter((t) => planAllows(ownerPlan?.features, t.feature));
+
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="qr" className="space-y-6">
+      <Tabs defaultValue={tableTabs[0]?.value ?? "qr"} className="space-y-6">
         {/* Underline rather than the default pill: these switch the whole page,
             so the bar reads as navigation. shadcn's TabsList carries its own
             background, padding and rounding, and TabsTrigger its own active
@@ -856,11 +871,7 @@ function TablesPage() {
             overflow-x-auto matters on a 360px screen: a fourth tab would wrap
             into a second row and shift everything below it. */}
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0 overflow-x-auto">
-          {[
-            { value: "qr", label: "QR codes" },
-            { value: "floor", label: "Floor plan" },
-            { value: "bookings", label: "Bookings" },
-          ].map(t => (
+          {tableTabs.map(t => (
             <TabsTrigger
               key={t.value}
               value={t.value}

@@ -152,6 +152,8 @@ type TenantContextValue = {
   organization?: Organization | null;
   /** Signed in as an Outlet Manager: can view settings/subscription but never change them. */
   isOutletManager?: boolean;
+  /** The owner's current plan (features + limits). Null until a plan is active. */
+  plan?: { name?: string; features?: Record<string, boolean> | null; max_tables?: number | null; max_orders_month?: number | null; max_menu_items?: number | null; max_staff?: number | null } | null;
 };
 const TenantContext = createContext<TenantContextValue | null>(null);
 

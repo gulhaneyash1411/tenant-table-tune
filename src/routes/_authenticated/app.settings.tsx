@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { useTenantContext } from "@/hooks/use-session";
+import { planAllows } from "@/config/plan-features";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/app/settings")({ component: SettingsPage });
 
 function SettingsPage() {
-  const { setTenant, isOutletManager } = useTenantContext();
+  const { setTenant, isOutletManager, plan } = useTenantContext();
   // Outlet managers can look at everything here but change nothing — the owner sets
   // the profile, address, PIN and kitchen login (the database enforces it too).
   const readOnly = !!isOutletManager;
@@ -77,6 +78,11 @@ function SettingsPage() {
   if (!t) return <div>Loading…</div>;
   const set = (k: string, v: any) => setT({ ...t, [k]: v });
   const setJ = (k: string, v: any) => setT({ ...t, settings: { ...(t.settings || {}), [k]: v } });
+  const settingsTabs = [
+    { value: "restaurant", label: "Restaurant", feature: undefined },
+    { value: "pin", label: "Lock PIN", feature: "settings_lock_pin" },
+    { value: "kitchen", label: "Kitchen account", feature: "settings_kitchen_account" },
+  ].filter((tab) => (!readOnly || tab.value === "kitchen") && planAllows(plan?.features, tab.feature));
   return (
     <div className="space-y-6 max-w-3xl">
       {readOnly && (
@@ -85,18 +91,15 @@ function SettingsPage() {
         </div>
       )}
 
-      <Tabs defaultValue={readOnly ? "kitchen" : "restaurant"} className="space-y-6">
+      {/* Tabs the owner's plan includes; a manager only ever sees the kitchen account tab. */}
+      <Tabs defaultValue={settingsTabs[0]?.value ?? "restaurant"} className="space-y-6">
         {/* Same underline bar as Tables & QR — these switch the whole page, so
             it reads as navigation. shadcn's TabsList brings its own background,
             padding and rounding and TabsTrigger its own active pill, so all of
             that is nulled out here rather than added to. overflow-x-auto keeps
             the three labels on one row at 360px instead of wrapping. */}
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0 overflow-x-auto">
-          {[
-            { value: "restaurant", label: "Restaurant" },
-            { value: "pin", label: "Lock PIN" },
-            { value: "kitchen", label: "Kitchen account" },
-          ].filter(tab => !readOnly || tab.value === "kitchen").map(tab => (
+          {settingsTabs.map(tab => (
             <TabsTrigger
               key={tab.value}
               value={tab.value}
@@ -108,7 +111,7 @@ function SettingsPage() {
         </TabsList>
 
         <TabsContent value="restaurant" className="space-y-6">
-          {!readOnly && (
+          {!readOnly && planAllows(plan?.features, "settings_outlets") && (
             <Card className="p-5 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="font-medium">Outlets</div>

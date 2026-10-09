@@ -469,7 +469,7 @@ const blankBiz = () => ({
   country: "India", pan_number: "", gst_number: "", logo_url: "",
 });
 
-type Plan = { id: string; name: string; monthly_price: number | null; yearly_price: number | null };
+type Plan = { id: string; name: string; monthly_price: number | null; half_yearly_price: number | null; yearly_price: number | null };
 const STEP_LABELS = ["Business type", "Business & owner", "Outlets", "Subscription", "Review"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -485,7 +485,7 @@ function CreateWizard({ open, onOpenChange, onCreated }: {
   const [outlets, setOutlets] = useState<OutletForm[]>([blankOutlet()]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [planId, setPlanId] = useState("none");
-  const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
+  const [cycle, setCycle] = useState<"monthly" | "half_yearly" | "yearly">("monthly");
   const [activateNow, setActivateNow] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -494,7 +494,7 @@ function CreateWizard({ open, onOpenChange, onCreated }: {
     if (!open) return;
     setStep(1); setType(null); setBiz(blankBiz()); setSingle({ address: "", city: "", state: "", pincode: "" });
     setOutlets([blankOutlet()]); setPlanId("none"); setCycle("monthly"); setActivateNow(false);
-    db.from("subscription_plans").select("id,name,monthly_price,yearly_price").eq("is_active", true).order("monthly_price")
+    db.from("subscription_plans").select("id,name,monthly_price,half_yearly_price,yearly_price").eq("is_active", true).order("monthly_price")
       .then(({ data, error }: any) => { if (error) toast.error(error.message); else setPlans(data || []); });
   }, [open]);
 
@@ -701,10 +701,11 @@ function CreateWizard({ open, onOpenChange, onCreated }: {
                 </Field>
                 {planId !== "none" && (
                   <Field label="Billing cycle">
-                    <Select value={cycle} onValueChange={v => setCycle(v as "monthly" | "yearly")}>
+                    <Select value={cycle} onValueChange={v => setCycle(v as "monthly" | "half_yearly" | "yearly")}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="half_yearly">Half-yearly</SelectItem>
                         <SelectItem value="yearly">Yearly</SelectItem>
                       </SelectContent>
                     </Select>

@@ -38,7 +38,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const MAX_IDS = 400; // cap on id lists pushed into a URL filter
 const DAY = 86_400_000;
 
-type Plan = { id: string; name: string; monthly_price: number | null; yearly_price: number | null };
+type Plan = { id: string; name: string; monthly_price: number | null; half_yearly_price: number | null; yearly_price: number | null };
 type SubRow = {
   id: string; tenant_id: string; plan_id: string | null; status: string;
   current_period_start: string | null; current_period_end: string | null; created_at: string;
@@ -46,7 +46,7 @@ type SubRow = {
     id: string; name: string; city: string | null; state: string | null; outlet_status: string;
     organization_id: string | null; organizations: { name: string } | null;
   };
-  subscription_plans: { name: string; monthly_price: number | null; yearly_price: number | null } | null;
+  subscription_plans: { name: string; monthly_price: number | null; half_yearly_price: number | null; yearly_price: number | null } | null;
 };
 type Opt = { id: string; label: string };
 
@@ -126,9 +126,11 @@ const periodDays = (s: SubRow) =>
   s.current_period_start && s.current_period_end
     ? (new Date(s.current_period_end).getTime() - new Date(s.current_period_start).getTime()) / DAY
     : 0;
-const cycleOf = (s: SubRow) => (periodDays(s) > 200 ? "yearly" : "monthly");
-const amountOf = (s: SubRow) =>
-  cycleOf(s) === "yearly" ? s.subscription_plans?.yearly_price : s.subscription_plans?.monthly_price;
+const cycleOf = (s: SubRow) => (periodDays(s) > 320 ? "yearly" : periodDays(s) > 120 ? "half_yearly" : "monthly");
+const amountOf = (s: SubRow) => {
+  const c = cycleOf(s);
+  return c === "yearly" ? s.subscription_plans?.yearly_price : c === "half_yearly" ? s.subscription_plans?.half_yearly_price : s.subscription_plans?.monthly_price;
+};
 /** Stored status, but an "active" subscription is shown as EXPIRING (<= 30 days left) or expired (lapsed). */
 function displayStatus(s: SubRow) {
   if (s.status !== "active" || !s.current_period_end) return s.status;
@@ -205,7 +207,7 @@ type Action = { type: "activate" | "suspend" | "cancel" | "extend" | "renew" | "
 function AdminSubscriptions() {
   const [plans, setPlans] = useState<Plan[]>([]);
   useEffect(() => {
-    sb.from("subscription_plans").select("id,name,monthly_price,yearly_price").order("monthly_price").then(({ data }: any) => setPlans(data ?? []));
+    sb.from("subscription_plans").select("id,name,monthly_price,half_yearly_price,yearly_price").order("monthly_price").then(({ data }: any) => setPlans(data ?? []));
   }, []);
 
   // filters
@@ -268,7 +270,7 @@ function AdminSubscriptions() {
           .select(
             "id,tenant_id,plan_id,status,current_period_start,current_period_end,created_at," +
             "tenants!inner(id,name,city,state,outlet_status,organization_id,organizations(name))," +
-            "subscription_plans(name,monthly_price,yearly_price)",
+            "subscription_plans(name,monthly_price,half_yearly_price,yearly_price)",
             { count: "exact" },
           );
         const now = new Date().toISOString();
@@ -373,7 +375,6 @@ function AdminSubscriptions() {
     { key: "exp15", label: "Expiring in 15 days", tone: "text-amber-600" },
     { key: "expiring", label: "Expiring in 30 days", tone: "text-amber-600" },
     { key: "expired", label: "Expired", tone: "text-red-600" },
-    { key: "pending", label: "Outlets pending payment", tone: "text-sky-600" },
   ];
 
   const confirmCopy = action && {
@@ -398,7 +399,7 @@ function AdminSubscriptions() {
       {/* requiring attention */}
       <div>
         <div className="mb-2 flex items-center gap-2 text-sm font-medium"><AlertTriangle className="h-4 w-4 text-amber-600" /> Subscriptions requiring attention</div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {cards.map((c) => {
             const body = (
               <>
@@ -420,9 +421,7 @@ function AdminSubscriptions() {
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Search organization, outlet, owner or subscription id…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <SearchSelect value={org.id} valueLabel={org.label} onChange={(id, label) => setOrg({ id, label })} load={loadOrgs} placeholder="Search organization…" allLabel="All organizations" />
-          <Input placeholder="Outlet name" value={outletQ} onChange={(e) => setOutletQ(e.target.value)} />
+        <div className="grid gap-3 sm:grid-cols-2">
           <Select value={plan} onValueChange={setPlan}>
             <SelectTrigger><SelectValue placeholder="Plan" /></SelectTrigger>
             <SelectContent>
@@ -437,39 +436,6 @@ function AdminSubscriptions() {
               {STATUS_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={cycle} onValueChange={setCycle}>
-            <SelectTrigger><SelectValue placeholder="Billing cycle" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any billing cycle</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="yearly">Yearly</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={payment} onValueChange={setPayment}>
-            <SelectTrigger><SelectValue placeholder="Payment" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any payment status</SelectItem>
-              <SelectItem value="paid">Latest invoice paid</SelectItem>
-              <SelectItem value="unpaid">Latest invoice unpaid</SelectItem>
-            </SelectContent>
-          </Select>
-          {/* Each range spans two columns so both date pickers have room to render in full. */}
-          <div className="min-w-0 space-y-1 sm:col-span-2">
-            <div className="text-xs text-muted-foreground">Start date</div>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <Input type="date" aria-label="Start from" className="min-w-0" value={startFrom} onChange={(e) => setStartFrom(e.target.value)} />
-              <span className="text-xs text-muted-foreground">to</span>
-              <Input type="date" aria-label="Start to" className="min-w-0" value={startTo} onChange={(e) => setStartTo(e.target.value)} />
-            </div>
-          </div>
-          <div className="min-w-0 space-y-1 sm:col-span-2">
-            <div className="text-xs text-muted-foreground">Expiry date</div>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <Input type="date" aria-label="Expiry from" className="min-w-0" value={endFrom} onChange={(e) => setEndFrom(e.target.value)} />
-              <span className="text-xs text-muted-foreground">to</span>
-              <Input type="date" aria-label="Expiry to" className="min-w-0" value={endTo} onChange={(e) => setEndTo(e.target.value)} />
-            </div>
-          </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Select value={sort} onValueChange={setSort}>
@@ -694,7 +660,7 @@ function PlanFields({
           <SelectTrigger><SelectValue placeholder="Choose a plan" /></SelectTrigger>
           <SelectContent>
             {plans.map((p) => (
-              <SelectItem key={p.id} value={p.id}>{p.name} — {fmtMoney(p.monthly_price)}/mo · {fmtMoney(p.yearly_price)}/yr</SelectItem>
+              <SelectItem key={p.id} value={p.id}>{p.name} — {fmtMoney(p.monthly_price)}/mo · {fmtMoney(p.half_yearly_price)}/6 mo · {fmtMoney(p.yearly_price)}/yr</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -705,6 +671,7 @@ function PlanFields({
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="half_yearly">Half-yearly</SelectItem>
             <SelectItem value="yearly">Yearly</SelectItem>
           </SelectContent>
         </Select>

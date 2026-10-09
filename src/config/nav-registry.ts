@@ -25,6 +25,7 @@ export type NavItem = {
   exact?: boolean;
   secure?: boolean; // needs the owner PIN / password
   locked?: boolean; // cannot be disabled by the super admin
+  feature?: string; // plan feature key (see plan-features.ts) that includes this page
 };
 
 export type NavSection = {
@@ -43,44 +44,44 @@ export const TENANT_SECTIONS: NavSection[] = [
     label: "Service",
     locked: true,
     items: [
-      { key: "dashboard", to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true, locked: true },
-      { key: "orders", to: "/app/orders", label: "Live orders", icon: ListOrdered },
-      { key: "kds", to: "/app/kds", label: "Kitchen Display", icon: Cpu },
-      { key: "history", to: "/app/history", label: "Order history", icon: History },
+      { key: "dashboard", to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true, locked: true, feature: "dashboards" },
+      { key: "orders", to: "/app/orders", label: "Live orders", icon: ListOrdered, feature: "live_orders" },
+      { key: "kds", to: "/app/kds", label: "Kitchen Display", icon: Cpu, feature: "kitchen_display" },
+      { key: "history", to: "/app/history", label: "Order history", icon: History, feature: "order_history" },
     ],
   },
   {
     key: "menu_tables",
     label: "Menu & tables",
     items: [
-      { key: "menu", to: "/app/menu", label: "Menu", icon: Utensils },
-      { key: "tables", to: "/app/tables", label: "Tables & QR", icon: QrCode },
+      { key: "menu", to: "/app/menu", label: "Menu", icon: Utensils, feature: "menu" },
+      { key: "tables", to: "/app/tables", label: "Tables & QR", icon: QrCode, feature: "tables_qr" },
     ],
   },
   {
     key: "customers",
     label: "Customers",
     items: [
-      { key: "customers_list", to: "/app/customers", label: "Customers", icon: Users },
-      { key: "whatsapp", to: "/app/whatsapp", label: "WhatsApp", icon: MessageCircle },
-      { key: "reviews", to: "/app/reviews", label: "Reviews", icon: Star },
+      { key: "customers_list", to: "/app/customers", label: "Customers", icon: Users, feature: "customers" },
+      { key: "whatsapp", to: "/app/whatsapp", label: "WhatsApp", icon: MessageCircle, feature: "whatsapp" },
+      { key: "reviews", to: "/app/reviews", label: "Reviews", icon: Star, feature: "reviews" },
     ],
   },
   {
     key: "money",
     label: "Money",
     items: [
-      { key: "revenue", to: "/app/revenue", label: "Revenue", icon: TrendingUp, secure: true },
-      { key: "expenses", to: "/app/expenses", label: "Expenses", icon: Wallet, secure: true },
-      { key: "analytics", to: "/app/analytics", label: "Analytics", icon: LineChart, secure: true },
+      { key: "revenue", to: "/app/revenue", label: "Revenue", icon: TrendingUp, secure: true, feature: "revenue" },
+      { key: "expenses", to: "/app/expenses", label: "Expenses", icon: Wallet, secure: true, feature: "expenses" },
+      { key: "analytics", to: "/app/analytics", label: "Analytics", icon: LineChart, secure: true, feature: "analytics" },
     ],
   },
   {
     key: "business",
     label: "Business",
     items: [
-      { key: "staff", to: "/app/staff", label: "Staff", icon: UsersRound, secure: true },
-      { key: "shop", to: "/app/products", label: "Shop", icon: ShoppingCart },
+      { key: "staff", to: "/app/staff", label: "Staff", icon: UsersRound, secure: true, feature: "staff_management" },
+      { key: "shop", to: "/app/products", label: "Shop", icon: ShoppingCart, feature: "shop" },
       { key: "subscription", to: "/app/subscription", label: "Subscription", icon: CreditCard, locked: true },
       { key: "settings", to: "/app/settings", label: "Settings", icon: Settings, secure: true, locked: true },
     ],

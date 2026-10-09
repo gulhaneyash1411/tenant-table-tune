@@ -29,7 +29,7 @@ const STATUS_LABEL: Record<OutletStatus, string> = {
 
 const EMPTY = { name: "", address: "", city: "", state: "", pincode: "", contact: "", opening: "09:00", closing: "23:00" };
 
-type Plan = { id: string; name: string; description: string | null; monthly_price: number; yearly_price: number | null };
+type Plan = { id: string; name: string; description: string | null; monthly_price: number; half_yearly_price: number | null; yearly_price: number | null };
 
 function OutletsPage() {
   const { tenant, outlets, organization } = useOutletContext();
@@ -47,9 +47,9 @@ function OutletsPage() {
     if (step !== "subscribe" || plans.length) return;
     (async () => {
       const { data } = await supabase
-        .from("subscription_plans").select("id,name,description,monthly_price,yearly_price")
+        .from("subscription_plans").select("id,name,description,monthly_price,half_yearly_price,yearly_price")
         .eq("is_active", true).order("monthly_price");
-      setPlans(((data ?? []) as any[]).map((p) => ({ ...p, monthly_price: Number(p.monthly_price), yearly_price: p.yearly_price == null ? null : Number(p.yearly_price) })));
+      setPlans(((data ?? []) as any[]).map((p) => ({ ...p, monthly_price: Number(p.monthly_price), half_yearly_price: p.half_yearly_price == null ? null : Number(p.half_yearly_price), yearly_price: p.yearly_price == null ? null : Number(p.yearly_price) })));
     })();
   }, [step, plans.length]);
 
@@ -167,6 +167,7 @@ function OutletsPage() {
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="mt-1 text-lg font-semibold">{money(p.monthly_price)}<span className="text-xs font-normal text-muted-foreground"> / month</span></div>
+                {p.half_yearly_price ? <div className="text-xs text-muted-foreground">or {money(p.half_yearly_price)} / 6 months</div> : null}
                 {p.yearly_price ? <div className="text-xs text-muted-foreground">or {money(p.yearly_price)} / year</div> : null}
                 {p.description && <div className="mt-1 text-xs text-muted-foreground">{p.description}</div>}
                 <div className="mt-3 text-sm font-medium text-primary">{saving ? "Creating…" : "Buy now →"}</div>

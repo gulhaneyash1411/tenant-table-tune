@@ -25,6 +25,8 @@ import {
   type NavItem, type NavSection,
 } from "@/config/nav-registry";
 import { useNavConfig } from "@/hooks/use-nav-config";
+import { planAllows } from "@/config/plan-features";
+import { useTrialDays } from "@/lib/site-settings";
 
 export const Route = createFileRoute("/_authenticated/app")({ component: AppLayout });
 
@@ -71,6 +73,9 @@ function AppLayout() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { isSuperAdmin, tenant, outlets, organization, isOutletManager, loading, setTenant, isKitchenUser, isSalesUser } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
+  // False until the subscription lookup has finished, so a new owner isn't shown the trial-ended screen early.
+  const [subLoaded, setSubLoaded] = useState(false);
+  const trialDays = useTrialDays();
 
   // What the super admin has switched on for this restaurant.
   const {
@@ -81,11 +86,20 @@ function AppLayout() {
 
   // Outlet Managers run the outlet but never the business: billing and owner
   // settings are hidden here and also blocked by URL below (and by RLS server-side).
+  // Pages the owner's plan doesn't include are dropped from the sidebar, and blocked by URL below.
+  // Only a paid, current plan restricts features. Without one the owner gets the full
+  // app for the trial period (from the date the tenant registered), then needs a plan.
+  const plan = sub?.paid ? sub.plan : null;
+  const trialEnd = tenant?.created_at ? new Date(tenant.created_at).getTime() + trialDays * 86400000 : 0;
+  const trialEnded = subLoaded && !!tenant && !plan && Date.now() >= trialEnd;
+  const planSections = ownerVisibleSections
+    .map((s) => ({ ...s, items: s.items.filter((i) => planAllows(plan?.features, i.feature)) }))
+    .filter((s) => s.items.length > 0);
   const visibleSections = isOutletManager
-    ? ownerVisibleSections
+    ? planSections
         .map((s) => ({ ...s, items: s.items.filter((i) => !MANAGER_HIDDEN_KEYS.includes(i.key)) }))
         .filter((s) => s.items.length > 0)
-    : ownerVisibleSections;
+    : planSections;
 
   // Password lock for secure pages
   // Only ONE page is unlocked at a time: the page where the password was entered.
@@ -122,6 +136,7 @@ function AppLayout() {
 
   useEffect(() => {
     if (!tenant) { setSub(null); return; }
+    setSubLoaded(false);
     let cancelled = false;
     const tenantId = tenant.id;
 
@@ -144,25 +159,29 @@ function AppLayout() {
       if (cancelled) return;
 
       // Most recent subscription (any non-canceled status)
-      const latestSub = (subs || [])[0];
+      // The active subscription if there is one, otherwise the newest non-canceled one.
+      const activeSub = (subs || []).find((s) => s.status === "active") || (subs || [])[0];
       // Most recent paid or pending invoice
       const latestInvoice = (invoices || []).find((inv) =>
         inv.status === "paid" || inv.status === "pending_approval"
       ) || (invoices || [])[0];
 
       // Prefer subscription if exists; otherwise show pending invoice
-      if (latestSub) {
+      if (activeSub) {
         const { data: plan } = await supabase
           .from("subscription_plans")
-          .select("name")
-          .eq("id", latestSub.plan_id)
+          .select("name, features, max_tables, max_orders_month, max_menu_items, max_staff")
+          .eq("id", activeSub.plan_id)
           .maybeSingle();
-        setSub(plan ? { plan } : { plan: { name: "Plan" } });
+        // "paid" = the subscription is active and not past its end date.
+        const paid = activeSub.status === "active" && new Date(activeSub.current_period_end) > new Date();
+        setSub({ plan: plan ?? { name: "Plan" }, paid });
       } else if (latestInvoice?.status === "pending_approval") {
-        setSub({ plan: { name: `${latestInvoice.plan} (pending approval)` } });
+        setSub({ plan: { name: `${latestInvoice.plan} (pending approval)` }, paid: false });
       } else {
         setSub(null);
       }
+      setSubLoaded(true);
     }
 
     loadSub();
@@ -207,7 +226,7 @@ function AppLayout() {
   if ((tenant as any)?.must_reset_password) return null;
   // Wait for the visibility rules before painting a sidebar we may have to
   // redraw a frame later.
-  if (navLoading) return <DashboardLoader />;
+  if (navLoading || !subLoaded) return <DashboardLoader />;
   const missing: string[] = [];
   if (!tenant?.address) missing.push("address");
   if (!tenant?.city) missing.push("city");
@@ -222,17 +241,33 @@ function AppLayout() {
   // hiding the link is presentation, this is the actual gate.
   const registryItem = findItemByPath(pathname);
   const parentSection = registryItem ? sectionOfItem(registryItem.key) : null;
-  const pageDisabled =
-    (isOutletManager && MANAGER_BLOCKED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) ||
-    (!!registryItem &&
-      (!isVisible(registryItem.key) || (parentSection ? !isVisible(parentSection.key) : false)));
 
   // A newly added outlet is a draft until its subscription is paid: only the
   // payment page and the outlet list are reachable.
   const outletStatus = (tenant as (Tenant & { outlet_status?: string }) | null)?.outlet_status ?? "ACTIVE";
   const outletInactive = outletStatus !== "ACTIVE";
   const onPaymentPage = pathname === "/app/subscription" || pathname === "/app/franchise";
-  const outletBlocked = outletInactive && !onPaymentPage;
+  const outletBlocked = (outletInactive || trialEnded) && !onPaymentPage;
+  const blockedTitle = trialEnded && !outletInactive
+    ? "Your free trial has ended"
+    : outletStatus === "PENDING_PAYMENT" ? `Activate ${tenant?.name}` : `${tenant?.name} is not active`;
+  const blockedText = trialEnded && !outletInactive
+    ? `Your ${trialDays}-day free trial has ended. Choose a plan to keep using your restaurant.`
+    : outletStatus === "PENDING_PAYMENT"
+      ? "This outlet needs an active subscription before it can take orders. Choose a plan and pay to activate it."
+      : "This outlet's subscription is not active. Renew it to continue receiving orders.";
+
+  // Pages the plan doesn't include. The Outlets page stays open while an outlet is
+  // awaiting payment, otherwise it could never be activated.
+  const onFranchisePage = pathname === "/app/franchise" || pathname.startsWith("/app/franchise/");
+  const planLocked =
+    (!!registryItem && !planAllows(plan?.features, registryItem.feature)) ||
+    (onFranchisePage && !outletInactive && !planAllows(plan?.features, "settings_outlets"));
+  const pageDisabled =
+    (isOutletManager && MANAGER_BLOCKED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) ||
+    (!!registryItem &&
+      (!isVisible(registryItem.key) || (parentSection ? !isVisible(parentSection.key) : false))) ||
+    planLocked;
 
   // A manager's Settings page is read-only, so it doesn't need the owner's PIN;
   // the money pages (revenue, expenses, analytics, staff) still do.
@@ -247,7 +282,7 @@ function AppLayout() {
     .filter(Boolean) as NavItem[];
 
   return (
-    <TenantContextProvider value={{ tenant, setTenant, outlets, organization, isOutletManager }}>
+    <TenantContextProvider value={{ tenant, setTenant, outlets, organization, isOutletManager, plan }}>
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
           <Sidebar
@@ -375,21 +410,15 @@ function AppLayout() {
                 </div>
               )}
               {pageDisabled ? (
-                <PageUnavailable label={registryItem?.label} />
+                <PageUnavailable label={registryItem?.label} planLocked={planLocked} />
               ) : outletBlocked ? (
                 <div className="grid min-h-[50vh] place-items-center">
                   <div className="max-w-md text-center">
                     <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-warning/10 text-warning">
                       <CreditCard className="h-6 w-6" />
                     </div>
-                    <h1 className="text-xl font-semibold">
-                      {outletStatus === "PENDING_PAYMENT" ? `Activate ${tenant?.name}` : `${tenant?.name} is not active`}
-                    </h1>
-                    <p className="mt-2 text-muted-foreground">
-                      {outletStatus === "PENDING_PAYMENT"
-                        ? "This outlet needs an active subscription before it can take orders. Choose a plan and pay to activate it."
-                        : "This outlet's subscription is not active. Renew it to continue receiving orders."}
-                    </p>
+                    <h1 className="text-xl font-semibold">{blockedTitle}</h1>
+                    <p className="mt-2 text-muted-foreground">{blockedText}</p>
                     <Link to="/app/subscription"><Button className="mt-6">Go to Subscription</Button></Link>
                   </div>
                 </div>
@@ -429,7 +458,7 @@ function AppLayout() {
 }
 
 /** Shown when the page exists but the platform has switched it off. */
-function PageUnavailable({ label }: { label?: string }) {
+function PageUnavailable({ label, planLocked = false }: { label?: string; planLocked?: boolean }) {
   return (
     <div className="grid min-h-[50vh] place-items-center">
       <div className="max-w-md text-center">
@@ -437,12 +466,18 @@ function PageUnavailable({ label }: { label?: string }) {
           <EyeOff className="h-6 w-6" />
         </div>
         <h1 className="text-xl font-semibold">
-          {label ? `${label} isn't available` : "This page isn't available"}
+          {planLocked
+            ? `${label ?? "This page"} isn't included in your plan`
+            : label ? `${label} isn't available` : "This page isn't available"}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          This section has been turned off for your account. Contact support if you need it enabled.
+          {planLocked
+            ? "Upgrade your subscription to unlock this section."
+            : "This section has been turned off for your account. Contact support if you need it enabled."}
         </p>
-        <Link to="/app"><Button className="mt-6" variant="outline">Back to dashboard</Button></Link>
+        <Link to={planLocked ? "/app/subscription" : "/app"}>
+          <Button className="mt-6" variant="outline">{planLocked ? "View plans" : "Back to dashboard"}</Button>
+        </Link>
       </div>
     </div>
   );

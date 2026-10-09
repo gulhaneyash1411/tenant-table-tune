@@ -37,11 +37,16 @@ export function cycleDays(cycle: string | null | undefined): number | null {
 
 export const trialCycleLabel = (days: number) => `${days} days`;
 
-// Adds one billing period to a date. Cycles that aren't monthly/yearly or
-// "<N> days" fall back to `fallbackDays` (the current free-trial length).
+// Billing cycles a paid plan can be bought on.
+export const BILLING_CYCLES = ["monthly", "half_yearly", "yearly"] as const;
+export type BillingCycle = (typeof BILLING_CYCLES)[number];
+
+// Adds one billing period to a date. Cycles that aren't monthly/half-yearly/yearly
+// or "<N> days" fall back to `fallbackDays` (the current free-trial length).
 export function addBillingCycle(start: Date, cycle: string | null | undefined, fallbackDays: number): Date {
   const d = new Date(start);
   if (cycle === "yearly") d.setFullYear(d.getFullYear() + 1);
+  else if (cycle === "half_yearly") d.setMonth(d.getMonth() + 6);
   else if (cycle === "monthly") d.setMonth(d.getMonth() + 1);
   else d.setDate(d.getDate() + (cycleDays(cycle) ?? fallbackDays));
   return d;
@@ -65,7 +70,7 @@ export function invoiceExpiry(r: any, trialDays: number): Date | null {
   const base = r.payment_method === PAYMENT_METHOD_UPI ? r.paid_at || r.issued_at : r.issued_at;
   if (!base) return null;
   const cycle = r.billing_cycle;
-  if (cycle === "yearly" || cycle === "monthly" || cycleDays(cycle) !== null) {
+  if (cycle === "yearly" || cycle === "half_yearly" || cycle === "monthly" || cycleDays(cycle) !== null) {
     return addBillingCycle(new Date(base), cycle, trialDays);
   }
   return null;
