@@ -212,7 +212,7 @@ function AppLayout() {
   if (!tenant?.address) missing.push("address");
   if (!tenant?.city) missing.push("city");
   if (!tenant?.owner_phone) missing.push("owner phone");
-  if (!tenant?.opening_time || !tenant?.closing_time) missing.push("opening hours");
+  if (!tenant?.opening_time || !tenant?.closing_time) missing.push("business hours");
   // The profile belongs to the owner; a manager can't open Settings to fix it.
   const profileIncomplete = missing.length > 0 && !isOutletManager;
   const onSettings = pathname === "/app/settings";

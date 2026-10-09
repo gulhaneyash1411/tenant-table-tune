@@ -42,13 +42,28 @@ function SettingsPage() {
   }, []);
   async function save() {
     if (!t || readOnly) return;
+    const requiredFields: [string, unknown][] = [
+      ["Restaurant name", t.name],
+      ["Owner name", t.owner_name],
+      ["Owner phone", t.owner_phone],
+      ["Slogan / tagline", t.slogan],
+      ["Logo URL", t.logo_url],
+      ["Opening time", t.opening_time || "09:00"],
+      ["Closing time", t.closing_time],
+      ["Address", t.address],
+      ["City", t.city],
+      ["State", t.state],
+      ["Pincode", t.pincode],
+    ];
+    const missing = requiredFields.filter(([, v]) => !String(v ?? "").trim()).map(([label]) => label);
+    if (missing.length) return toast.error(`Please fill: ${missing.join(", ")}`);
     setSaving(true);
     const { error } = await supabase.from("tenants").update({
       name: t.name, owner_name: t.owner_name, owner_phone: t.owner_phone,
       address: t.address, city: t.city, state: t.state, pincode: t.pincode,
       gst_number: t.gst_number, business_type: t.business_type, brand_color: t.brand_color,
       currency: t.currency, timezone: "Asia/Kolkata", settings: t.settings || {},
-      slogan: t.slogan, opening_time: t.opening_time, closing_time: t.closing_time, logo_url: t.logo_url,
+      slogan: t.slogan, opening_time: t.opening_time || "09:00", closing_time: t.closing_time, logo_url: t.logo_url,
       google_review_url: t.google_review_url || null,
     } as any).eq("id", t.id);
     setSaving(false);
@@ -107,18 +122,21 @@ function SettingsPage() {
           <Card className="p-5 space-y-4">
             <div className="font-medium">Restaurant profile</div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Restaurant name" v={t.name} on={v=>set("name",v)} />
-              <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} />
-              <div><Label>Owner phone</Label><Input type="tel" inputMode="numeric" maxLength={10} value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/></div>
-              <Field label="Business type" v={t.business_type||""} on={v=>set("business_type",v)} />
-              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
-              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
+              <Field label="Restaurant name" v={t.name} on={v=>set("name",v)} required />
+              <Field label="Owner name" v={t.owner_name||""} on={v=>set("owner_name",v)} required />
+              <div>
+                <Label>Owner phone<span className="text-destructive"> *</span></Label>
+                <Input type="tel" inputMode="numeric" maxLength={10} required value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/>
+              </div>
+              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} required />
+              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} required />
               <Field label="Google review link" v={t.google_review_url||""} on={v=>set("google_review_url",v)} />
               <div className="col-span-2">
-                <Label>Business hours</Label>
+                <Label>Business hours<span className="text-destructive"> *</span></Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="time"
+                    required
                     aria-label="Opening time"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                     value={t.opening_time||"09:00"}
@@ -127,6 +145,7 @@ function SettingsPage() {
                   <span className="text-sm text-muted-foreground">to</span>
                   <input
                     type="time"
+                    required
                     aria-label="Closing time"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                     value={t.closing_time||""}
@@ -139,18 +158,18 @@ function SettingsPage() {
           </Card>
           <Card className="p-5 space-y-4">
             <div className="font-medium">Address</div>
-            <Field label="Address" v={t.address||""} on={v=>set("address",v)} />
+            <Field label="Address" v={t.address||""} on={v=>set("address",v)} required />
             <div className="grid grid-cols-3 gap-3">
-              <Field label="City" v={t.city||""} on={v=>set("city",v)} />
-              <Field label="State" v={t.state||""} on={v=>set("state",v)} />
-              <Field label="Pincode" v={t.pincode||""} on={v=>set("pincode",v)} />
+              <Field label="City" v={t.city||""} on={v=>set("city",v)} required />
+              <Field label="State" v={t.state||""} on={v=>set("state",v)} required />
+              <Field label="Pincode" v={t.pincode||""} on={v=>set("pincode",v)} required />
             </div>
           </Card>
           <Card className="p-5 space-y-4">
             <div className="font-medium">Invoice & tax</div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="GST number" v={t.gst_number||""} on={v=>set("gst_number",v)} />
-              <Field label="Tax rate (%)" v={t.settings?.tax_rate||"5"} on={v=>setJ("tax_rate", v)} />
+              <Field label="Tax rate (%)" v={t.settings?.tax_rate ?? "0"} on={v=>setJ("tax_rate", v.replace(/^0+(?=\d)/, ""))} />
               <Field label="Currency" v={t.currency||"INR"} on={v=>set("currency",v)} />
               <div>
                 <Label>Timezone</Label>
@@ -522,6 +541,11 @@ function KitchenAccountCard({ tenantId, readOnly = false }: { tenantId: string; 
   );
 }
 
-function Field({ label, v, on, type = "text" }: { label: string; v: any; on: (v: string)=>void; type?: string }) {
-  return <div><Label>{label}</Label><Input type={type} value={v} onChange={e=>on(e.target.value)}/></div>;
+function Field({ label, v, on, type = "text", required = false }: { label: string; v: any; on: (v: string)=>void; type?: string; required?: boolean }) {
+  return (
+    <div>
+      <Label>{label}{required && <span className="text-destructive"> *</span>}</Label>
+      <Input type={type} value={v} required={required} onChange={e=>on(e.target.value)}/>
+    </div>
+  );
 }

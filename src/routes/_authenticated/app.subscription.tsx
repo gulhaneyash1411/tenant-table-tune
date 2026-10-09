@@ -226,6 +226,16 @@ function SubscriptionPage() {
   const nextPlanCycle = scheduledInvoice?.billing_cycle || (queuedPending ? latestRequest?.billing_cycle : null);
   const nextStart = scheduledSub ? new Date(scheduledSub.current_period_start) : currentEnd;
 
+  // Arrived from "Buy now" on the outlet form: open checkout for that plan once.
+  useEffect(() => {
+    const planId = new URLSearchParams(window.location.search).get("plan");
+    if (!planId || plans.length === 0) return;
+    const p = plans.find((x) => x.id === planId);
+    if (!p) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (canBuy) openCheckout(p);
+  }, [plans]);
+
   function planButton(p: any): { label: string; disabled: boolean } {
     const isCurrent = p.id === currentPlanId;
     if (!canBuy) return { label: isCurrent && activeNow ? "Current plan" : "Owner only", disabled: true };
