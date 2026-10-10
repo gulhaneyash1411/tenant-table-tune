@@ -6,7 +6,8 @@ const placeOrderSchema = z.object({
   table_id: z.string().uuid().optional().nullable(),
   order_type: z.enum(["dine_in", "takeaway", "home_delivery"]),
   customer_name: z.string().trim().min(1).max(120),
-  customer_phone: z.string().trim().min(4).max(30),
+  // Phone is optional: an empty string means the guest didn't give one.
+  customer_phone: z.string().trim().max(30).refine((v) => v === "" || v.length >= 4, "Phone number is too short"),
   notes: z.string().trim().max(1000).optional().nullable(),
   delivery_address: z.string().trim().max(500).optional().nullable(),
   delivery_landmark: z.string().trim().max(200).optional().nullable(),
@@ -34,7 +35,8 @@ export const placePublicOrder = createServerFn({ method: "POST" })
 
 const appendOrderSchema = z.object({
   order_id: z.string().uuid(),
-  customer_phone: z.string().trim().min(4).max(30),
+  // Phone is optional: an empty string means the guest didn't give one.
+  customer_phone: z.string().trim().max(30).refine((v) => v === "" || v.length >= 4, "Phone number is too short"),
   items: z.array(z.object({
     menu_item_id: z.string().uuid(),
     quantity: z.number().int().min(1).max(50),
@@ -63,22 +65,35 @@ export const clearRoundMarkers = createServerFn({ method: "POST" })
   });
 
 export const getOrdersByPhone = createServerFn({ method: "GET" })
-  .inputValidator((d: unknown) => z.object({ phone: z.string().trim().min(3).max(30) }).parse(d))
+  .inputValidator((d: unknown) => z.object({
+    phone: z.string().trim().min(3).max(30).optional(),
+    order_id: z.string().uuid().optional(),
+  }).refine((v) => !!v.phone || !!v.order_id, "phone or order_id is required").parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Guest lookup has no account/OTP behind it, so a phone number alone proves
     // nothing. Scoping to a short recent window limits this to "check on the
     // order I just placed" instead of exposing someone's full order history.
     const recentCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-    const { data: orders } = await supabaseAdmin
-      .from("orders")
-      .select(
-        "id,order_number,status,payment_status,total,subtotal,tax,delivery_fee,delivery_address,delivery_landmark,delivery_pincode,created_at,tenant_id,table_id,order_type,customer_name,customer_phone",
-      )
-      .eq("customer_phone", data.phone)
-      .gte("created_at", recentCutoff)
-      .order("created_at", { ascending: false })
-      .limit(15);
+    const columns =
+      "id,order_number,status,payment_status,total,subtotal,tax,delivery_fee,delivery_address,delivery_landmark,delivery_pincode,created_at,tenant_id,table_id,order_type,customer_name,customer_phone";
+    // An order placed without a phone is only reachable by its ID. The empty-phone
+    // filter means a phone-based order can never be returned this way.
+    const { data: orders } = data.order_id
+      ? await supabaseAdmin
+          .from("orders")
+          .select(columns)
+          .eq("id", data.order_id)
+          .eq("customer_phone", "")
+          .gte("created_at", recentCutoff)
+          .limit(1)
+      : await supabaseAdmin
+          .from("orders")
+          .select(columns)
+          .eq("customer_phone", data.phone!)
+          .gte("created_at", recentCutoff)
+          .order("created_at", { ascending: false })
+          .limit(15);
     const rows = orders ?? [];
     const tableIds = [...new Set(rows.map((o: any) => o.table_id).filter(Boolean))];
     let tableMap: Record<string, string> = {};
@@ -109,7 +124,8 @@ export const getOrdersByPhone = createServerFn({ method: "GET" })
 export const getOrderDetail = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({
     order_id: z.string().uuid(),
-    phone: z.string().trim().min(3).max(30),
+    // Empty for an order placed without a phone; the query then only matches such orders.
+    phone: z.string().trim().max(30),
   }).parse(d))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -158,4 +174,30 @@ export const getActiveTableOrder = createServerFn({ method: "GET" })
       .neq("status", "cancelled")
       .maybeSingle();
     return order ?? null;
+  });
+
+// Guest check for a table that already has an open order. The name is compared
+// here on the server so the guest's name is never sent to the page. The phone is
+// optional: blank means name only, and if a phone is entered it must match too.
+export const verifyTableOrderAccess = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => z.object({
+    table_id: z.string().uuid(),
+    name: z.string().trim().min(2).max(120),
+    phone: z.string().trim().max(30),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: order } = await supabaseAdmin
+      .from("orders")
+      .select("id,customer_name,customer_phone")
+      .eq("table_id", data.table_id)
+      .eq("payment_status", "unpaid")
+      .neq("status", "cancelled")
+      .maybeSingle();
+    if (!order) return { ok: false, order_id: null };
+    const nameMatches = (order.customer_name ?? "").trim().toLowerCase() === data.name.toLowerCase();
+    const phoneMatches = data.phone === "" || data.phone === order.customer_phone;
+    return nameMatches && phoneMatches
+      ? { ok: true, order_id: order.id as string }
+      : { ok: false, order_id: null };
   });

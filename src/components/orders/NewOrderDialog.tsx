@@ -31,13 +31,8 @@ const UNPAID_STATUS = "unpaid";
 
 const AVAILABILITY_COLUMN = "is_available";  // set to null to skip the filter
 
-// GST rate applied to the subtotal. 0.10 = 10%, which is what the existing
-// orders on this database use (58 tax on a 580 subtotal).
-//
-// This has to match whatever the QR checkout applies. If the rate is ever set
-// per tenant or per menu item, this constant becomes wrong for some orders —
-// move it to that source rather than editing the number here.
-const TAX_RATE = 0.1;
+// The tax rate is not hardcoded: it comes from the tenant's Settings → Tax rate (%),
+// the same value the guest checkout uses. See recalcOrder().
 // true if menu prices already include GST (tax is backed out of the subtotal
 // rather than added on top). Must match what the QR checkout does.
 const TAX_INCLUSIVE = false;
@@ -376,7 +371,20 @@ async function recalcOrder(order: any): Promise<number | null> {
     (s: number, r: any) => s + Number(r.price ?? 0) * Number(r.quantity ?? 0),
     0,
   );
-  const rate = TAX_RATE;
+  // Same rate the guest checkout applies (public-orders.server.ts): the tenant's
+  // Settings → Tax rate (%), clamped to 0–100.
+  const { data: tenantRow, error: tenantError } = await supabase
+    .from("tenants")
+    .select("settings")
+    .eq("id", order.tenant_id)
+    .maybeSingle();
+  if (tenantError) {
+    toast.error(`Totals could not be recalculated: ${tenantError.message}`);
+    return null;
+  }
+  const settings = (tenantRow?.settings ?? {}) as Record<string, unknown>;
+  const configuredTax = Number(settings["tax_rate"] ?? 0);
+  const rate = (Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 0) / 100;
   const subtotal = TAX_INCLUSIVE ? gross / (1 + rate) : gross;
   const tax = TAX_INCLUSIVE ? gross - subtotal : gross * rate;
   const delivery = Number(order.delivery_fee ?? 0);

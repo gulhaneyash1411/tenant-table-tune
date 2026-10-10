@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 const getAdminClient = async () => {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    console.log("[ADMIN CLIENT] Successfully loaded admin client");
+    // console.log("[ADMIN CLIENT] Successfully loaded admin client");
     return supabaseAdmin;
   } catch (error) {
     console.error("[ADMIN CLIENT] Failed to load admin client:", error);
@@ -139,7 +139,7 @@ export async function deleteOrganization(
   organizationId: string
 ): Promise<DeleteResult> {
   try {
-    console.log(`[DELETE] Starting deletion for organization: ${organizationId}`);
+    // console.log(`[DELETE] Starting deletion for organization: ${organizationId}`);
 
     // Use admin client to check if org exists (bypass RLS for read)
     const adminClient = await getAdminClient();
@@ -149,7 +149,7 @@ export async function deleteOrganization(
       .eq("id", organizationId)
       .single();
 
-    console.log(`[DELETE] Org lookup result:`, { org, orgError });
+    // console.log(`[DELETE] Org lookup result:`, { org, orgError });
 
     if (orgError || !org) {
       console.error(`[DELETE] Organization not found: ${organizationId}`, orgError);
@@ -164,12 +164,12 @@ export async function deleteOrganization(
     const impact = await getOrganizationDeletionImpact(organizationId);
 
     // Log the deletion intent
-    console.log(`[DELETION] Organization: ${org.name} (${organizationId})`, {
-      outletsCount: impact.outletsCount,
-      ordersCount: impact.totalOrders,
-      customersCount: impact.totalCustomers,
-      subscriptionsCount: impact.totalSubscriptions,
-    });
+    // console.log(`[DELETION] Organization: ${org.name} (${organizationId})`, {
+    //   outletsCount: impact.outletsCount,
+    //   ordersCount: impact.totalOrders,
+    //   customersCount: impact.totalCustomers,
+    //   subscriptionsCount: impact.totalSubscriptions,
+    // });
 
     // Perform deletion (cascade will handle all related records)
     // Use admin client to bypass RLS policies
@@ -187,7 +187,7 @@ export async function deleteOrganization(
       };
     }
 
-    console.log(`[DELETION SUCCESS] Organization ${organizationId} and all related records deleted`);
+    // console.log(`[DELETION SUCCESS] Organization ${organizationId} and all related records deleted`);
 
     return {
       success: true,
@@ -236,12 +236,12 @@ export async function deleteOutlet(outletId: string): Promise<DeleteResult> {
     const impact = await getOutletDeletionImpact(outletId);
 
     // Log the deletion intent
-    console.log(`[DELETION] Outlet: ${outlet.name} (${outletId})`, {
-      ordersCount: impact.ordersCount,
-      customersCount: impact.customersCount,
-      subscriptionsCount: impact.subscriptionsCount,
-      invoicesCount: impact.invoicesCount,
-    });
+    // console.log(`[DELETION] Outlet: ${outlet.name} (${outletId})`, {
+    //   ordersCount: impact.ordersCount,
+    //   customersCount: impact.customersCount,
+    //   subscriptionsCount: impact.subscriptionsCount,
+    //   invoicesCount: impact.invoicesCount,
+    // });
 
     // Perform deletion (cascade will handle all related records)
     // Use admin client to bypass RLS policies
@@ -260,7 +260,7 @@ export async function deleteOutlet(outletId: string): Promise<DeleteResult> {
       };
     }
 
-    console.log(`[DELETION SUCCESS] Outlet ${outletId} and all related records deleted`);
+    // console.log(`[DELETION SUCCESS] Outlet ${outletId} and all related records deleted`);
 
     return {
       success: true,

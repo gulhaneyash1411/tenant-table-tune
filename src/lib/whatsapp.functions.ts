@@ -197,10 +197,12 @@ export const sendOrderInvoice = createServerFn({ method: "POST" })
 
     const { resolveCreds, sendWhatsApp, brandedBody, isSendablePhone } = await import("./whatsapp.server");
     if (!isSendablePhone(order.customer_phone)) {
-      return { ok: false as const, error: "Customer phone number is not a valid WhatsApp number." };
+      // skipped: there is no WhatsApp number to send to (e.g. the order was placed without one).
+      return { ok: false as const, error: "Customer phone number is not a valid WhatsApp number.", skipped: true as const };
     }
     const creds = resolveCreds();
-    if (!creds) return { ok: false as const, error: "No WhatsApp sender configured yet." };
+    // skipped: the restaurant has no sender yet, so there is nothing to report.
+    if (!creds) return { ok: false as const, error: "No WhatsApp sender configured yet.", skipped: true as const };
 
     const rs = (n: unknown) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
     const lines = (items ?? []).map((i) => `• ${i.quantity}× ${i.name} — ${rs(Number(i.price) * i.quantity)}`);
