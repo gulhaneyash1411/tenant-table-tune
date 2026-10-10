@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
-import { useTenantContext } from "@/hooks/use-session";
+import { useOutletContext, useTenantContext } from "@/hooks/use-session";
 import { planAllows } from "@/config/plan-features";
+import { OutletManagers } from "@/components/outlet-managers";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/_authenticated/app/settings")({ component
 
 function SettingsPage() {
   const { setTenant, isOutletManager, plan } = useTenantContext();
+  const { outlets } = useOutletContext();
   // Outlet managers can look at everything here but change nothing — the owner sets
   // the profile, address, PIN and kitchen login (the database enforces it too).
   const readOnly = !!isOutletManager;
@@ -187,7 +189,15 @@ function SettingsPage() {
             </div>
           </Card>
           </fieldset>
-          {!readOnly && <Button onClick={save} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>}
+          {!readOnly && (
+            <div className="pt-2">
+              <Button onClick={save} disabled={saving}>{saving?"Saving…":"Save changes"}</Button>
+            </div>
+          )}
+          {/* Last section: managers, whether or not the plan includes outlets. */}
+          {!readOnly && planAllows(plan?.features, "manager_profile") && (
+            <OutletManagers outlets={outlets} />
+          )}
         </TabsContent>
 
         <TabsContent value="pin">
