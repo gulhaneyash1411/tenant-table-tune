@@ -309,7 +309,7 @@ function TakeawayOrder() {
       {/* Phone-width column on a plain white page. The white is only visible
           in the gutters on a desktop viewport, which frames the menu at the
           size it was designed for; on a phone the column fills the screen. */}
-      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 pb-32 shadow-xl shadow-black/5">
+      <div className="mx-auto w-full max-w-lg min-h-screen flex flex-col bg-slate-100 pb-32 shadow-xl shadow-black/5">
       {/* Hero is a contained card with air on all four sides — identity only.
           Search sits below it as its own element on the page background. */}
       <div className="px-4 pt-4">
@@ -422,6 +422,7 @@ function TakeawayOrder() {
           </div>
         )}
       </div>
+      <p className="mt-auto pt-8 pb-6 text-center text-xs text-muted-foreground">Powered by DineEatz</p>
       </div>
 
       {detailItem && (

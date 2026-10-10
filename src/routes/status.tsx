@@ -243,7 +243,7 @@ function StatusPage() {
     // phone-width tinted column, so the gutters on a desktop viewport match
     // and this doesn't read as a different app.
     <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 p-4 pb-16 space-y-4 shadow-xl shadow-black/5">
+      <div className="mx-auto w-full max-w-lg min-h-screen flex flex-col bg-slate-100 p-4 pb-16 space-y-4 shadow-xl shadow-black/5">
         <h1 className="text-2xl font-bold tracking-tight px-1 pt-2">Your orders</h1>
 
         {refreshError && (
@@ -374,6 +374,7 @@ function StatusPage() {
             )}
           </DialogContent>
         </Dialog>
+        <p className="mt-auto pt-8 text-center text-xs text-muted-foreground">Powered by DineEatz</p>
       </div>
     </div>
   );
