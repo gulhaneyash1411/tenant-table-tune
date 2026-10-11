@@ -32,7 +32,7 @@ export async function runCampaign(args: {
       sent: 0,
       failed: recipients.length,
       error: "No WhatsApp sender configured",
-      errors: [{ message: "The PlateOS WhatsApp sender is not configured", count: recipients.length }],
+      errors: [{ message: "The DineEatz WhatsApp sender is not configured", count: recipients.length }],
     };
   }
 

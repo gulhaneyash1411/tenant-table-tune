@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, ShoppingBag, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
-import { BrandedLoader } from "@/components/branded-loader";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
 
@@ -28,7 +27,7 @@ async function loadTakeawayData(tenantId: string): Promise<{ tenant: any; cats: 
 // it has no tenant data yet (the loader hasn't resolved), and must never
 // change appearance once shown, so it never tries to guess a logo.
 function TakeawayPending() {
-  return <BrandedLoader label="Loading Menu..." />;
+  return null;
 }
 
 function TakeawayError() {
@@ -65,8 +64,6 @@ const RAIL = "flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth [sc
 // the scroll step below can't drift apart.
 const RAIL_CARD_W = 172;
 
-// Tax rate lives here so the cart maths and any future copy can't disagree.
-const TAX_RATE = 0.05;
 
 // Contact-field rules, kept in one place so the typing guard, the inline
 // messages and the submit check can't drift apart.
@@ -241,7 +238,9 @@ function TakeawayOrder() {
 
   const cartItems = items.filter((i: any) => cart[i.id]);
   const subtotal = cartItems.reduce((a: number, b: any) => a + Number(b.price) * cart[b.id], 0);
-  const tax = Math.round(subtotal * TAX_RATE);
+  // Tax % comes from the tenant's Settings → Tax rate, the same value the server applies.
+  const taxPercent = Number((tenant?.settings as any)?.tax_rate ?? 0);
+  const tax = Math.round(subtotal * (Number.isFinite(taxPercent) ? Math.min(Math.max(taxPercent, 0), 100) : 0)) / 100;
   const total = subtotal + tax;
   const count = cartItems.reduce((a: number, b: any) => a + cart[b.id], 0);
   const detailItem = detailId ? items.find((i: any) => i.id === detailId) : null;
@@ -268,7 +267,7 @@ function TakeawayOrder() {
 
   async function placeOrder() {
     if (!nameValid) return toast.error("Enter your name");
-    if (!phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
+    if (phone && !phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
     if (cartItems.length === 0) return toast.error("Cart is empty");
     setPlacing(true);
     try {
@@ -282,14 +281,14 @@ function TakeawayOrder() {
       toast.success("Order placed!");
       // Stays in the placing state through the redirect — the loader is the
       // last thing on screen rather than the menu flashing back first.
-      window.location.href = `/status?phone=${encodeURIComponent(phone)}`;
+      // Without a phone there is nothing to look the order up by, so the status page opens with no filter.
+      window.location.href = phone ? `/status?phone=${encodeURIComponent(phone)}` : "/status";
     } catch (error) {
       setPlacing(false);
       toast.error(error instanceof Error ? error.message : "Failed to place order");
     }
   }
 
-  if (placing) return <BrandedLoader tenant={tenant} label="Placing your order…" />;
   if (!tenant) return (
     <div className="min-h-screen grid place-items-center p-6 text-center">
       <div>
@@ -310,7 +309,7 @@ function TakeawayOrder() {
       {/* Phone-width column on a plain white page. The white is only visible
           in the gutters on a desktop viewport, which frames the menu at the
           size it was designed for; on a phone the column fills the screen. */}
-      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 pb-32 shadow-xl shadow-black/5">
+      <div className="mx-auto w-full max-w-lg min-h-screen flex flex-col bg-slate-100 pb-32 shadow-xl shadow-black/5">
       {/* Hero is a contained card with air on all four sides — identity only.
           Search sits below it as its own element on the page background. */}
       <div className="px-4 pt-4">
@@ -423,6 +422,7 @@ function TakeawayOrder() {
           </div>
         )}
       </div>
+      <p className="mt-auto pt-8 pb-6 text-center text-xs text-muted-foreground">Powered by DineEatz</p>
       </div>
 
       {detailItem && (
@@ -525,7 +525,7 @@ function TakeawayOrder() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">
-                  Phone <RequiredMark />
+                  Phone <span className="font-normal">(optional)</span>
                 </Label>
                 <Input
                   value={phone}
@@ -535,7 +535,6 @@ function TakeawayOrder() {
                   autoComplete="tel"
                   maxLength={PHONE_LEN}
                   placeholder={`${PHONE_LEN}-digit mobile number`}
-                  aria-required="true"
                   aria-invalid={phone.length > 0 && !phoneValid}
                   className="h-12 rounded-2xl bg-muted/50 border-0"
                 />

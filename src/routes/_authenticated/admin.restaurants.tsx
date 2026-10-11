@@ -364,8 +364,7 @@ function Restaurants() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Restaurants</h1>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <div className="flex items-center gap-2 w-full sm:w-auto">
         <div className="relative flex-1 sm:w-80">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />

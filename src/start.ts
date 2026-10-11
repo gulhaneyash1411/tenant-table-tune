@@ -2,6 +2,7 @@ import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+import { getSelectedOutletId } from "@/lib/outlet-context";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -18,7 +19,14 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
   }
 });
 
+// Tells server functions which outlet an owner is working in (see
+// src/lib/outlet.server.ts). Not part of the generated Supabase integration.
+const attachOutlet = createMiddleware({ type: "function" }).client(async ({ next }) => {
+  const outletId = getSelectedOutletId();
+  return next({ headers: outletId ? { "x-outlet-id": outletId } : {} });
+});
+
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  functionMiddleware: [attachSupabaseAuth, attachOutlet],
   requestMiddleware: [errorMiddleware],
 }));

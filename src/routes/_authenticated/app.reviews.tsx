@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ type Review = {
 };
 
 function Reviews() {
+  const { tenant } = useTenantContext();
   const [rows, setRows] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +43,12 @@ function Reviews() {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
+    if (!tenant) return;
     let active = true;
     supabase
       .from("reviews")
       .select("*")
+      .eq("tenant_id", tenant.id)
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (!active) return;
@@ -55,7 +59,7 @@ function Reviews() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [tenant]);
 
   const dateFiltered = useMemo(() => {
     if (dateRange === "all") return rows;
@@ -121,11 +125,7 @@ function Reviews() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
-          <p className="text-sm text-muted-foreground">What guests are saying about your restaurant</p>
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="h-10 w-[150px] text-sm">

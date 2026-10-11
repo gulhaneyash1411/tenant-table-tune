@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import {
   getWhatsAppSettings,
   saveWhatsAppSettings,
@@ -62,7 +63,6 @@ function WhatsAppPage() {
           <MessageCircle className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold">WhatsApp campaigns</h1>
           <p className="text-sm text-muted-foreground">
             Send offers, festival wishes and win-back messages straight to your customers.
           </p>
@@ -70,7 +70,7 @@ function WhatsAppPage() {
       </div>
       <Tabs defaultValue="compose">
       <div className="rounded-lg border border-warning/50 bg-warning/5 p-3 text-sm mb-4">
-        <b>Before you send:</b> the PlateOS sender is currently a WhatsApp <b>sandbox</b> number
+        <b>Before you send:</b> the DineEatz sender is currently a WhatsApp <b>sandbox</b> number
         (+1 415 523 8886). A customer only receives messages after they send{" "}
         <code className="px-1 rounded bg-muted">join &lt;sandbox-code&gt;</code> to that number on WhatsApp.
         Numbers that haven't joined fail with "not joined the sandbox", and invalid numbers are skipped
@@ -97,7 +97,7 @@ function useTenantId() {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
-      const { data } = await supabase.from("tenants").select("id").eq("owner_id", u.user.id).maybeSingle();
+      const data = await fetchCurrentOutlet<{ id: string }>(u.user.id, "id");
       setTenantId(data?.id ?? null);
     })();
   }, []);
@@ -551,7 +551,7 @@ function Settings() {
           <div>
             <div className="text-sm font-medium">Use the platform number</div>
             <p className="text-xs text-muted-foreground">
-              {platformAvailable ? "Messages go out from the PlateOS WhatsApp business number." : "The platform number isn't configured yet."}
+              {platformAvailable ? "Messages go out from the DineEatz WhatsApp business number." : "The platform number isn't configured yet."}
             </p>
           </div>
         </div>

@@ -11,7 +11,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // authenticated by the caller's own access token rather than a shared secret.
 
 type Body =
-  | { action: "create"; login: string; password: string }
+  | { action: "get" }
+  | { action: "create"; email: string; password: string }
   | { action: "update_password"; password: string }
   | { action: "set_active"; is_active: boolean }
   | { action: "delete" };
@@ -38,11 +39,12 @@ async function handle(request: Request) {
   if (callerErr || !callerData.user) return bad("Invalid or expired session", 401);
   const caller = callerData.user;
 
-  const { data: tenant } = await supabaseAdmin
-    .from("tenants")
-    .select("id,name")
-    .eq("owner_id", caller.id)
-    .maybeSingle();
+  // The kitchen account belongs to one outlet: the one the owner is working in
+  // (x-outlet-id), which must be an outlet they own.
+  const { resolveOutlet, OUTLET_HEADER } = await import("@/lib/outlet.server");
+  const tenant = await resolveOutlet<{ id: string; name: string }>(
+    supabaseAdmin as SupabaseClient, caller.id, request.headers.get(OUTLET_HEADER), "id,name", { ownerOnly: true },
+  );
   if (!tenant) return bad("No restaurant is associated with this account", 403);
 
   // `kitchen_accounts` predates the generated Database types (see
@@ -52,30 +54,31 @@ async function handle(request: Request) {
   // whatsapp_campaigns in the WhatsApp routes).
   const kitchenAccounts = (supabaseAdmin as SupabaseClient).from("kitchen_accounts");
 
+  if (body.action === "get") {
+    const { data: account } = await kitchenAccounts
+      .select("id,login_email,is_active,user_id")
+      .eq("tenant_id", tenant.id)
+      .maybeSingle();
+    return Response.json({ ok: true, account: account ?? null });
+  }
+
   if (body.action === "create") {
-    const login = body.login?.trim();
+    const email = body.email?.trim().toLowerCase();
     const password = body.password ?? "";
-    if (!login) return bad("A login name is required");
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) return bad("A valid email is required");
     if (password.length < 6) return bad("Password must be at least 6 characters");
 
     const { data: existing } = await kitchenAccounts
       .select("id")
       .eq("tenant_id", tenant.id)
       .maybeSingle();
-    if (existing) return bad("A kitchen account already exists for this hotel", 409);
-
-    const slugLogin =
-      login
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "kitchen";
-    const email = `${slugLogin}.${tenant.id.slice(0, 8)}@kitchen.plateos.internal`;
+    if (existing) return bad("A kitchen account already exists for this outlet", 409);
 
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { role: "kitchen_user", tenant_id: tenant.id, login },
+      user_metadata: { role: "kitchen_user", tenant_id: tenant.id },
     });
     if (createErr || !created.user)
       return bad(createErr?.message || "Could not create the kitchen account");
@@ -129,12 +132,12 @@ async function handle(request: Request) {
   }
 
   if (body.action === "delete") {
-    // Deleting the auth user cascades to its user_roles and kitchen_accounts
-    // rows (both FK auth.users with ON DELETE CASCADE) — that's what frees
-    // the tenant back up to create a new kitchen account, same "at most one
-    // at a time" rule the create check and the partial unique index enforce.
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(account.user_id);
-    if (error) return bad(error.message);
+    // Delete the kitchen_accounts record first, then the auth user.
+    // The auth user deletion cascades to user_roles.
+    const { error: delErr } = await kitchenAccounts.delete().eq("id", account.id);
+    if (delErr) return bad(delErr.message);
+    const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(account.user_id);
+    if (authErr) return bad(authErr.message);
     return Response.json({ ok: true });
   }
 

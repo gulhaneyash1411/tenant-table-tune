@@ -10,7 +10,7 @@ export function ComingSoon({ title, description }: { title: string; description?
           <Rocket className="h-6 w-6" />
         </div>
         <div className="text-lg font-medium">Coming in a future phase</div>
-        <p className="text-muted-foreground mt-2">{description || "This module is planned in the PlateOS roadmap. Ping support if you'd like to prioritise it for your plan."}</p>
+        <p className="text-muted-foreground mt-2">{description || "This module is planned in the DineEatz roadmap. Ping support if you'd like to prioritise it for your plan."}</p>
       </Card>
     </div>
   );

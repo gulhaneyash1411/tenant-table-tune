@@ -7,12 +7,11 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ChefHat, Clock, Bike, Flame } from "lucide-react";
 import { clearRoundMarkers } from "@/lib/public-orders.functions";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
 // Shared by the Hotel Owner's dashboard (/app/kds) and the dedicated Kitchen
 // User portal (/kitchen) — one component, one set of orders/RLS behavior,
 // so there's nothing kitchen-specific to keep in sync between the two.
-// Every query here is implicitly scoped to the caller's own hotel by RLS
-// (current_tenant_id()), not by anything in this component.
 
 // "Served" means handed to the rider on a delivery ticket, so the last column
 // and its button are relabelled when the ticket is a delivery.
@@ -29,11 +28,21 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function KitchenDisplay() {
+  const [tenant, setTenant] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [items, setItems] = useState<Record<string, any[]>>({});
 
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const t = await fetchCurrentOutlet(u.user!.id);
+      setTenant(t);
+    })();
+  }, []);
+
   async function load() {
-    const { data } = await supabase.from("orders").select("*").in("status", ["new", "preparing", "ready"]).order("created_at", { ascending: true });
+    if (!tenant?.id) return;
+    const { data } = await supabase.from("orders").select("*").eq("tenant_id", tenant.id).in("status", ["new", "preparing", "ready"]).order("created_at", { ascending: true });
     setOrders(data || []);
     const ids = (data || []).map(o => o.id);
     if (ids.length) {
@@ -51,7 +60,7 @@ export function KitchenDisplay() {
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [tenant?.id]);
 
   // Two rounds of the same dish arrive as two order_items rows, so the ticket
   // would read "Paneer Butter Masala ×1" twice — and the rows need not be

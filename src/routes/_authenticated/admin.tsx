@@ -2,13 +2,17 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/use-session";
-import { BrandedLoader } from "@/components/branded-loader";
+import { DashboardLoader } from "@/components/dashboard-loader";
 import {
   SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
-  SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
+  SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Building2, CreditCard, Receipt, LifeBuoy, Megaphone, Settings, Activity, FileText, Package, Briefcase, SlidersHorizontal } from "lucide-react";import { NotificationBell } from "@/components/notification-bell";
+import {
+  LayoutDashboard, Building2, CreditCard, LifeBuoy, Megaphone, Settings, Package,
+  Briefcase, SlidersHorizontal, Inbox, Layers, Users, CalendarClock,
+  Wallet, TrendingUp,
+} from "lucide-react";import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export const Route = createFileRoute("/_authenticated/admin")({ component: AdminLayout });
@@ -21,14 +25,17 @@ const SECTIONS = [
     items: [
       { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { to: "/admin/restaurants", label: "Restaurants", icon: Building2 },
+      { to: "/admin/organizations", label: "Organizations", icon: Layers },
       { to: "/admin/sales", label: "Sales Team", icon: Briefcase },
     ],
   },
   {
     label: "Revenue",
     items: [
+      { to: "/admin/subscriptions", label: "Subscriptions", icon: CalendarClock },
+      { to: "/admin/payments", label: "Payments", icon: Wallet },
+      { to: "/admin/revenue", label: "Billing & revenue", icon: TrendingUp },
       { to: "/admin/plans", label: "Plans", icon: CreditCard },
-      { to: "/admin/billing", label: "Billing", icon: Receipt },
       { to: "/admin/products", label: "Products", icon: Package },
     ],
   },
@@ -37,6 +44,7 @@ const SECTIONS = [
     items: [
       { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
       { to: "/admin/tickets", label: "Support tickets", icon: LifeBuoy },
+      { to: "/admin/contacts", label: "Contact messages", icon: Inbox },
     ],
   },
   {
@@ -44,8 +52,6 @@ const SECTIONS = [
     items: [
 
       { to: "/admin/navigation", label: "Owner navigation", icon: SlidersHorizontal }, // Controls what restaurant owners see in /app — see admin.navigation.tsx.
-      { to: "/admin/audit", label: "Audit logs", icon: Activity },
-      { to: "/admin/reports", label: "Reports", icon: FileText },
       { to: "/admin/settings", label: "Platform settings", icon: Settings },
     ],
   },
@@ -67,21 +73,21 @@ function AdminBrand() {
   }, []);
 
   return (
-    <div className="flex items-center gap-2.5 border-b border-sidebar-border px-4 py-4
+    // h-10, not h-14: the floating panel already starts 1rem down (0.5rem
+    // container padding + 0.5rem auto margin), so 3.5rem-1rem puts this bottom
+    // border level with the main header's.
+    <SidebarHeader className="h-10 shrink-0 flex-row items-center gap-2.5 border-b border-sidebar-border p-0 px-4
       group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
       {logo ? (
-        <img src={logo} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+        <img src={logo} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" />
       ) : (
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-sidebar-primary
-          text-base font-semibold text-sidebar-primary-foreground">
-          P
-        </div>
+        <img src="/brand/dineeatz-logo.png?v=3" alt="DineEatz" className="h-7 w-auto max-w-[120px] shrink-0 object-contain group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7" />
       )}
-      <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-        <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">PlateOS</div>
-        <div className="truncate text-xs text-sidebar-foreground/70">Super admin</div>
+      <div className="flex min-w-0 items-baseline gap-1.5 group-data-[collapsible=icon]:hidden">
+        <span className="sr-only">DineEatz</span>
+        <span className="shrink-0 text-xs text-sidebar-foreground/70">· Super admin</span>
       </div>
-    </div>
+    </SidebarHeader>
   );
 }
 
@@ -114,16 +120,28 @@ function AdminLayout() {
   }, [loading, isSuperAdmin, isKitchenUser, isSalesUser, navigate]);
 
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  if (loading || !isSuperAdmin) return <BrandedLoader label="Loading admin console…" />;
+  if (loading) return <DashboardLoader />;
+  if (!isSuperAdmin) return null;
 
   const current = SECTIONS.flatMap((s) => s.items).find((it) => isActive(pathname, it));
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
-        <Sidebar collapsible="icon">
-          <SidebarContent className="gap-0">
-            <AdminBrand />
+        <Sidebar
+          collapsible="icon"
+          variant="floating"
+          // Sits a little short of the full window height, centred.
+          className="[&>[data-sidebar=sidebar]]:rounded-2xl [&>[data-sidebar=sidebar]]:h-[calc(100%-1rem)] [&>[data-sidebar=sidebar]]:my-auto"
+        >
+          {/* Outside SidebarContent so it stays put while the nav scrolls. */}
+          <AdminBrand />
+
+          {/* Still scrolls; the scrollbar itself is hidden. */}
+          {/* overflow-auto in icon mode too: the component's default turns
+              scrolling off when collapsed, which strands items out of reach.
+              Safe here because the scrollbar itself is hidden. */}
+          <SidebarContent className="gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden group-data-[collapsible=icon]:overflow-auto">
             {SECTIONS.map((section) => (
               <SidebarGroup key={section.label} className="px-2 py-2">
                 <SidebarGroupLabel className="px-2 text-[11px] font-medium tracking-wide text-sidebar-foreground/70">

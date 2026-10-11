@@ -11,6 +11,7 @@ import { money } from "@/lib/format";
 import { mergeOrderItems } from "@/lib/order-items";
 import { format } from "date-fns";
 import { History, Download, Search, Loader2, Bike, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
 export const Route = createFileRoute("/_authenticated/app/history")({ component: OrderHistory });
 
@@ -139,6 +140,7 @@ const localDate = (d: Date) => format(d, "yyyy-MM-dd");
 const PAGE_SIZE = 10;
 
 function OrderHistory() {
+  const [tenant, setTenant] = useState<any>(null);
   const [from, setFrom] = useState<string>(localDate(new Date(Date.now() - 6 * 86400000)));
   const [to, setTo] = useState<string>(localDate(new Date()));
   const [q, setQ] = useState("");
@@ -154,7 +156,16 @@ function OrderHistory() {
   // looking dead for a second.
   const [invoicingId, setInvoicingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const t = await fetchCurrentOutlet(u.user!.id);
+      setTenant(t);
+    })();
+  }, []);
+
   async function load() {
+    if (!tenant?.id) return;
     // Half-open [start, midnight after `to`): an inclusive 23:59:59 end drops
     // anything in the final second of the last day.
     const start = new Date(`${from}T00:00:00`);
@@ -163,6 +174,7 @@ function OrderHistory() {
     const { data } = await supabase
       .from("orders")
       .select("*")
+      .eq("tenant_id", tenant.id)
       .gte("created_at", start.toISOString())
       .lt("created_at", end.toISOString())
       .order("created_at", { ascending: false });
@@ -178,7 +190,7 @@ function OrderHistory() {
     // time. Rows are widened to any because the label column is probed (see
     // labelFromTableRow) instead of being assumed.
     const names: TableNames = {};
-    const { data: tbls, error: tblErr } = await supabase.from("restaurant_tables").select("*");
+    const { data: tbls, error: tblErr } = await supabase.from("restaurant_tables").select("*").eq("tenant_id", tenant.id);
     if (tblErr) {
       console.warn("Order history: restaurant_tables could not be read:", tblErr.message);
     } else {
@@ -192,14 +204,14 @@ function OrderHistory() {
 
     const ids = (data || []).map(o => o.id);
     if (ids.length) {
-      const { data: oi } = await supabase.from("order_items").select("*").in("order_id", ids);
+      const { data: oi } = await supabase.from("order_items").select("*").eq("tenant_id", tenant.id).in("order_id", ids);
       const by: Record<string, any[]> = {};
       (oi || []).forEach(i => (by[i.order_id] ||= []).push(i));
       setItems(by);
     } else setItems({});
     setLoading(false);
   }
-  useEffect(() => { setLoading(true); load(); }, [from, to]);
+  useEffect(() => { setLoading(true); load(); }, [from, to, tenant?.id]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -333,7 +345,6 @@ function OrderHistory() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2">
           <History className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
-          <h1 className="text-xl sm:text-2xl font-semibold">Order history</h1>
         </div>
         <div className="flex items-center gap-2 w-full lg:w-auto">
           <Input

@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/use-session";
-import { BrandedLoader } from "@/components/branded-loader";
 import { KitchenDisplay } from "@/components/kitchen-display";
 import { SignOutButton } from "@/components/sign-out-button";
 import { ChefHat } from "lucide-react";
@@ -71,7 +70,7 @@ function KitchenPortal() {
   }, [isKitchenUser, kitchenTenantId, navigate]);
 
   if (loading || !isKitchenUser || checkingAccount)
-    return <BrandedLoader label="Loading kitchen display…" />;
+    return null;
 
   return (
     <div className="min-h-screen bg-background">

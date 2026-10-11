@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useTenantContext } from "@/hooks/use-session";
+import { planLimitError, startOfMonth } from "@/lib/plan-limits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,13 +31,8 @@ const UNPAID_STATUS = "unpaid";
 
 const AVAILABILITY_COLUMN = "is_available";  // set to null to skip the filter
 
-// GST rate applied to the subtotal. 0.10 = 10%, which is what the existing
-// orders on this database use (58 tax on a 580 subtotal).
-//
-// This has to match whatever the QR checkout applies. If the rate is ever set
-// per tenant or per menu item, this constant becomes wrong for some orders —
-// move it to that source rather than editing the number here.
-const TAX_RATE = 0.1;
+// The tax rate is not hardcoded: it comes from the tenant's Settings → Tax rate (%),
+// the same value the guest checkout uses. See recalcOrder().
 // true if menu prices already include GST (tax is backed out of the subtotal
 // rather than added on top). Must match what the QR checkout does.
 const TAX_INCLUSIVE = false;
@@ -86,7 +83,7 @@ function priceOf(row: any): number {
 // Shared data loading
 // ---------------------------------------------------------------------------
 
-function useMenu(open: boolean) {
+function useMenu(open: boolean, tenantId?: string) {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [tables, setTables] = useState<{ id: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -97,6 +94,7 @@ function useMenu(open: boolean) {
       setLoading(true);
 
       let q = (supabase as any).from(MENU_RELATION).select("*");
+      if (tenantId) q = q.eq("tenant_id", tenantId);
       if (AVAILABILITY_COLUMN) q = q.eq(AVAILABILITY_COLUMN, true);
       const { data: menuRows, error: menuErr } = await q;
 
@@ -116,9 +114,9 @@ function useMenu(open: boolean) {
       // Reported rather than swallowed: an empty table list leaves dine-in
       // orders with no table_id, and the floor plan then cannot mark anything
       // busy — a failure that is invisible on this screen.
-      const { data: tableRows, error: tableErr } = await (supabase as any)
-        .from(TABLES_RELATION)
-        .select("*");
+      let tq = (supabase as any).from(TABLES_RELATION).select("*");
+      if (tenantId) tq = tq.eq("tenant_id", tenantId);
+      const { data: tableRows, error: tableErr } = await tq;
       if (tableErr) {
         toast.error(`Tables could not be loaded from "${TABLES_RELATION}": ${tableErr.message}`);
       }
@@ -135,7 +133,7 @@ function useMenu(open: boolean) {
 
       setLoading(false);
     })();
-  }, [open, menu.length]);
+  }, [open, menu.length, tenantId]);
 
   return { menu, tables, loading };
 }
@@ -305,18 +303,9 @@ function itemRows(order: any, lines: Line[]) {
   })) as any;
 }
 
-// Sequential order numbers. If your schema already generates these (a sequence,
-// or a trigger on orders), drop this and let the DB do it — two staff creating
-// an order in the same second can collide here.
-async function nextOrderNumber(): Promise<number> {
-  const { data } = await supabase
-    .from("orders")
-    .select("order_number")
-    .order("order_number", { ascending: false })
-    .limit(1);
-  const last = Number((data as any)?.[0]?.order_number ?? 0);
-  return (Number.isFinite(last) ? last : 0) + 1;
-}
+// Order numbers are now generated per-tenant by the database trigger.
+// The trigger calls get_next_order_number(p_tenant_id UUID) which safely handles
+// concurrent order creation with advisory locking.
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -382,7 +371,20 @@ async function recalcOrder(order: any): Promise<number | null> {
     (s: number, r: any) => s + Number(r.price ?? 0) * Number(r.quantity ?? 0),
     0,
   );
-  const rate = TAX_RATE;
+  // Same rate the guest checkout applies (public-orders.server.ts): the tenant's
+  // Settings → Tax rate (%), clamped to 0–100.
+  const { data: tenantRow, error: tenantError } = await supabase
+    .from("tenants")
+    .select("settings")
+    .eq("id", order.tenant_id)
+    .maybeSingle();
+  if (tenantError) {
+    toast.error(`Totals could not be recalculated: ${tenantError.message}`);
+    return null;
+  }
+  const settings = (tenantRow?.settings ?? {}) as Record<string, unknown>;
+  const configuredTax = Number(settings["tax_rate"] ?? 0);
+  const rate = (Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 0) / 100;
   const subtotal = TAX_INCLUSIVE ? gross / (1 + rate) : gross;
   const tax = TAX_INCLUSIVE ? gross - subtotal : gross * rate;
   const delivery = Number(order.delivery_fee ?? 0);
@@ -466,11 +468,12 @@ async function appendToOrder(orderId: string, lines: Line[]): Promise<boolean> {
 // New order
 // ---------------------------------------------------------------------------
 
-export function NewOrderDialog({ onSaved }: { onSaved: () => void }) {
+export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSaved: () => void }) {
+  const { plan: ownerPlan } = useTenantContext();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { menu, tables, loading } = useMenu(open);
+  const { menu, tables, loading } = useMenu(open, tenantId);
   const { cart, lines, total, bump, clear } = useCart(menu);
 
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
@@ -557,9 +560,12 @@ export function NewOrderDialog({ onSaved }: { onSaved: () => void }) {
       );
     }
 
+    // Orders this calendar month count against the plan
+    const limitMsg = await planLimitError({ plan: ownerPlan, limit: "max_orders_month", tenantId, table: "orders", label: "orders a month", since: startOfMonth() });
+    if (limitMsg) { setSaving(false); return toast.error(limitMsg); }
+
     const payload: any = {
       tenant_id: tenantId,
-      order_number: await nextOrderNumber(),
       customer_name: customerName.trim() || "Walk-in",
       customer_phone: phone.trim() || null,
       order_type: orderType,
@@ -772,7 +778,7 @@ export function AddItemsDialog({ order, onSaved }: { order: any; onSaved: () => 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { menu, loading } = useMenu(open);
+  const { menu, loading } = useMenu(open, order?.tenant_id);
   const { cart, lines, total, bump, clear } = useCart(menu);
 
   async function submit() {

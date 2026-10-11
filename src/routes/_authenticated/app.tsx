@@ -2,32 +2,39 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext, TenantContextProvider, type Tenant } from "@/hooks/use-session";
-import { BrandedLoader } from "@/components/branded-loader";
 import {
   SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
-  SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
+  SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton,
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
   CreditCard, Rocket, AlertTriangle, LockKeyhole, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
+import { OutletSwitcher } from "@/components/outlet-switcher";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "@/components/sign-out-button";
+import { DashboardLoader } from "@/components/dashboard-loader";
 import { format } from "date-fns";
 import {
   ALL_ITEMS, MOBILE_TAB_KEYS, findItemByPath, isActivePath, sectionOfItem,
   type NavItem, type NavSection,
 } from "@/config/nav-registry";
 import { useNavConfig } from "@/hooks/use-nav-config";
+import { planAllows } from "@/config/plan-features";
+import { useTrialDays } from "@/lib/site-settings";
 
 export const Route = createFileRoute("/_authenticated/app")({ component: AppLayout });
 
 // Single source for the lock icon. Change it here to swap it everywhere.
 const LockIcon = LockKeyhole;
+
+// Billing-cycle names shown after the plan name in the top bar, e.g. "Growth.Monthly".
+const CYCLE_LABEL: Record<string, string> = { monthly: "Monthly", half_yearly: "Half Yearly", yearly: "Yearly" };
 
 // The nav itself now lives in src/config/nav-registry.ts, because the super
 // admin console needs the same list to decide what each owner may see.
@@ -37,6 +44,13 @@ const SECURE_ROUTES = ALL_ITEMS.filter((i) => i.secure).map((i) => i.to);
 const RELOCK_ON_TAB_HIDE = true;
 
 const isActive = isActivePath;
+
+// Outlet managers see only: Dashboard, Live orders, Kitchen Display, Order history,
+// Menu, Tables & QR, Customers, WhatsApp, Reviews, and Subscription.
+// They cannot see: Money (revenue/expenses/analytics), Business (staff/settings/subscription),
+// or the Outlets management page.
+const MANAGER_HIDDEN_KEYS = ["revenue", "expenses", "analytics", "staff", "settings"];
+const MANAGER_BLOCKED_PATHS = ["/app/franchise"];
 
 // Which secure page (if any) the current path belongs to
 const getSecureRoute = (pathname: string) =>
@@ -60,15 +74,35 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const { isSuperAdmin, tenant, loading, setTenant, isKitchenUser, isSalesUser } = useUserContext(user);
+  const { isSuperAdmin, tenant, outlets, organization, isOutletManager, loading, setTenant, isKitchenUser, isSalesUser } = useUserContext(user);
   const [sub, setSub] = useState<any>(null);
+  // False until the subscription lookup has finished, so a new owner isn't shown the trial-ended screen early.
+  const [subLoaded, setSubLoaded] = useState(false);
+  const trialDays = useTrialDays();
 
   // What the super admin has switched on for this restaurant.
   const {
-    sections: visibleSections,
+    sections: ownerVisibleSections,
     isVisible,
     loading: navLoading,
   } = useNavConfig(tenant?.id);
+
+  // Outlet Managers run the outlet but never the business: billing and owner
+  // settings are hidden here and also blocked by URL below (and by RLS server-side).
+  // Pages the owner's plan doesn't include are dropped from the sidebar, and blocked by URL below.
+  // Only a paid, current plan restricts features. Without one the owner gets the full
+  // app for the trial period (from the date the tenant registered), then needs a plan.
+  const plan = sub?.paid ? sub.plan : null;
+  const trialEnd = tenant?.created_at ? new Date(tenant.created_at).getTime() + trialDays * 86400000 : 0;
+  const trialEnded = subLoaded && !!tenant && !plan && Date.now() >= trialEnd;
+  const planSections = ownerVisibleSections
+    .map((s) => ({ ...s, items: s.items.filter((i) => planAllows(plan?.features, i.feature)) }))
+    .filter((s) => s.items.length > 0);
+  const visibleSections = isOutletManager
+    ? planSections
+        .map((s) => ({ ...s, items: s.items.filter((i) => !MANAGER_HIDDEN_KEYS.includes(i.key)) }))
+        .filter((s) => s.items.length > 0)
+    : planSections;
 
   // Password lock for secure pages
   // Only ONE page is unlocked at a time: the page where the password was entered.
@@ -105,18 +139,80 @@ function AppLayout() {
 
   useEffect(() => {
     if (!tenant) { setSub(null); return; }
+    setSubLoaded(false);
     let cancelled = false;
-    (async () => {
-      const { data: s } = await supabase
-        .from("subscriptions")
-        .select("*, plan:subscription_plans(name)")
-        .eq("tenant_id", tenant.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!cancelled) setSub(s);
-    })();
-    return () => { cancelled = true; };
+    const tenantId = tenant.id;
+
+    async function loadSub() {
+      // Query subscriptions with all non-canceled statuses
+      const [{ data: subs }, { data: invoices }] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .neq("status", "canceled")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("invoices")
+          .select("*")
+          .eq("tenant_id", tenantId)
+          .order("issued_at", { ascending: false }),
+      ]);
+
+      if (cancelled) return;
+
+      // Most recent subscription (any non-canceled status)
+      // The active subscription if there is one, otherwise the newest non-canceled one.
+      const activeSub = (subs || []).find((s) => s.status === "active") || (subs || [])[0];
+      // Most recent paid or pending invoice
+      const latestInvoice = (invoices || []).find((inv) =>
+        inv.status === "paid" || inv.status === "pending_approval"
+      ) || (invoices || [])[0];
+
+      // Prefer subscription if exists; otherwise show pending invoice
+      if (activeSub) {
+        const { data: plan } = await supabase
+          .from("subscription_plans")
+          .select("name, features, max_tables, max_orders_month, max_menu_items, max_staff")
+          .eq("id", activeSub.plan_id)
+          .maybeSingle();
+        // "paid" = the subscription is active and not past its end date.
+        const paid = activeSub.status === "active" && new Date(activeSub.current_period_end) > new Date();
+        // Billing cycle: saved on the subscription, else from its period length.
+        const days = (new Date(activeSub.current_period_end).getTime() - new Date(activeSub.current_period_start).getTime()) / 86400000;
+        const cycle = (activeSub as any).billing_cycle ??(days > 320 ? "yearly" : days > 120 ? "half_yearly" : "monthly");
+        setSub({ plan: plan ?? { name: "Plan" }, paid, cycle });
+      } else if (latestInvoice?.status === "pending_approval") {
+        setSub({ plan: { name: `${latestInvoice.plan} (pending approval)` }, paid: false });
+      } else {
+        setSub(null);
+      }
+      setSubLoaded(true);
+    }
+
+    loadSub();
+
+    // Subscribe to real-time changes in subscriptions and invoices
+    const subsSub = supabase
+      .channel(`subscriptions:${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `tenant_id=eq.${tenantId}` }, () => loadSub())
+      .subscribe();
+
+    const invSub = supabase
+      .channel(`invoices:${tenantId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "invoices", filter: `tenant_id=eq.${tenantId}` }, () => loadSub())
+      .subscribe();
+
+    // Also refresh when window comes back to focus
+    const handleFocus = () => loadSub();
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", handleFocus);
+      supabase.removeChannel(subsSub);
+      supabase.removeChannel(invSub);
+    };
   }, [tenant?.id]);
 
   const status =
@@ -130,20 +226,20 @@ function AppLayout() {
     }
   }, [loading, tenant, navigate]);
 
-  if (status === "loading") return <BrandedLoader label="Loading your dashboard…" />;
+  if (status === "loading") return <DashboardLoader />;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
-  if ((tenant as any)?.must_reset_password) return <BrandedLoader label="Redirecting…" />;
+  if ((tenant as any)?.must_reset_password) return null;
   // Wait for the visibility rules before painting a sidebar we may have to
   // redraw a frame later.
-  if (navLoading) return <BrandedLoader label="Loading your dashboard…" />;
-
+  if (navLoading || !subLoaded) return <DashboardLoader />;
   const missing: string[] = [];
   if (!tenant?.address) missing.push("address");
   if (!tenant?.city) missing.push("city");
   if (!tenant?.owner_phone) missing.push("owner phone");
-  if (!tenant?.opening_time || !tenant?.closing_time) missing.push("opening hours");
-  const profileIncomplete = missing.length > 0;
+  if (!tenant?.opening_time || !tenant?.closing_time) missing.push("business hours");
+  // The profile belongs to the owner; a manager can't open Settings to fix it.
+  const profileIncomplete = missing.length > 0 && !isOutletManager;
   const onSettings = pathname === "/app/settings";
   const locked = profileIncomplete && !onSettings;
 
@@ -151,11 +247,39 @@ function AppLayout() {
   // hiding the link is presentation, this is the actual gate.
   const registryItem = findItemByPath(pathname);
   const parentSection = registryItem ? sectionOfItem(registryItem.key) : null;
-  const pageDisabled =
-    !!registryItem &&
-    (!isVisible(registryItem.key) || (parentSection ? !isVisible(parentSection.key) : false));
 
-  const passwordLocked = !locked && !pageDisabled && onSecurePage && !secureUnlocked;
+  // A newly added outlet is a draft until its subscription is paid: only the
+  // payment page and the outlet list are reachable.
+  const outletStatus = (tenant as (Tenant & { outlet_status?: string }) | null)?.outlet_status ?? "ACTIVE";
+  const outletInactive = outletStatus !== "ACTIVE";
+  const onPaymentPage = pathname === "/app/subscription" || pathname === "/app/franchise";
+  const outletBlocked = (outletInactive || trialEnded) && !onPaymentPage;
+  const blockedTitle = trialEnded && !outletInactive
+    ? "Your free trial has ended"
+    : outletStatus === "PENDING_PAYMENT" ? `Activate ${tenant?.name}` : `${tenant?.name} is not active`;
+  const blockedText = trialEnded && !outletInactive
+    ? `Your ${trialDays}-day free trial has ended. Choose a plan to keep using your restaurant.`
+    : outletStatus === "PENDING_PAYMENT"
+      ? "This outlet needs an active subscription before it can take orders. Choose a plan and pay to activate it."
+      : "This outlet's subscription is not active. Renew it to continue receiving orders.";
+
+  // Pages the plan doesn't include. The Outlets page stays open while an outlet is
+  // awaiting payment, otherwise it could never be activated.
+  const onFranchisePage = pathname === "/app/franchise" || pathname.startsWith("/app/franchise/");
+  const planLocked =
+    (!!registryItem && !planAllows(plan?.features, registryItem.feature)) ||
+    (onFranchisePage && !outletInactive && !planAllows(plan?.features, "settings_outlets"));
+  const pageDisabled =
+    (isOutletManager && MANAGER_BLOCKED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) ||
+    (!!registryItem &&
+      (!isVisible(registryItem.key) || (parentSection ? !isVisible(parentSection.key) : false))) ||
+    planLocked;
+
+  // A manager's Settings page is read-only, so it doesn't need the owner's PIN;
+  // the money pages (revenue, expenses, analytics, staff) still do.
+  const managerReadOnlySettings = isOutletManager && pathname === "/app/settings";
+  const passwordLocked =
+    !locked && !pageDisabled && !outletBlocked && onSecurePage && !secureUnlocked && !managerReadOnlySettings;
 
   const visibleItems = visibleSections.flatMap((s) => s.items);
   const current = visibleItems.find((it) => isActive(pathname, it)) ?? registryItem ?? null;
@@ -164,27 +288,47 @@ function AppLayout() {
     .filter(Boolean) as NavItem[];
 
   return (
-    <TenantContextProvider value={{ tenant, setTenant }}>
+    <TenantContextProvider value={{ tenant, setTenant, outlets, organization, isOutletManager, plan }}>
       <SidebarProvider>
         <div className="flex min-h-screen w-full bg-background">
-          <Sidebar collapsible="icon">
-            <SidebarContent className="gap-0">
-              <div className="flex items-center gap-2.5 border-b border-sidebar-border px-4 py-4
-                group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-                {tenant?.logo_url ? (
-                  <img src={tenant.logo_url} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
-                ) : (
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-sidebar-primary
-                    text-base font-semibold text-sidebar-primary-foreground">
-                    {(tenant?.name || "R").slice(0, 1)}
-                  </div>
-                )}
-                <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                  <div className="truncate text-sm font-semibold text-sidebar-accent-foreground">{tenant?.name}</div>
-                  <div className="truncate text-xs text-sidebar-foreground/70">{tenant?.city}</div>
+          <Sidebar
+            collapsible="icon"
+            variant="floating"
+            // Sits a little short of the full window height, centred.
+            className="[&>[data-sidebar=sidebar]]:rounded-2xl [&>[data-sidebar=sidebar]]:h-[calc(100%-1rem)] [&>[data-sidebar=sidebar]]:my-auto"
+          >
+            {/* Outside SidebarContent so it stays put while the nav scrolls.
+                h-10, not h-14: the floating panel already starts 1rem down
+                (0.5rem container padding + 0.5rem auto margin), so 3.5rem-1rem
+                puts this bottom border level with the main header's. */}
+            <SidebarHeader className="h-10 shrink-0 flex-row items-center gap-2.5 border-b border-sidebar-border p-0 px-4
+              group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+              {tenant?.logo_url ? (
+                <img src={tenant.logo_url} alt="" className="h-7 w-7 shrink-0 rounded-lg object-cover" />
+              ) : (
+                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-sidebar-primary
+                  text-sm font-semibold text-sidebar-primary-foreground">
+                  {(tenant?.name || "R").slice(0, 1)}
                 </div>
+              )}
+              <div className="flex min-w-0 items-baseline gap-1.5 group-data-[collapsible=icon]:hidden">
+                <span className="truncate text-sm font-semibold text-sidebar-accent-foreground">{tenant?.name}</span>
+                {tenant?.city && (
+                  <span className="shrink-0 text-xs text-sidebar-foreground/70">· {tenant.city}</span>
+                )}
               </div>
+            </SidebarHeader>
+            {outlets.length > 1 && (
+              <div className="shrink-0 border-b border-sidebar-border px-3 py-2 group-data-[collapsible=icon]:hidden">
+                <OutletSwitcher tenant={tenant} outlets={outlets} organization={organization} canManage={!isOutletManager} />
+              </div>
+            )}
 
+            {/* Still scrolls; the scrollbar itself is hidden. */}
+            {/* overflow-auto in icon mode too: the component's default turns
+                scrolling off when collapsed, which strands items out of reach.
+                Safe here because the scrollbar itself is hidden. */}
+            <SidebarContent className="gap-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden group-data-[collapsible=icon]:overflow-auto">
               {visibleSections.map((section: NavSection) => (
                 <SidebarGroup key={section.key} className="px-2 py-2">
                   <SidebarGroupLabel className="px-2 text-[11px] font-medium tracking-wide text-sidebar-foreground/70">
@@ -224,10 +368,15 @@ function AppLayout() {
           <div className="flex min-w-0 flex-1 flex-col">
             <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/80 px-3 backdrop-blur md:px-4">
               <SidebarTrigger />
-              <h1 className="truncate text-sm font-medium">
-                <span className="md:hidden">{tenant?.name}</span>
-                <span className="hidden md:inline">{current?.label ?? "Dashboard"}</span>
-              </h1>
+              <div className="flex items-center gap-2 truncate">
+                <h1 className="truncate text-sm font-medium">
+                  <span className="md:hidden">{tenant?.name}</span>
+                  <span className="hidden md:inline">{current?.label ?? "Dashboard"}</span>
+                </h1>
+                {isOutletManager && (
+                  <Badge variant="secondary" className="shrink-0 md:ml-2">Manager</Badge>
+                )}
+              </div>
               <div className="ml-auto flex items-center gap-2">
                 {onSecurePage && secureUnlocked && !pageDisabled && (
                   <Button
@@ -239,18 +388,23 @@ function AppLayout() {
                     <LockIcon className="mr-1 h-3.5 w-3.5" />Lock
                   </Button>
                 )}
-                <Link
+                {!isOutletManager && <Link
                   to="/app/subscription"
                   className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs hover:bg-accent/40 md:flex"
                 >
                   <CreditCard className="h-3 w-3 text-primary" />
-                  <span className="font-medium">{sub?.plan?.name || "Free trial"}</span>
+                  <span className="font-medium">{sub?.plan?.name ?? "Free trial"}</span>
+                  {sub?.paid && sub?.cycle && (
+                    <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      {CYCLE_LABEL[sub.cycle as string] ?? sub.cycle}
+                    </span>
+                  )}
                   {sub?.current_period_end && (
                     <span className="text-muted-foreground">
                       · renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}
                     </span>
                   )}
-                </Link>
+                </Link>}
                 <NotificationBell />
                 <SignOutButton />
               </div>
@@ -267,7 +421,18 @@ function AppLayout() {
                 </div>
               )}
               {pageDisabled ? (
-                <PageUnavailable label={registryItem?.label} />
+                <PageUnavailable label={registryItem?.label} planLocked={planLocked} />
+              ) : outletBlocked ? (
+                <div className="grid min-h-[50vh] place-items-center">
+                  <div className="max-w-md text-center">
+                    <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-warning/10 text-warning">
+                      <CreditCard className="h-6 w-6" />
+                    </div>
+                    <h1 className="text-xl font-semibold">{blockedTitle}</h1>
+                    <p className="mt-2 text-muted-foreground">{blockedText}</p>
+                    <Link to="/app/subscription"><Button className="mt-6">Go to Subscription</Button></Link>
+                  </div>
+                </div>
               ) : locked ? (
                 <div className="grid min-h-[50vh] place-items-center">
                   <div className="max-w-md text-center">
@@ -286,6 +451,7 @@ function AppLayout() {
                   key={pathname}
                   tenantId={tenant?.id ?? ""}
                   email={user?.email ?? ""}
+                  isManager={isOutletManager}
                   title={`${current?.label ?? "This section"} is locked`}
                   onUnlock={() => setUnlockedRoute(secureRoute)}
                 />
@@ -303,7 +469,7 @@ function AppLayout() {
 }
 
 /** Shown when the page exists but the platform has switched it off. */
-function PageUnavailable({ label }: { label?: string }) {
+function PageUnavailable({ label, planLocked = false }: { label?: string; planLocked?: boolean }) {
   return (
     <div className="grid min-h-[50vh] place-items-center">
       <div className="max-w-md text-center">
@@ -311,12 +477,18 @@ function PageUnavailable({ label }: { label?: string }) {
           <EyeOff className="h-6 w-6" />
         </div>
         <h1 className="text-xl font-semibold">
-          {label ? `${label} isn't available` : "This page isn't available"}
+          {planLocked
+            ? `${label ?? "This page"} isn't included in your plan`
+            : label ? `${label} isn't available` : "This page isn't available"}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          This section has been turned off for your account. Contact support if you need it enabled.
+          {planLocked
+            ? "Upgrade your subscription to unlock this section."
+            : "This section has been turned off for your account. Contact support if you need it enabled."}
         </p>
-        <Link to="/app"><Button className="mt-6" variant="outline">Back to dashboard</Button></Link>
+        <Link to={planLocked ? "/app/subscription" : "/app"}>
+          <Button className="mt-6" variant="outline">{planLocked ? "View plans" : "Back to dashboard"}</Button>
+        </Link>
       </div>
     </div>
   );
@@ -400,6 +572,8 @@ type Props = {
   email: string;
   onUnlock: () => void;
   title?: string;
+  /** Outlet Managers never fall back to their account password: the owner must set the PIN. */
+  isManager?: boolean;
 };
 
 type VerifyResult = { ok: boolean; attempts_left?: number; retry_after?: number; not_set?: boolean };
@@ -409,7 +583,7 @@ type VerifyResult = { ok: boolean; attempts_left?: number; retry_after?: number;
  * with its own attempt limit that grows on repeated lockouts). Until a PIN is set,
  * the account login password is accepted instead.
  */
-function PasswordGate({ tenantId, email, onUnlock, title = "This section is locked" }: Props) {
+function PasswordGate({ tenantId, email, onUnlock, title = "This section is locked", isManager = false }: Props) {
   const [hasSection, setHasSection] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -519,6 +693,25 @@ function PasswordGate({ tenantId, email, onUnlock, title = "This section is lock
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-4">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label="Loading" />
+      </div>
+    );
+  }
+
+  // No PIN yet: an owner may use their account password and then set a PIN, but a
+  // manager can't unlock at all — the 4-digit PIN is created by the owner.
+  if (accountMode && isManager) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-4">
+        <Card className="w-full max-w-sm space-y-3 p-6 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <LockIcon className="h-6 w-6 text-primary" aria-hidden="true" />
+          </div>
+          <h1 className="text-xl font-semibold">{title}</h1>
+          <p className="text-sm text-muted-foreground">
+            The owner hasn't set a 4-digit PIN for this outlet yet. Ask the owner to create it in Settings → Lock PIN,
+            then enter it here.
+          </p>
+        </Card>
       </div>
     );
   }

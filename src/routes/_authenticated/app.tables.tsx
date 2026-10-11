@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QRCard } from "@/components/qr-card";
+import { useTenantContext } from "@/hooks/use-session";
+import { planAllows } from "@/config/plan-features";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format, isToday, isTomorrow } from "date-fns";
-import { Plus, RefreshCw, Users, Clock, Phone, CalendarClock, Pencil, PartyPopper, UtensilsCrossed, IndianRupee } from "lucide-react";
+import { Download, Plus, RefreshCw, Users, Clock, Phone, CalendarClock, Pencil, PartyPopper, UtensilsCrossed, IndianRupee } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/tables")({ component: TablesPage });
 
@@ -216,8 +219,11 @@ function RequiredMark() {
 }
 
 function TablesPage() {
+  const { plan: ownerPlan } = useTenantContext();
   const [tenant, setTenant] = useState<any>(null);
   const [tables, setTables] = useState<any[]>([]);
+  // table id -> its secure QR token and status (see qr_codes)
+  const [qrs, setQrs] = useState<Record<string, { token: string; status: string }>>({});
   const [openOrders, setOpenOrders] = useState<any[]>([]);
   const [reservations, setReservations] = useState<any[]>([]);
   const [label, setLabel] = useState("");
@@ -330,11 +336,14 @@ function TablesPage() {
       .eq("tenant_id", tenantId)
       .order("label");
     setTables(data || []);
+    const { data: qrRows } = await (supabase as any)
+      .from("qr_codes").select("table_id,token,status").eq("tenant_id", tenantId);
+    setQrs(Object.fromEntries((qrRows ?? []).map((q: any) => [q.table_id, { token: q.token, status: q.status }])));
   }, []);
 
   const load = useCallback(async () => {
     const { data: u } = await supabase.auth.getUser();
-    const { data: t } = await supabase.from("tenants").select("*").eq("owner_id", u.user!.id).single();
+    const t = await fetchCurrentOutlet(u.user!.id);
     setTenant(t);
     if (!t) return;
     await Promise.all([loadTables(t.id), loadOrders(t.id), loadReservations(t.id), loadEvents(t.id)]);
@@ -366,12 +375,51 @@ function TablesPage() {
 
   async function add() {
     if (!label || !tenant) return;
+    // Table limit from the owner's plan (blank in the plan form = unlimited)
+    const maxTables = ownerPlan?.max_tables;
+    if (maxTables != null && tables.length >= maxTables) {
+      return toast.error(`Your plan allows up to ${maxTables} tables. Upgrade to add more.`);
+    }
     const { error } = await supabase
       .from("restaurant_tables")
       .insert({ tenant_id: tenant.id, label, seats });
     if (error) return toast.error(error.message);
     setLabel("");
     load();
+  }
+
+  async function regenerateQr(tableId: string) {
+    const { error } = await (supabase as any).rpc("regenerate_table_qr", { p_table_id: tableId });
+    if (error) return toast.error(error.message);
+    toast.success("New QR generated — the old printed QR no longer works");
+    if (tenant?.id) loadTables(tenant.id);
+  }
+
+  async function setQrStatus(tableId: string, status: "ACTIVE" | "REVOKED") {
+    const { error } = await (supabase as any).rpc("set_table_qr_status", { p_table_id: tableId, p_status: status });
+    if (error) return toast.error(error.message);
+    toast.success(status === "ACTIVE" ? "QR enabled" : "QR disabled — guests can't order with it");
+    if (tenant?.id) loadTables(tenant.id);
+  }
+
+
+  // One A4 PDF with every table's QR (token URL), 2 x 3 per page.
+  async function downloadAllQrPdf() {
+    try {
+      const { downloadQrPdf } = await import("@/lib/qr-pdf");
+      await downloadQrPdf(
+        tables
+          .filter(t => qrs[t.id]?.status !== "REVOKED")
+          .map(t => ({
+            label: t.label,
+            seats: t.seats,
+            url: qrs[t.id] ? `${origin}/order/${qrs[t.id].token}` : `${origin}/t/${t.id}`,
+          })),
+        `${(tenant?.name ?? "tables").replace(/\s+/g, "-")}-table-qr-codes.pdf`,
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not create PDF");
+    }
   }
 
   async function removeTable(id: string) {
@@ -806,11 +854,16 @@ function TablesPage() {
   const settings = (tenant?.settings && typeof tenant.settings === "object" ? tenant.settings : {}) as Record<string, any>;
   const deliveryEnabled = settings.delivery_enabled !== false;
 
+  // Tabs the owner's plan includes (QR codes / Floor plan / Bookings)
+  const tableTabs = [
+    { value: "qr", label: "QR codes", feature: "tables_qr" },
+    { value: "floor", label: "Floor plan", feature: "floor_plan" },
+    { value: "bookings", label: "Bookings", feature: "bookings" },
+  ].filter((t) => planAllows(ownerPlan?.features, t.feature));
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Tables &amp; QR</h1>
-
-      <Tabs defaultValue="qr" className="space-y-6">
+      <Tabs defaultValue={tableTabs[0]?.value ?? "qr"} className="space-y-6">
         {/* Underline rather than the default pill: these switch the whole page,
             so the bar reads as navigation. shadcn's TabsList carries its own
             background, padding and rounding, and TabsTrigger its own active
@@ -818,11 +871,7 @@ function TablesPage() {
             overflow-x-auto matters on a 360px screen: a fourth tab would wrap
             into a second row and shift everything below it. */}
         <TabsList className="h-auto w-full justify-start gap-6 rounded-none border-b bg-transparent p-0 overflow-x-auto">
-          {[
-            { value: "qr", label: "QR codes" },
-            { value: "floor", label: "Floor plan" },
-            { value: "bookings", label: "Bookings" },
-          ].map(t => (
+          {tableTabs.map(t => (
             <TabsTrigger
               key={t.value}
               value={t.value}
@@ -878,13 +927,18 @@ function TablesPage() {
               />
             </div>
             <Button onClick={add}><Plus className="h-4 w-4 mr-1" />Add table</Button>
+            <Button variant="outline" onClick={downloadAllQrPdf} disabled={tables.length === 0}>
+              <Download className="h-4 w-4 mr-1" />Download all QRs (PDF)
+            </Button>
           </Card>
 
           <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
             {tables.map(t => (
               <QRCard
                 key={t.id}
-                url={`${origin}/t/${t.id}`}
+                // Secure token URL; the id-based /t/{id} link is only a fallback
+                // while a QR row hasn't loaded.
+                url={qrs[t.id] ? `${origin}/order/${qrs[t.id].token}` : `${origin}/t/${t.id}`}
                 title={t.label}
                 subtitle={`${t.seats} seats`}
                 onDelete={() => removeTable(t.id)}

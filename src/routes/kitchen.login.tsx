@@ -11,6 +11,24 @@ import { ChefHat } from "lucide-react";
 
 export const Route = createFileRoute("/kitchen/login")({ component: KitchenLogin });
 
+const DEVICE_KEY = "kitchen-device-id";
+
+// A random id kept in this browser's storage, not a fingerprint. If storage is
+// cleared or blocked the device simply reads as new, which errs toward telling
+// the owner rather than staying quiet.
+function deviceId(): string | null {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = crypto.randomUUID().replace(/-/g, "");
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 // Deliberately separate from the Hotel Owner sign-in page (/auth) and the
 // super-admin one (/admin/auth) — same pattern, different portal. Kitchen
 // Users authenticate through ordinary Supabase Auth (signInWithPassword,
@@ -55,6 +73,23 @@ function KitchenLogin() {
         "This isn't a kitchen account. Hotel staff, please use the owner sign-in.",
       );
     }
+
+    // Let the owner know if this device hasn't been used before. Best-effort:
+    // a failure here must never keep the kitchen out of the order board.
+    const device = deviceId();
+    if (device) {
+      try {
+        await fetch("/api/kitchen-device", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${data.session?.access_token ?? ""}`,
+          },
+          body: JSON.stringify({ device }),
+        });
+      } catch {}
+    }
+
     navigate({ to: "/kitchen" });
   }
 

@@ -8,9 +8,8 @@ import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin, UtensilsCrossed, X, ChevronLeft, ChevronRight, CalendarClock, Ban } from "lucide-react";
-import { BrandedLoader } from "@/components/branded-loader";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
-import { appendPublicOrderItems, getActiveTableOrder, placePublicOrder } from "@/lib/public-orders.functions";
+import { appendPublicOrderItems, getActiveTableOrder, placePublicOrder, verifyTableOrderAccess } from "@/lib/public-orders.functions";
 
 /**
  * Whether a table is being held for a booking right now.
@@ -43,8 +42,15 @@ async function loadReservationHold(tableId: string) {
 // UI: the route's own `pendingComponent` below. The component itself never
 // renders a "loading" state of its own, because by the time it renders it
 // always already has real data.
-async function loadTableData(tableId: string) {
-  const { data: t } = await supabase.from("restaurant_tables").select("*").eq("id", tableId).single();
+async function loadTableData(qrKey: string) {
+  // `qrKey` is the secure QR token (/order/{token}) or, for QRs printed before
+  // tokens existed, the table id. resolve_table_qr only answers while the QR is
+  // active, the table is active and the outlet's subscription is live.
+  const { data: resolved } = await (supabase as any).rpc("resolve_table_qr", { p_key: qrKey }).maybeSingle();
+  const tableId: string | null = resolved?.table_id ?? null;
+  const { data: t } = tableId
+    ? await supabase.from("restaurant_tables").select("*").eq("id", tableId).single()
+    : { data: null };
   if (!t) {
     return {
       table: null as any, tenant: null as any, cats: [] as any[], items: [] as any[],
@@ -74,7 +80,7 @@ async function loadTableData(tableId: string) {
 // it has no tenant data yet (the loader hasn't resolved), and must never
 // change appearance once shown, so it never tries to guess a logo.
 function TablePending() {
-  return <BrandedLoader label="Loading Menu..." />;
+  return null;
 }
 
 function TableError() {
@@ -387,7 +393,7 @@ function TableOrder() {
     // carries the name and number it was placed with.
     if (!resumeOrder) {
       if (!nameValid) return toast.error("Enter your name");
-      if (!phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
+      if (phone && !phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
     }
     setPlacing(true);
     // Without this the spinner would drop and the menu flash back up while the
@@ -405,7 +411,7 @@ function TableOrder() {
         leaving = true;
         // Back to the status screen they came from, which now shows the new
         // round on the same running bill.
-        window.location.href = `/status?phone=${encodeURIComponent(resumeOrder.customer_phone)}`;
+        window.location.href = resumeOrder.customer_phone ? `/status?phone=${encodeURIComponent(resumeOrder.customer_phone)}` : "/status";
         return;
       }
       const order = await placePublicOrder({ data: {
@@ -426,7 +432,6 @@ function TableOrder() {
     }
   }
 
-  if (placing) return <BrandedLoader tenant={tenant} label={resumeOrder ? "Adding to your order…" : "Placing your order…"} />;
   if (!table) return (
     <div className="min-h-screen grid place-items-center p-6 text-center">
       <div>
@@ -513,14 +518,19 @@ function TableOrder() {
               autoComplete="tel"
               aria-label="Phone"
             />
-            <Button className="w-full h-12 rounded-full font-semibold" onClick={() => {
+            <Button className="w-full h-12 rounded-full font-semibold" onClick={async () => {
               if (!nameValid) return toast.error("Enter your name");
-              if (!phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
-              if (activeOrder.customer_phone === phone) {
-                window.location.href = `/status?phone=${encodeURIComponent(phone)}`;
-              } else {
-                toast.error("This table is already occupied. Please ask staff for another table.");
+              // Phone is optional here. If it's entered it has to be complete and match too.
+              if (phone && !phoneValid) return toast.error(`Enter a ${PHONE_LEN}-digit phone number`);
+              const access = await verifyTableOrderAccess({ data: { table_id: table.id, name: name.trim(), phone } });
+              if (!access.ok) {
+                return toast.error(phone
+                  ? "Name and phone don't match the order on this table."
+                  : "Name doesn't match the order on this table.");
               }
+              window.location.href = phone
+                ? `/status?phone=${encodeURIComponent(phone)}`
+                : `/status?order=${access.order_id}`;
             }}>Continue</Button>
           </div>
         </div>
@@ -541,7 +551,7 @@ function TableOrder() {
       {/* Phone-width column on a plain white page. The white is only visible
           in the gutters on a desktop viewport, which frames the menu at the
           size it was designed for; on a phone the column fills the screen. */}
-      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 pb-32 shadow-xl shadow-black/5">
+      <div className="mx-auto w-full max-w-lg min-h-screen flex flex-col bg-slate-100 pb-32 shadow-xl shadow-black/5">
       {/* Hero is a contained card with air on all four sides — identity only.
           Search sits below it as its own element on the page background. */}
       <div className="px-4 pt-4">
@@ -661,6 +671,7 @@ function TableOrder() {
           </div>
         )}
       </div>
+      <p className="mt-auto pt-8 pb-6 text-center text-xs text-muted-foreground">Powered by DineEatz</p>
       </div>
 
       {detailItem && (
@@ -761,7 +772,7 @@ function TableOrder() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">
-                  Phone <RequiredMark />
+                  Phone <span className="font-normal">(optional)</span>
                 </Label>
                 <Input
                   value={phone}
@@ -771,7 +782,6 @@ function TableOrder() {
                   autoComplete="tel"
                   maxLength={PHONE_LEN}
                   placeholder={`${PHONE_LEN}-digit mobile number`}
-                  aria-required="true"
                   aria-invalid={phone.length > 0 && !phoneValid}
                   className="h-12 rounded-2xl bg-muted/50 border-0"
                 />
