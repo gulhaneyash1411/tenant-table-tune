@@ -31,6 +31,7 @@ export const FEATURE_GROUPS = [
     { key: "settings_outlets", label: "Settings: Outlets" },
     { key: "settings_lock_pin", label: "Settings: Lock PIN" },
     { key: "settings_kitchen_account", label: "Settings: Kitchen account" },
+    { key: "manager_profile", label: "Manager profile" },
   ] },
 ];
 

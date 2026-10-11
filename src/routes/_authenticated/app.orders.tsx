@@ -188,7 +188,9 @@ function LiveOrders() {
     try {
       const res = await sendOrderInvoice({ data: { order_id: o.id } });
       if (res.ok) toast.success(`Invoice sent on WhatsApp to ${o.customer_phone}`);
-      else toast.warning(`Invoice not sent: ${res.error}`);
+      // Invoice skipped (no WhatsApp sender set up, or no WhatsApp number on the
+      // order): nothing to report, the order is still marked paid.
+      else if (!("skipped" in res && res.skipped)) toast.warning(`Invoice not sent: ${res.error}`);
     } catch (e) {
       toast.warning(e instanceof Error ? e.message : "Invoice could not be sent");
     }

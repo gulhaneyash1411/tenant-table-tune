@@ -10,15 +10,55 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { money } from "@/lib/format";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { FEATURE_GROUPS, FEATURE_LABEL, ALL_FEATURE_KEYS, ALWAYS_ON_FEATURES } from "@/config/plan-features";
 import { PLAN_ICON_OPTIONS, PlanIconGlyph } from "@/config/plan-icons";
 
 
-const empty = { name: "", description: "", monthly_price: 0, half_yearly_price: 0, yearly_price: 0, max_tables: 10, max_orders_month: 500, max_menu_items: 100, max_staff: 5, is_active: true, features: {} as Record<string, boolean>, tag: null as string | null, icon: null as string | null };
+const empty = { name: "", description: "", monthly_price: 0, half_yearly_price: 0, yearly_price: 0, max_tables: 10, max_orders_month: 500, max_menu_items: 100, max_staff: 5, is_active: true, features: {} as Record<string, boolean>, tag: null as string | null, icon: null as string | null, included_features: [] as string[], not_included_features: [] as string[] };
 
 // Quick-add tags shown under the tag box.
 const SUGGESTED_TAGS = ["Entry Plan", "Recommended", "Full Access", "Most Popular", "Best Value"];
+
+// Trim each line and drop blanks before saving.
+const cleanList = (list?: string[] | null) => (list ?? []).map((s) => s.trim()).filter(Boolean);
+
+// A list of free-text lines: type one, press Enter or Add, remove with ×.
+function FeatureListField({ label, placeholder, items, onChange }: { label: string; placeholder: string; items: string[]; onChange: (items: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+  function add() {
+    const v = draft.trim();
+    if (!v) return;
+    if (!items.includes(v)) onChange([...items, v]);
+    setDraft("");
+  }
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+        />
+        <Button type="button" variant="outline" onClick={add}><Plus className="h-4 w-4" /></Button>
+      </div>
+      {items.length > 0 && (
+        <ul className="space-y-1">
+          {items.map((item, i) => (
+            <li key={i} className="flex items-center justify-between gap-2 rounded-md border px-2.5 py-1 text-sm">
+              <span className="truncate">{item}</span>
+              <button type="button" onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 
 function Plans() {
@@ -37,7 +77,7 @@ function Plans() {
 
   async function save() {
     const { id, ...rest0 } = editing;
-    const rest = { ...rest0, tag: editing.tag?.trim() || null };
+    const rest = { ...rest0, tag: editing.tag?.trim() || null, included_features: cleanList(editing.included_features), not_included_features: cleanList(editing.not_included_features) };
     // Every feature key is saved as true or false, so a configured plan is never stored as {}.
     const body = { ...rest, features: Object.fromEntries(ALL_FEATURE_KEYS.map((k) => [k, ALWAYS_ON_FEATURES.includes(k) || !!editing.features?.[k]])) };
     const res = id ? await supabase.from("subscription_plans").update(body).eq("id", id) : await supabase.from("subscription_plans").insert(body);
@@ -161,6 +201,21 @@ function Plans() {
                     </div>
                   </div>
                 ))}
+              </div>
+              {/* Shown as written on the owner's subscription card */}
+              <div className="col-span-2 space-y-3 rounded-lg border p-3">
+                <FeatureListField
+                  label="Included features"
+                  placeholder="e.g. Unlimited KOT printing"
+                  items={editing.included_features ?? []}
+                  onChange={(v) => setEditing({ ...editing, included_features: v })}
+                />
+                <FeatureListField
+                  label="Not included features"
+                  placeholder="e.g. Multi-outlet management"
+                  items={editing.not_included_features ?? []}
+                  onChange={(v) => setEditing({ ...editing, not_included_features: v })}
+                />
               </div>
               <div className="col-span-2 flex items-center gap-2"><Switch checked={editing.is_active} onCheckedChange={v=>setEditing({...editing,is_active:v})}/><Label>Active</Label></div>
               <div className="col-span-2 flex justify-end"><Button onClick={save}>Save</Button></div>

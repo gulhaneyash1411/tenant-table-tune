@@ -44,10 +44,10 @@ function createSupabaseClient() {
   }
 
   
-  console.log("URL:", SUPABASE_URL);
-console.log("KEY:", SUPABASE_PUBLISHABLE_KEY);
-console.log("Starts with publishable:", SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_"));
-console.log("Starts with secret:", SUPABASE_PUBLISHABLE_KEY.startsWith("sb_secret_"));
+// console.log("URL:", SUPABASE_URL);
+// console.log("KEY:", SUPABASE_PUBLISHABLE_KEY);
+// console.log("Starts with publishable:", SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_"));
+// console.log("Starts with secret:", SUPABASE_PUBLISHABLE_KEY.startsWith("sb_secret_"));
 
 return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: {

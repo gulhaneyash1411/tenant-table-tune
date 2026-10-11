@@ -49,7 +49,6 @@ export const Route = createFileRoute("/delivery/$tenantId")({
 
 const RAIL = "flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 const RAIL_CARD_W = 172;
-const TAX_RATE = 0.05;
 
 const PHONE_LEN = 10;
 const PIN_LEN = 6;
@@ -218,7 +217,9 @@ function HomeDeliveryOrder() {
 
   const cartItems = items.filter((i: any) => cart[i.id]);
   const subtotal = cartItems.reduce((a: number, b: any) => a + Number(b.price) * cart[b.id], 0);
-  const tax = Math.round(subtotal * TAX_RATE);
+  // Tax % comes from the tenant's Settings → Tax rate, the same value the server applies.
+  const taxPercent = Number(cfg.tax_rate ?? 0);
+  const tax = Math.round(subtotal * (Number.isFinite(taxPercent) ? Math.min(Math.max(taxPercent, 0), 100) : 0)) / 100;
   const total = subtotal + tax + deliveryFee;
   const count = cartItems.reduce((a: number, b: any) => a + cart[b.id], 0);
   const detailItem = detailId ? items.find((i: any) => i.id === detailId) : null;
@@ -293,7 +294,7 @@ function HomeDeliveryOrder() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 pb-32 shadow-xl shadow-black/5">
+      <div className="mx-auto w-full max-w-lg min-h-screen flex flex-col bg-slate-100 pb-32 shadow-xl shadow-black/5">
         <div className="px-4 pt-4">
           <header className="relative overflow-hidden rounded-[28px] bg-primary text-primary-foreground p-5 shadow-xl shadow-primary/20">
             <div aria-hidden className="pointer-events-none absolute -top-16 -right-10 h-44 w-44 rounded-full bg-white/15 blur-3xl" />
@@ -411,6 +412,7 @@ function HomeDeliveryOrder() {
             </div>
           )}
         </div>
+        <p className="mt-auto pt-8 pb-6 text-center text-xs text-muted-foreground">Powered by DineEatz</p>
       </div>
 
       {detailItem && (

@@ -110,7 +110,11 @@ function OrderProgress({ status, orderType }: { status: string; orderType?: stri
 }
 
 function StatusPage() {
-  const phone = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("phone");
+  const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const phone = params.get("phone");
+  // Opened from a table where the order was placed without a phone number: the
+  // order ID is the only handle, so the page follows that one order.
+  const orderId = phone ? null : params.get("order");
   const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,9 +134,9 @@ function StatusPage() {
   // Single refresh used by the first load, the poll and the realtime handler,
   // so all three paths behave identically.
   const refresh = useCallback(async (isFirst: boolean) => {
-    if (!phone) return;
+    if (!phone && !orderId) return;
     try {
-      const list = await getOrdersByPhone({ data: { phone } });
+      const list = await getOrdersByPhone({ data: phone ? { phone } : { order_id: orderId! } });
       if (cancelledRef.current) return;
       setOrders(list || []);
       setRefreshError(false);
@@ -145,10 +149,10 @@ function StatusPage() {
     } finally {
       if (!cancelledRef.current && isFirst) setLoading(false);
     }
-  }, [phone]);
+  }, [phone, orderId]);
 
   useEffect(() => {
-    if (!phone) { setLoading(false); return; }
+    if (!phone && !orderId) { setLoading(false); return; }
     cancelledRef.current = false;
     refresh(true);
 
@@ -159,11 +163,12 @@ function StatusPage() {
 
     // Filtering by customer_phone keeps this client from waking on every
     // order in the restaurant. If your column differs, change the filter.
+    const filter = phone ? `customer_phone=eq.${phone}` : `id=eq.${orderId}`;
     const channel = supabase
-      .channel(`orders-status-${phone}`)
+      .channel(`orders-status-${phone ?? orderId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "orders", filter: `customer_phone=eq.${phone}` },
+        { event: "*", schema: "public", table: "orders", filter },
         () => refresh(false),
       )
       .subscribe();
@@ -173,7 +178,7 @@ function StatusPage() {
       clearInterval(timer);
       supabase.removeChannel(channel);
     };
-  }, [phone, refresh]);
+  }, [phone, orderId, refresh]);
 
   // Keep the open dialog in step with the refreshed list, otherwise the sheet
   // holds the snapshot from the moment it was opened and shows a stale stage
@@ -191,7 +196,7 @@ function StatusPage() {
 
   async function openOrder(o: any) {
     setSelected(o);
-    const detail = await getOrderDetail({ data: { order_id: o.id, phone: phone! } });
+    const detail = await getOrderDetail({ data: { order_id: o.id, phone: phone ?? "" } });
     setItems(detail.items || []); setTenant(detail.tenant);
   }
 
@@ -207,7 +212,7 @@ function StatusPage() {
     let its = orderArg ? [] as any[] : items;
     let ten = tenant;
     if (orderArg) {
-      const detail = await getOrderDetail({ data: { order_id: order.id, phone: phone! } });
+      const detail = await getOrderDetail({ data: { order_id: order.id, phone: phone ?? "" } });
       its = detail.items || []; ten = detail.tenant;
     }
     await downloadInvoicePdf(order, its, ten);
@@ -238,7 +243,7 @@ function StatusPage() {
     // phone-width tinted column, so the gutters on a desktop viewport match
     // and this doesn't read as a different app.
     <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-lg min-h-screen bg-slate-100 p-4 pb-16 space-y-4 shadow-xl shadow-black/5">
+      <div className="mx-auto w-full max-w-lg min-h-screen flex flex-col bg-slate-100 p-4 pb-16 space-y-4 shadow-xl shadow-black/5">
         <h1 className="text-2xl font-bold tracking-tight px-1 pt-2">Your orders</h1>
 
         {refreshError && (
@@ -369,6 +374,7 @@ function StatusPage() {
             )}
           </DialogContent>
         </Dialog>
+        <p className="mt-auto pt-8 text-center text-xs text-muted-foreground">Powered by DineEatz</p>
       </div>
     </div>
   );

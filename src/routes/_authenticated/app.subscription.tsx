@@ -463,11 +463,17 @@ function SubscriptionPage() {
             title: g.title,
             items: g.items.filter((i) => planAllows(p.features, i.key)).map((i) => i.label),
           })).filter((g) => g.items.length > 0);
+          const limitItems = [`${cap(p.max_tables)} tables`, `${cap(p.max_orders_month)} orders/mo`, `${cap(p.max_menu_items)} menu items`, `${cap(p.max_staff)} staff`];
           const groups = [
             ...included,
-            { title: "Limits", items: [`${cap(p.max_tables)} tables`, `${cap(p.max_orders_month)} orders/mo`, `${cap(p.max_menu_items)} menu items`, `${cap(p.max_staff)} staff`] },
+            { title: "Limits", items: limitItems },
           ];
-          const notIncluded = FEATURE_GROUPS.flatMap((g) => g.items.filter((i) => !planAllows(p.features, i.key)).map((i) => i.label));
+          // Lists the admin wrote on the plan take over from the switches when there are any.
+          const writtenMode = (p.included_features?.length ?? 0) + (p.not_included_features?.length ?? 0) > 0;
+          const writtenIncluded = [...(p.included_features ?? []), ...limitItems];
+          const notIncluded: string[] = writtenMode
+            ? (p.not_included_features ?? [])
+            : FEATURE_GROUPS.flatMap((g) => g.items.filter((i) => !planAllows(p.features, i.key)).map((i) => i.label));
           return (
             <Card
               key={p.id}
@@ -516,17 +522,28 @@ function SubscriptionPage() {
               </div>
               <div className="mt-4 border-t pt-4 flex-1">
                 <div className="text-sm font-semibold">Included features</div>
-                <div className="mt-2 grid grid-cols-2 gap-3">
-                  {groups.map((g) => (
-                    <div key={g.title} className="flex gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{g.title}</div>
-                        <div className="text-xs text-muted-foreground">{g.items.join(", ")}</div>
+                {writtenMode ? (
+                  <ul className="mt-2 space-y-1.5 text-sm">
+                    {writtenIncluded.map((n) => (
+                      <li key={n} className="flex gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" strokeWidth={3} />
+                        <span className="min-w-0">{n}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="mt-2 grid grid-cols-2 gap-3">
+                    {groups.map((g) => (
+                      <div key={g.title} className="flex gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">{g.title}</div>
+                          <div className="text-xs text-muted-foreground">{g.items.join(", ")}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
               {notIncluded.length > 0 && (
                 <div className="mt-4 border-t pt-4">
