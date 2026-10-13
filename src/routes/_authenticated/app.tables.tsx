@@ -14,7 +14,7 @@ import { planAllows } from "@/config/plan-features";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format, isToday, isTomorrow } from "date-fns";
-import { Download, Plus, RefreshCw, Users, Clock, Phone, CalendarClock, Pencil, PartyPopper, UtensilsCrossed, IndianRupee } from "lucide-react";
+import { Download, Plus, RefreshCw, Users, Clock, Phone, Pencil, PartyPopper, UtensilsCrossed, IndianRupee } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/tables")({ component: TablesPage });
 
@@ -77,6 +77,14 @@ const STATUS_STYLES: Record<TableStatus, { label: string; tile: string; dot: str
 function startOfToday() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+// Arrivals stay listed for two months back, so a past day's count can be read.
+function lookbackStart() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 60);
   return d.toISOString();
 }
 
@@ -226,7 +234,13 @@ function TablesPage() {
   const [qrs, setQrs] = useState<Record<string, { token: string; status: string }>>({});
   const [openOrders, setOpenOrders] = useState<any[]>([]);
   const [reservations, setReservations] = useState<any[]>([]);
-  const [label, setLabel] = useState("");
+  // Parties already seated today. Kept apart from `reservations`, which only
+  // holds booked rows: a seated party must stop holding its table on the floor
+  // but still appear in today's record.
+  const [seatedRows, setSeatedRows] = useState<any[]>([]);
+  // The day the arrivals list shows. Defaults to today.
+  const [arrivedDate, setArrivedDate] = useState(() => dateKey(new Date()));
+  const [label, setLabel] = useState("Table ");
   const [seats, setSeats] = useState(4);
   const [refreshing, setRefreshing] = useState(false);
   const [dialogTable, setDialogTable] = useState<any>(null);
@@ -254,7 +268,7 @@ function TablesPage() {
 
   // Re-renders on a timer so a booking's hold window opens and closes on its
   // own — no data changes when a reservation simply becomes due.
-  // The value is used, not just the setter: `floor` and `bookingList` are
+  // The value is used, not just the setter: `floor` is
   // memoised on data that doesn't change as time passes, so without `tick` in
   // their dependencies a tile would sit on Free straight through its booking
   // time and only flip when something else forced a recompute.
@@ -296,8 +310,8 @@ function TablesPage() {
       .from("table_reservations")
       .select("*")
       .eq("tenant_id", tenantId)
-      .eq("status", "booked")
-      .gte("reserved_for", startOfToday())
+      .in("status", ["booked", "seated"])
+      .gte("reserved_for", lookbackStart())
       .lte("reserved_for", lookaheadEnd())
       .order("reserved_for");
 
@@ -308,7 +322,10 @@ function TablesPage() {
       toast.error(`Bookings unavailable: ${error.message}`);
       return;
     }
-    setReservations(data || []);
+    const rows = data || [];
+    const today = new Date(startOfToday());
+    setReservations(rows.filter((r: any) => r.status === "booked" && new Date(r.reserved_for) >= today));
+    setSeatedRows(rows.filter((r: any) => r.status === "seated"));
   }, []);
 
   const loadEvents = useCallback(async (tenantId: string) => {
@@ -374,17 +391,23 @@ function TablesPage() {
   }
 
   async function add() {
-    if (!label || !tenant) return;
+    // "Table " with no number is not a usable label
+    if (!label.trim() || label.trim() === "Table" || !tenant) return;
     // Table limit from the owner's plan (blank in the plan form = unlimited)
     const maxTables = ownerPlan?.max_tables;
     if (maxTables != null && tables.length >= maxTables) {
       return toast.error(`Your plan allows up to ${maxTables} tables. Upgrade to add more.`);
     }
+    // Same table number can't exist twice; the existing one must be deleted first
+    const clean = label.trim();
+    if (tables.some(t => String(t.label).trim().toLowerCase() === clean.toLowerCase())) {
+      return toast.error(`${clean} already exists. Delete the existing table first to re-create it.`);
+    }
     const { error } = await supabase
       .from("restaurant_tables")
       .insert({ tenant_id: tenant.id, label, seats });
     if (error) return toast.error(error.message);
-    setLabel("");
+    setLabel("Table ");
     load();
   }
 
@@ -754,7 +777,7 @@ function TablesPage() {
       .update({ status })
       .eq("id", r.id);
     if (error) return toast.error(error.message);
-    toast.success(status === "seated" ? `${r.guest_name} seated` : "Reservation cancelled");
+    toast.success(status === "seated" ? `${r.guest_name} arrived` : "Reservation cancelled");
     if (tenant?.id) await loadReservations(tenant.id);
   }
 
@@ -804,19 +827,6 @@ function TablesPage() {
     [floor],
   );
 
-  // The booking sheet: every reservation in the window, in the order guests
-  // will walk through the door, rather than buried one table at a time.
-  const bookingList = useMemo(() => {
-    const labels = new Map(tables.map(t => [t.id, t.label]));
-    const now = Date.now();
-    return reservations.map(r => ({
-      ...r,
-      tableLabel: labels.get(r.table_id) ?? "—",
-      holdingNow: isHoldingNow(r, now),
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservations, tables, tick]);
-
   // ---- Date filter ---------------------------------------------------------
   // One filter drives both lists on this tab: "what's on Saturday" means the
   // tables and the function room together, and two separate filters would let
@@ -828,13 +838,6 @@ function TablesPage() {
 
   // Matched on the local calendar date, not on the ISO string: an 8pm booking
   // is stored as UTC and a string prefix would put it on the following day.
-  const visibleBookings = useMemo(
-    () => (filterDate
-      ? bookingList.filter(r => dateKey(new Date(r.reserved_for)) === filterDate)
-      : bookingList),
-    [bookingList, filterDate],
-  );
-
   const visibleEvents = useMemo(
     () => (filterDate
       ? events.filter(e => dateKey(new Date(e.starts_at)) === filterDate)
@@ -843,6 +846,24 @@ function TablesPage() {
   );
 
   const filterLabel = filterDate ? dayLabel(filterDate) : null;
+
+  // Parties that arrived on the chosen day, with table labels, in booking order.
+  const seatedList = useMemo(() => {
+    const labels = new Map(tables.map(t => [t.id, t.label]));
+    return seatedRows
+      .filter(r => dateKey(new Date(r.reserved_for)) === arrivedDate)
+      .sort((a, b) => new Date(a.reserved_for).getTime() - new Date(b.reserved_for).getTime())
+      .map(r => ({ ...r, tableLabel: labels.get(r.table_id) ?? "—" }));
+  }, [seatedRows, arrivedDate, tables]);
+  const seatedGuests = seatedList.reduce((sum, r) => sum + Number(r.party_size || 0), 0);
+
+  // Table bookings listed under the floor plan tiles, soonest first.
+  const floorBookings = useMemo(() => {
+    const labels = new Map(tables.map(t => [t.id, t.label]));
+    return [...reservations]
+      .sort((a, b) => new Date(a.reserved_for).getTime() - new Date(b.reserved_for).getTime())
+      .map(r => ({ ...r, tableLabel: labels.get(r.table_id) ?? "—" }));
+  }, [reservations, tables]);
 
   // Kept in sync with the floor so the dialog reflects a save without being
   // handed fresh props — it's opened with a table, not a snapshot.
@@ -914,7 +935,12 @@ function TablesPage() {
           <Card className="p-4 flex flex-wrap gap-2 items-end">
             <div>
               <Label htmlFor="tbl-label">Table label</Label>
-              <Input id="tbl-label" value={label} onChange={e => setLabel(e.target.value)} placeholder="T13" />
+              <Input id="tbl-label" value={label}
+                // "Table " is fixed and only digits may follow it: any edit that removes
+                // the prefix (backspace, cut, select-all + type) puts it back, and letters are dropped
+                onChange={e => setLabel("Table " + e.target.value.replace(/^Table ?/, "").replace(/\D/g, ""))}
+                placeholder="Table 1"
+              />
             </div>
             <div>
               <Label htmlFor="tbl-seats">Seats</Label>
@@ -1030,6 +1056,94 @@ function TablesPage() {
             </div>
           )}
 
+          {/* Every table booking, not only the table that was tapped, so the
+              floor plan answers "who is coming" on its own. */}
+          <div className="space-y-2 pt-2">
+            <h2 className="text-sm font-medium">Table bookings</h2>
+            {floorBookings.length === 0 ? (
+              <Card className="p-6 text-center text-sm text-muted-foreground">
+                No table bookings. Tap a table above to take a reservation.
+              </Card>
+            ) : (
+              floorBookings.map(r => (
+                <Card key={r.id} className={`p-3 ${isHoldingNow(r, Date.now()) ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                    <div className="sm:w-40 shrink-0">
+                      <div className="text-sm font-semibold">{whenLabel(r.reserved_for)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {r.tableLabel} · holds {r.hold_minutes} min
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium">{r.guest_name}</div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{r.party_size}</span>
+                        <a href={`tel:${r.guest_phone}`} className="flex items-center gap-1 hover:underline">
+                          <Phone className="h-3 w-3" />{r.guest_phone}
+                        </a>
+                      </div>
+                      {r.notes && <p className="text-xs mt-1">{r.notes}</p>}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => openEditDialog(r)}>
+                        <Pencil className="h-3 w-3 sm:mr-1" />
+                        <span className="sm:inline">Edit</span>
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "seated")}>
+                        Mark arrived
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "cancelled")}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* The day's record: a party moves here when it is seated, so the
+              count of tables used today is still there after the floor frees up. */}
+          <div className="space-y-2 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-medium">
+                {arrivedDate === dateKey(new Date()) ? "Arrived today" : `Arrived on ${dayLabel(arrivedDate)}`} · {seatedList.length}{" "}
+                {seatedList.length === 1 ? "party" : "parties"}, {seatedGuests} guests
+              </h2>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  aria-label="Show arrivals on this date"
+                  value={arrivedDate}
+                  onChange={e => setArrivedDate(e.target.value)}
+                  className={`h-8 w-[9.5rem] relative ${PICKER_ICON}`}
+                />
+                <Button size="sm" variant="outline" className="h-8" onClick={() => setArrivedDate(dateKey(new Date()))}>
+                  Today
+                </Button>
+              </div>
+            </div>
+            {seatedList.length === 0 ? (
+              <Card className="p-4 text-center text-sm text-muted-foreground">
+                {arrivedDate === dateKey(new Date()) ? "No parties arrived yet today." : `No parties arrived on ${dayLabel(arrivedDate)}.`}
+              </Card>
+            ) : (
+              seatedList.map(r => (
+                <Card key={r.id} className="p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">{r.guest_name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700">Arrived</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {r.tableLabel} · {r.party_size} guests · booked for {whenLabel(r.reserved_for)}
+                    </span>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
           <p className="text-xs text-muted-foreground">
             A table stays busy until its order is marked served on the Live orders page and the bill is settled. Tap any table to book it or see who's expected.
           </p>
@@ -1041,18 +1155,9 @@ function TablesPage() {
               list further down too — staff ask about a day, not about a list. */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              {filterDate ? (
-                <>
-                  {visibleBookings.length} table{" "}
-                  {visibleBookings.length === 1 ? "booking" : "bookings"} on {filterLabel}, in arrival
-                  order.
-                </>
-              ) : (
-                <>
-                  {bookingList.length} table {bookingList.length === 1 ? "booking" : "bookings"} in the
-                  next {LOOKAHEAD_DAYS} days, in arrival order.
-                </>
-              )}
+              {filterDate
+                ? `${visibleEvents.length} ${visibleEvents.length === 1 ? "event" : "events"} on ${filterLabel}.`
+                : `${events.length} ${events.length === 1 ? "event" : "events"} booked.`}
             </p>
 
             <div className="flex flex-wrap gap-2">
@@ -1088,61 +1193,6 @@ function TablesPage() {
               </Button>              
             </div>
           </div>
-
-          {visibleBookings.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">
-              {filterDate
-                ? `Nothing booked for ${filterLabel}.`
-                : "Nothing booked. Tap a table on the floor plan to take a reservation."}
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {visibleBookings.map(r => (
-                <Card key={r.id} className={`p-3 ${r.holdingNow ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
-                  {/* Stacks on a phone, one row from sm up: a host takes
-                      bookings standing at the door, so this has to be usable
-                      on a narrow screen first. */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                    <div className="sm:w-40 shrink-0">
-                      <div className="text-sm font-semibold">{whenLabel(r.reserved_for)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Table {r.tableLabel} · holds {r.hold_minutes} min
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium">{r.guest_name}</div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{r.party_size}</span>
-                        <a href={`tel:${r.guest_phone}`} className="flex items-center gap-1 hover:underline">
-                          <Phone className="h-3 w-3" />{r.guest_phone}
-                        </a>
-                        {r.holdingNow && (
-                          <span className="flex items-center gap-1 text-amber-600">
-                            <CalendarClock className="h-3 w-3" />holding now
-                          </span>
-                        )}
-                      </div>
-                      {r.notes && <p className="text-xs mt-1">{r.notes}</p>}
-                    </div>
-
-                    <div className="flex gap-2 shrink-0">
-                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => openEditDialog(r)}>
-                        <Pencil className="h-3 w-3 sm:mr-1" />
-                        <span className="sm:inline">Edit</span>
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "seated")}>
-                        Seat guests
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "cancelled")}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
 
           {/* Events sit below the table bookings rather than mixed in: they run
               to a different rhythm — enquiry, confirm, deposit — and staff scan
@@ -1307,7 +1357,7 @@ function TablesPage() {
                       <Pencil className="h-3 w-3 mr-1" />Edit
                     </Button>
                     <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setReservationStatus(r, "seated")}>
-                      Seat guests
+                      Mark arrived
                     </Button>
                     <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setReservationStatus(r, "cancelled")}>
                       Cancel booking

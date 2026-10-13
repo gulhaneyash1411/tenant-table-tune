@@ -2,11 +2,66 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useContext, useEffect, useMemo, useRef, useState, lazy, Suspense, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Utensils, ArrowRight, PlayCircle, Check, X, Globe, ChevronDown, Menu } from "lucide-react";
-import { loadSiteSettings, safeUrl } from "@/lib/site-settings";
+import { EMPTY_SITE_SETTINGS, loadSiteSettings, safeUrl, type SiteSettings } from "@/lib/site-settings";
+import { absoluteUrl, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, DEFAULT_LOGO, DEFAULT_TITLE, jsonLdScript, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { BRAND, buildSite, SiteCtx, useSite, fillTokens, DEMO_VIDEO_URL, NAV, scrollTo, Lang, LANGS, LangCtx, useT, loadDict, Pill, Reveal, PrimaryBtn, socialsFor, ring, ProductCarousel } from "@/components/landing/shared";
 // import platesos_teaser from "public/videos/platesos_teaser.mp4"
 
-export const Route = createFileRoute("/")({ loader: () => loadSiteSettings(), component: DineEatz });
+export const Route = createFileRoute("/")({
+  loader: () => loadSiteSettings(),
+  head: ({ loaderData }) => landingHead(loaderData),
+  component: DineEatz,
+});
+
+// Title, description, social tags and structured data for the landing page.
+// Contact details and logo come only from Platform settings; an unset value is
+// left out rather than filled in.
+function landingHead(settings: SiteSettings | undefined) {
+  const s = settings ?? EMPTY_SITE_SETTINGS;
+  const logo = absoluteUrl(safeUrl(s.logoUrl) ?? DEFAULT_LOGO);
+  const sameAs = [s.instagram, s.facebook, s.linkedin]
+    .map((v) => safeUrl(v))
+    .filter((u): u is string => u !== null);
+  const email = s.email.trim() || undefined;
+  const phone = s.phone.trim() || undefined;
+
+  const organization = {
+    "@type": "Organization",
+    "@id": `${SITE_URL}/#organization`,
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo,
+    sameAs: sameAs.length ? sameAs : undefined,
+    contactPoint: email || phone
+      ? [{ "@type": "ContactPoint", contactType: "customer support", email, telephone: phone }]
+      : undefined,
+  };
+  const website = {
+    "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
+    url: SITE_URL,
+    name: SITE_NAME,
+    description: DEFAULT_DESCRIPTION,
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    inLanguage: "en",
+  };
+
+  return {
+    meta: [
+      { title: DEFAULT_TITLE },
+      { name: "description", content: DEFAULT_DESCRIPTION },
+      { property: "og:title", content: DEFAULT_TITLE },
+      { property: "og:description", content: DEFAULT_DESCRIPTION },
+      { property: "og:url", content: absoluteUrl("/") },
+      { property: "og:image", content: absoluteUrl(DEFAULT_IMAGE) },
+      { name: "twitter:title", content: DEFAULT_TITLE },
+      { name: "twitter:description", content: DEFAULT_DESCRIPTION },
+      { name: "twitter:image", content: absoluteUrl(DEFAULT_IMAGE) },
+    ],
+    links: [{ rel: "canonical", href: absoluteUrl("/") }],
+    scripts: [jsonLdScript({ "@context": "https://schema.org", "@graph": [organization, website] })],
+  };
+}
 
 const LanguageMenu = () => {
   const { lang, setLang } = useContext(LangCtx);

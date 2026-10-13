@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, ShoppingBag, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
+import { noindexHead } from "@/lib/seo";
 
 // Everything the page needs, resolved before the component ever mounts —
 // same reasoning as /t/$tableId: TanStack Router won't render `component`
@@ -43,6 +44,7 @@ function TakeawayError() {
 }
 
 export const Route = createFileRoute("/takeaway/$tenantId")({
+  head: noindexHead,
   loader: ({ params }) => loadTakeawayData(params.tenantId),
   pendingComponent: TakeawayPending,
   // No artificial delay in either direction: show the pending state the

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+# Server endpoints; not useful to crawl. Private portal and order pages use
+# a noindex robots meta tag instead, so they are not blocked here.
+Disallow: /api/
+
+Sitemap: https://dineeatz.in/sitemap.xml

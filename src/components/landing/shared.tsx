@@ -281,7 +281,7 @@ export const QRSlide = () => (
       <div className="font-bold text-lg" style={{ color: BRAND.dark }}>Table 5</div>
       <div className="text-xs text-slate-400 mb-3">Scan to order</div>
       <QRCodeMock />
-      <div className="mt-3 text-xs font-medium" style={{ color: BRAND.primary }}>dineeatz.com/t/5</div>
+      <div className="mt-3 text-xs font-medium" style={{ color: BRAND.primary }}>dineeatz.in/t/5</div>
     </div>
     <Phone_>
       <div className="p-2 space-y-1.5">

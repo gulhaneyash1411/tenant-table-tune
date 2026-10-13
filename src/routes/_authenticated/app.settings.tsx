@@ -49,8 +49,6 @@ function SettingsPage() {
       ["Restaurant name", t.name],
       ["Owner name", t.owner_name],
       ["Owner phone", t.owner_phone],
-      ["Slogan / tagline", t.slogan],
-      ["Logo URL", t.logo_url],
       ["Opening time", t.opening_time || "09:00"],
       ["Closing time", t.closing_time],
       ["Address", t.address],
@@ -133,8 +131,8 @@ function SettingsPage() {
                 <Label>Owner phone<span className="text-destructive"> *</span></Label>
                 <Input type="tel" inputMode="numeric" maxLength={10} required value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/>
               </div>
-              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} required />
-              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} required />
+              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
+              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
               <Field label="Google review link" v={t.google_review_url||""} on={v=>set("google_review_url",v)} />
               <div className="col-span-2">
                 <Label>Business hours<span className="text-destructive"> *</span></Label>

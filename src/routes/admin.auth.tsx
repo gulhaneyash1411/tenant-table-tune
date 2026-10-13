@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
+import { noindexHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/admin/auth")({ component: AdminAuth });
+export const Route = createFileRoute("/admin/auth")({ head: noindexHead, component: AdminAuth });
 
 function AdminAuth() {
   const [email, setEmail] = useState("");

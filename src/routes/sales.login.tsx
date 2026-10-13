@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Briefcase } from "lucide-react";
+import { noindexHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/sales/login")({ component: SalesLogin });
+export const Route = createFileRoute("/sales/login")({ head: noindexHead, component: SalesLogin });
 
 // Deliberately separate from the Super Admin sign-in page (/admin/auth) —
 // same pattern as Kitchen Users having their own /kitchen/login, different
