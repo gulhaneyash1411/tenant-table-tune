@@ -14,7 +14,7 @@ import { planAllows } from "@/config/plan-features";
 import { money } from "@/lib/format";
 import { toast } from "sonner";
 import { format, isToday, isTomorrow } from "date-fns";
-import { Download, Plus, RefreshCw, Users, Clock, Phone, CalendarClock, Pencil, PartyPopper, UtensilsCrossed, IndianRupee } from "lucide-react";
+import { Download, Plus, RefreshCw, Users, Clock, Phone, Pencil, PartyPopper, UtensilsCrossed, IndianRupee } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/app/tables")({ component: TablesPage });
 
@@ -254,7 +254,7 @@ function TablesPage() {
 
   // Re-renders on a timer so a booking's hold window opens and closes on its
   // own — no data changes when a reservation simply becomes due.
-  // The value is used, not just the setter: `floor` and `bookingList` are
+  // The value is used, not just the setter: `floor` is
   // memoised on data that doesn't change as time passes, so without `tick` in
   // their dependencies a tile would sit on Free straight through its booking
   // time and only flip when something else forced a recompute.
@@ -810,19 +810,6 @@ function TablesPage() {
     [floor],
   );
 
-  // The booking sheet: every reservation in the window, in the order guests
-  // will walk through the door, rather than buried one table at a time.
-  const bookingList = useMemo(() => {
-    const labels = new Map(tables.map(t => [t.id, t.label]));
-    const now = Date.now();
-    return reservations.map(r => ({
-      ...r,
-      tableLabel: labels.get(r.table_id) ?? "—",
-      holdingNow: isHoldingNow(r, now),
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservations, tables, tick]);
-
   // ---- Date filter ---------------------------------------------------------
   // One filter drives both lists on this tab: "what's on Saturday" means the
   // tables and the function room together, and two separate filters would let
@@ -834,13 +821,6 @@ function TablesPage() {
 
   // Matched on the local calendar date, not on the ISO string: an 8pm booking
   // is stored as UTC and a string prefix would put it on the following day.
-  const visibleBookings = useMemo(
-    () => (filterDate
-      ? bookingList.filter(r => dateKey(new Date(r.reserved_for)) === filterDate)
-      : bookingList),
-    [bookingList, filterDate],
-  );
-
   const visibleEvents = useMemo(
     () => (filterDate
       ? events.filter(e => dateKey(new Date(e.starts_at)) === filterDate)
@@ -849,6 +829,14 @@ function TablesPage() {
   );
 
   const filterLabel = filterDate ? dayLabel(filterDate) : null;
+
+  // Table bookings listed under the floor plan tiles, soonest first.
+  const floorBookings = useMemo(() => {
+    const labels = new Map(tables.map(t => [t.id, t.label]));
+    return [...reservations]
+      .sort((a, b) => new Date(a.reserved_for).getTime() - new Date(b.reserved_for).getTime())
+      .map(r => ({ ...r, tableLabel: labels.get(r.table_id) ?? "—" }));
+  }, [reservations, tables]);
 
   // Kept in sync with the floor so the dialog reflects a save without being
   // handed fresh props — it's opened with a table, not a snapshot.
@@ -1041,6 +1029,52 @@ function TablesPage() {
             </div>
           )}
 
+          {/* Every table booking, not only the table that was tapped, so the
+              floor plan answers "who is coming" on its own. */}
+          <div className="space-y-2 pt-2">
+            <h2 className="text-sm font-medium">Table bookings</h2>
+            {floorBookings.length === 0 ? (
+              <Card className="p-6 text-center text-sm text-muted-foreground">
+                No table bookings. Tap a table above to take a reservation.
+              </Card>
+            ) : (
+              floorBookings.map(r => (
+                <Card key={r.id} className={`p-3 ${isHoldingNow(r, Date.now()) ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                    <div className="sm:w-40 shrink-0">
+                      <div className="text-sm font-semibold">{whenLabel(r.reserved_for)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Table {r.tableLabel} · holds {r.hold_minutes} min
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium">{r.guest_name}</div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{r.party_size}</span>
+                        <a href={`tel:${r.guest_phone}`} className="flex items-center gap-1 hover:underline">
+                          <Phone className="h-3 w-3" />{r.guest_phone}
+                        </a>
+                      </div>
+                      {r.notes && <p className="text-xs mt-1">{r.notes}</p>}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => openEditDialog(r)}>
+                        <Pencil className="h-3 w-3 sm:mr-1" />
+                        <span className="sm:inline">Edit</span>
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "seated")}>
+                        Seat guests
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "cancelled")}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
           <p className="text-xs text-muted-foreground">
             A table stays busy until its order is marked served on the Live orders page and the bill is settled. Tap any table to book it or see who's expected.
           </p>
@@ -1052,18 +1086,9 @@ function TablesPage() {
               list further down too — staff ask about a day, not about a list. */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              {filterDate ? (
-                <>
-                  {visibleBookings.length} table{" "}
-                  {visibleBookings.length === 1 ? "booking" : "bookings"} on {filterLabel}, in arrival
-                  order.
-                </>
-              ) : (
-                <>
-                  {bookingList.length} table {bookingList.length === 1 ? "booking" : "bookings"} in the
-                  next {LOOKAHEAD_DAYS} days, in arrival order.
-                </>
-              )}
+              {filterDate
+                ? `${visibleEvents.length} ${visibleEvents.length === 1 ? "event" : "events"} on ${filterLabel}.`
+                : `${events.length} ${events.length === 1 ? "event" : "events"} booked.`}
             </p>
 
             <div className="flex flex-wrap gap-2">
@@ -1099,61 +1124,6 @@ function TablesPage() {
               </Button>              
             </div>
           </div>
-
-          {visibleBookings.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">
-              {filterDate
-                ? `Nothing booked for ${filterLabel}.`
-                : "Nothing booked. Tap a table on the floor plan to take a reservation."}
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {visibleBookings.map(r => (
-                <Card key={r.id} className={`p-3 ${r.holdingNow ? "border-amber-500/50 bg-amber-500/5" : ""}`}>
-                  {/* Stacks on a phone, one row from sm up: a host takes
-                      bookings standing at the door, so this has to be usable
-                      on a narrow screen first. */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                    <div className="sm:w-40 shrink-0">
-                      <div className="text-sm font-semibold">{whenLabel(r.reserved_for)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Table {r.tableLabel} · holds {r.hold_minutes} min
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium">{r.guest_name}</div>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{r.party_size}</span>
-                        <a href={`tel:${r.guest_phone}`} className="flex items-center gap-1 hover:underline">
-                          <Phone className="h-3 w-3" />{r.guest_phone}
-                        </a>
-                        {r.holdingNow && (
-                          <span className="flex items-center gap-1 text-amber-600">
-                            <CalendarClock className="h-3 w-3" />holding now
-                          </span>
-                        )}
-                      </div>
-                      {r.notes && <p className="text-xs mt-1">{r.notes}</p>}
-                    </div>
-
-                    <div className="flex gap-2 shrink-0">
-                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => openEditDialog(r)}>
-                        <Pencil className="h-3 w-3 sm:mr-1" />
-                        <span className="sm:inline">Edit</span>
-                      </Button>
-                      <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "seated")}>
-                        Seat guests
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "cancelled")}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
 
           {/* Events sit below the table bookings rather than mixed in: they run
               to a different rhythm — enquiry, confirm, deposit — and staff scan
