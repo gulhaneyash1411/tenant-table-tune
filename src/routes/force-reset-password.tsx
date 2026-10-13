@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { LockKeyhole, Loader2, Eye, EyeOff } from "lucide-react";
+import { noindexHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/force-reset-password")({ component: ForceResetPassword });
+export const Route = createFileRoute("/force-reset-password")({ head: noindexHead, component: ForceResetPassword });
 
 function ForceResetPassword() {
   const navigate = useNavigate();

@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { OfflineBanner } from "@/components/offline-banner";
 import { supabase } from "@/integrations/supabase/client";
+import { absoluteUrl, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, DEFAULT_TITLE, SITE_NAME } from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -80,13 +81,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "DineEatz - Modern Menus For Modern Diners" },
-      { name: "description", content: "Run your restaurant with QR ordering, live kitchen, and one dashboard. Multi-tenant SaaS for hospitality." },
-      { name: "author", content: "DineEatz" },
-      { property: "og:title", content: "DineEatz - Modern Menus For Modern Diners" },
-      { property: "og:description", content: "QR ordering, live orders, menus and analytics for every restaurant on one platform." },
+      { title: DEFAULT_TITLE },
+      { name: "description", content: DEFAULT_DESCRIPTION },
+      { name: "author", content: SITE_NAME },
+      { property: "og:title", content: DEFAULT_TITLE },
+      { property: "og:description", content: DEFAULT_DESCRIPTION },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "og:image", content: absoluteUrl(DEFAULT_IMAGE) },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: absoluteUrl(DEFAULT_IMAGE) },
       { name: "theme-color", content: "#f97316" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "DineEatz" },

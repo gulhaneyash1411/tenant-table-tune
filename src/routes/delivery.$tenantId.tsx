@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, Bike, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { placePublicOrder } from "@/lib/public-orders.functions";
+import { noindexHead } from "@/lib/seo";
 
 // Same loader shape as /takeaway/$tenantId — the route doesn't render until
 // this settles, so the route's own pendingComponent is the only loading UI.
@@ -39,6 +40,7 @@ function DeliveryError() {
 }
 
 export const Route = createFileRoute("/delivery/$tenantId")({
+  head: noindexHead,
   loader: ({ params }) => loadDeliveryData(params.tenantId),
   pendingComponent: DeliveryPending,
   pendingMs: 0,

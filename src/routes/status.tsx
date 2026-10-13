@@ -10,8 +10,9 @@ import { mergeOrderItems } from "@/lib/order-items";
 import { downloadInvoicePdf } from "@/lib/invoice";
 import { format } from "date-fns";
 import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
+import { noindexHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/status")({ component: StatusPage });
+export const Route = createFileRoute("/status")({ head: noindexHead, component: StatusPage });
 
 /**
  * The four stages a customer actually cares about, in order. Everything the

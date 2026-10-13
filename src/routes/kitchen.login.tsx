@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ChefHat } from "lucide-react";
+import { noindexHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/kitchen/login")({ component: KitchenLogin });
+export const Route = createFileRoute("/kitchen/login")({ head: noindexHead, component: KitchenLogin });
 
 const DEVICE_KEY = "kitchen-device-id";
 
