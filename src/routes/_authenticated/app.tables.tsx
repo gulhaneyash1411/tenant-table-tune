@@ -226,7 +226,7 @@ function TablesPage() {
   const [qrs, setQrs] = useState<Record<string, { token: string; status: string }>>({});
   const [openOrders, setOpenOrders] = useState<any[]>([]);
   const [reservations, setReservations] = useState<any[]>([]);
-  const [label, setLabel] = useState("");
+  const [label, setLabel] = useState("Table ");
   const [seats, setSeats] = useState(4);
   const [refreshing, setRefreshing] = useState(false);
   const [dialogTable, setDialogTable] = useState<any>(null);
@@ -374,17 +374,23 @@ function TablesPage() {
   }
 
   async function add() {
-    if (!label || !tenant) return;
+    // "Table " with no number is not a usable label
+    if (!label.trim() || label.trim() === "Table" || !tenant) return;
     // Table limit from the owner's plan (blank in the plan form = unlimited)
     const maxTables = ownerPlan?.max_tables;
     if (maxTables != null && tables.length >= maxTables) {
       return toast.error(`Your plan allows up to ${maxTables} tables. Upgrade to add more.`);
     }
+    // Same table number can't exist twice; the existing one must be deleted first
+    const clean = label.trim();
+    if (tables.some(t => String(t.label).trim().toLowerCase() === clean.toLowerCase())) {
+      return toast.error(`${clean} already exists. Delete the existing table first to re-create it.`);
+    }
     const { error } = await supabase
       .from("restaurant_tables")
       .insert({ tenant_id: tenant.id, label, seats });
     if (error) return toast.error(error.message);
-    setLabel("");
+    setLabel("Table ");
     load();
   }
 
@@ -914,7 +920,12 @@ function TablesPage() {
           <Card className="p-4 flex flex-wrap gap-2 items-end">
             <div>
               <Label htmlFor="tbl-label">Table label</Label>
-              <Input id="tbl-label" value={label} onChange={e => setLabel(e.target.value)} placeholder="T13" />
+              <Input id="tbl-label" value={label}
+                // "Table " is fixed and only digits may follow it: any edit that removes
+                // the prefix (backspace, cut, select-all + type) puts it back, and letters are dropped
+                onChange={e => setLabel("Table " + e.target.value.replace(/^Table ?/, "").replace(/\D/g, ""))}
+                placeholder="Table 1"
+              />
             </div>
             <div>
               <Label htmlFor="tbl-seats">Seats</Label>
