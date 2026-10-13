@@ -80,6 +80,14 @@ function startOfToday() {
   return d.toISOString();
 }
 
+// Arrivals stay listed for two months back, so a past day's count can be read.
+function lookbackStart() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 60);
+  return d.toISOString();
+}
+
 function lookaheadEnd() {
   const d = new Date();
   d.setDate(d.getDate() + LOOKAHEAD_DAYS);
@@ -226,6 +234,12 @@ function TablesPage() {
   const [qrs, setQrs] = useState<Record<string, { token: string; status: string }>>({});
   const [openOrders, setOpenOrders] = useState<any[]>([]);
   const [reservations, setReservations] = useState<any[]>([]);
+  // Parties already seated today. Kept apart from `reservations`, which only
+  // holds booked rows: a seated party must stop holding its table on the floor
+  // but still appear in today's record.
+  const [seatedRows, setSeatedRows] = useState<any[]>([]);
+  // The day the arrivals list shows. Defaults to today.
+  const [arrivedDate, setArrivedDate] = useState(() => dateKey(new Date()));
   const [label, setLabel] = useState("Table ");
   const [seats, setSeats] = useState(4);
   const [refreshing, setRefreshing] = useState(false);
@@ -296,8 +310,8 @@ function TablesPage() {
       .from("table_reservations")
       .select("*")
       .eq("tenant_id", tenantId)
-      .eq("status", "booked")
-      .gte("reserved_for", startOfToday())
+      .in("status", ["booked", "seated"])
+      .gte("reserved_for", lookbackStart())
       .lte("reserved_for", lookaheadEnd())
       .order("reserved_for");
 
@@ -308,7 +322,10 @@ function TablesPage() {
       toast.error(`Bookings unavailable: ${error.message}`);
       return;
     }
-    setReservations(data || []);
+    const rows = data || [];
+    const today = new Date(startOfToday());
+    setReservations(rows.filter((r: any) => r.status === "booked" && new Date(r.reserved_for) >= today));
+    setSeatedRows(rows.filter((r: any) => r.status === "seated"));
   }, []);
 
   const loadEvents = useCallback(async (tenantId: string) => {
@@ -760,7 +777,7 @@ function TablesPage() {
       .update({ status })
       .eq("id", r.id);
     if (error) return toast.error(error.message);
-    toast.success(status === "seated" ? `${r.guest_name} seated` : "Reservation cancelled");
+    toast.success(status === "seated" ? `${r.guest_name} arrived` : "Reservation cancelled");
     if (tenant?.id) await loadReservations(tenant.id);
   }
 
@@ -829,6 +846,16 @@ function TablesPage() {
   );
 
   const filterLabel = filterDate ? dayLabel(filterDate) : null;
+
+  // Parties that arrived on the chosen day, with table labels, in booking order.
+  const seatedList = useMemo(() => {
+    const labels = new Map(tables.map(t => [t.id, t.label]));
+    return seatedRows
+      .filter(r => dateKey(new Date(r.reserved_for)) === arrivedDate)
+      .sort((a, b) => new Date(a.reserved_for).getTime() - new Date(b.reserved_for).getTime())
+      .map(r => ({ ...r, tableLabel: labels.get(r.table_id) ?? "—" }));
+  }, [seatedRows, arrivedDate, tables]);
+  const seatedGuests = seatedList.reduce((sum, r) => sum + Number(r.party_size || 0), 0);
 
   // Table bookings listed under the floor plan tiles, soonest first.
   const floorBookings = useMemo(() => {
@@ -1044,7 +1071,7 @@ function TablesPage() {
                     <div className="sm:w-40 shrink-0">
                       <div className="text-sm font-semibold">{whenLabel(r.reserved_for)}</div>
                       <div className="text-xs text-muted-foreground">
-                        Table {r.tableLabel} · holds {r.hold_minutes} min
+                        {r.tableLabel} · holds {r.hold_minutes} min
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1063,12 +1090,54 @@ function TablesPage() {
                         <span className="sm:inline">Edit</span>
                       </Button>
                       <Button size="sm" variant="outline" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "seated")}>
-                        Seat guests
+                        Mark arrived
                       </Button>
                       <Button size="sm" variant="ghost" className="h-8 text-xs flex-1 sm:flex-none" onClick={() => setReservationStatus(r, "cancelled")}>
                         Cancel
                       </Button>
                     </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* The day's record: a party moves here when it is seated, so the
+              count of tables used today is still there after the floor frees up. */}
+          <div className="space-y-2 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-medium">
+                {arrivedDate === dateKey(new Date()) ? "Arrived today" : `Arrived on ${dayLabel(arrivedDate)}`} · {seatedList.length}{" "}
+                {seatedList.length === 1 ? "party" : "parties"}, {seatedGuests} guests
+              </h2>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  aria-label="Show arrivals on this date"
+                  value={arrivedDate}
+                  onChange={e => setArrivedDate(e.target.value)}
+                  className={`h-8 w-[9.5rem] relative ${PICKER_ICON}`}
+                />
+                <Button size="sm" variant="outline" className="h-8" onClick={() => setArrivedDate(dateKey(new Date()))}>
+                  Today
+                </Button>
+              </div>
+            </div>
+            {seatedList.length === 0 ? (
+              <Card className="p-4 text-center text-sm text-muted-foreground">
+                {arrivedDate === dateKey(new Date()) ? "No parties arrived yet today." : `No parties arrived on ${dayLabel(arrivedDate)}.`}
+              </Card>
+            ) : (
+              seatedList.map(r => (
+                <Card key={r.id} className="p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">{r.guest_name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700">Arrived</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {r.tableLabel} · {r.party_size} guests · booked for {whenLabel(r.reserved_for)}
+                    </span>
                   </div>
                 </Card>
               ))
@@ -1288,7 +1357,7 @@ function TablesPage() {
                       <Pencil className="h-3 w-3 mr-1" />Edit
                     </Button>
                     <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setReservationStatus(r, "seated")}>
-                      Seat guests
+                      Mark arrived
                     </Button>
                     <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setReservationStatus(r, "cancelled")}>
                       Cancel booking
