@@ -2,9 +2,12 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { clearOfflineBanner, showOfflineBanner } from "@/lib/offline-banner";
+import { noindexHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
+  // Every portal page below this layout is login-only and not for search.
+  head: noindexHead,
   beforeLoad: async ({ location }) => {
     // Kitchen Users and Sales Users each have their own dedicated login page
     // and must never be sent to the Hotel Owner sign-in screen. Everything

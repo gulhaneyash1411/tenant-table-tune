@@ -9,8 +9,9 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Building2, Hotel, Utensils } from "lucide-react";
 import type { BusinessType } from "@/lib/outlet-context";
+import { noindexHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/auth")({ component: AuthPage });
+export const Route = createFileRoute("/auth")({ head: noindexHead, component: AuthPage });
 
 function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");

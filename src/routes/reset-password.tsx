@@ -12,6 +12,7 @@ export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
       { title: "Reset password — DineEatz restaurant portal" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Set a new password for your DineEatz restaurant owner account." },
       { property: "og:title", content: "Reset password — DineEatz" },
       { property: "og:description", content: "Set a new password for your DineEatz restaurant owner account." },

@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { OfflineBanner } from "@/components/offline-banner";
 import { supabase } from "@/integrations/supabase/client";
+import { absoluteUrl, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, DEFAULT_TITLE, SITE_NAME } from "@/lib/seo";
 
 function NotFoundComponent() {
   return (
@@ -86,7 +87,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "DineEatz - Modern Menus For Modern Diners" },
       { property: "og:description", content: "QR ordering, live orders, menus and analytics for every restaurant on one platform." },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "og:image", content: absoluteUrl(DEFAULT_IMAGE) },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: absoluteUrl(DEFAULT_IMAGE) },
       { name: "theme-color", content: "#f97316" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "DineEatz" },

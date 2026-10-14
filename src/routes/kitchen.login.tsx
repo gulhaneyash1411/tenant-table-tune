@@ -8,8 +8,27 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ChefHat } from "lucide-react";
+import { noindexHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/kitchen/login")({ component: KitchenLogin });
+export const Route = createFileRoute("/kitchen/login")({ head: noindexHead, component: KitchenLogin });
+
+const DEVICE_KEY = "kitchen-device-id";
+
+// A random id kept in this browser's storage, not a fingerprint. If storage is
+// cleared or blocked the device simply reads as new, which errs toward telling
+// the owner rather than staying quiet.
+function deviceId(): string | null {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id) {
+      id = crypto.randomUUID().replace(/-/g, "");
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
 
 const DEVICE_KEY = "kitchen-device-id";
 

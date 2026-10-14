@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Check, Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getReviewTarget } from "@/lib/public-orders.functions";
+import { noindexHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/review")({
+  head: noindexHead,
   component: ReviewPage,
   validateSearch: (search: Record<string, unknown>): { t?: string } => ({
     t: typeof search.t === "string" ? search.t : undefined,

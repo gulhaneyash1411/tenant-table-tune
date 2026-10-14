@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin, UtensilsCrossed, X, ChevronLeft, ChevronRight, CalendarClock, Ban } from "lucide-react";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
 import { appendPublicOrderItems, getActiveTableOrder, placePublicOrder, verifyTableOrderAccess } from "@/lib/public-orders.functions";
+import { noindexHead } from "@/lib/seo";
 
 /**
  * Whether a table is being held for a booking right now.
@@ -96,6 +97,7 @@ function TableError() {
 }
 
 export const Route = createFileRoute("/t/$tableId")({
+  head: noindexHead,
   loader: ({ params }) => loadTableData(params.tableId),
   // A guest coming back from their status screen to order another round
   // carries the order they're adding to and the phone it was placed with.
