@@ -131,13 +131,8 @@ function SettingsPage() {
                 <Label>Owner phone<span className="text-destructive"> *</span></Label>
                 <Input type="tel" inputMode="numeric" maxLength={10} required value={t.owner_phone||""} onChange={e=>set("owner_phone",e.target.value.replace(/\D/g,"").slice(0,10))}/>
               </div>
-<<<<<<< release
               <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} />
               <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} />
-=======
-              <Field label="Slogan / tagline" v={t.slogan||""} on={v=>set("slogan",v)} required />
-              <Field label="Logo URL" v={t.logo_url||""} on={v=>set("logo_url",v)} required />
->>>>>>> main
               <Field label="Google review link" v={t.google_review_url||""} on={v=>set("google_review_url",v)} />
               <div className="col-span-2">
                 <Label>Business hours<span className="text-destructive"> *</span></Label>
