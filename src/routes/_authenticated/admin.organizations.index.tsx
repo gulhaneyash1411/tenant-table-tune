@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/admin/organizations/")({ c
 
 type BusinessType = "SINGLE_OUTLET" | "MULTI_OUTLET";
 type SortKey = "newest" | "oldest" | "name_asc" | "name_desc";
-type OrgRow = { id: string; name: string; business_type: BusinessType; status: string | null; created_at: string };
+type OrgRow = { id: string; name: string; business_type: BusinessType; status: string | null; owner_id: string | null; created_at: string };
 type OrgStats = { owner_name: string; owner_email: string; total: number; active: number; pending: number; suspended: number };
 
 const OUTLET_STATUSES = [
@@ -111,7 +111,7 @@ function Organizations() {
       if (idSets.some(s => s.length === 0)) { setRows([]); setStats({}); setTotal(0); return; }
 
       const from = (page - 1) * ADMIN_PAGE_SIZE;
-      let oq = db.from("organizations").select("id,name,business_type,status,created_at", { count: "exact" });
+      let oq = db.from("organizations").select("id,name,business_type,status,owner_id,created_at", { count: "exact" });
       if (term) {
         oq = ownerOrgIds.length
           ? oq.or(`name.ilike.%${term}%,id.in.(${ownerOrgIds.join(",")})`)
@@ -148,6 +148,24 @@ function Organizations() {
         });
       }
       setStats(map);
+
+      // Auto-clean orphaned organizations: no outlets at all.
+      const orphans = list.filter(o => !map[o.id]);
+      if (orphans.length > 0) {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (token) {
+          await Promise.all(orphans.map(o =>
+            fetch("/api/delete-organization", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ orgId: o.id, confirmationText: "DELETE" }),
+            }).catch(() => {})
+          ));
+          loadSummary();
+          setRows(prev => prev.filter(r => !orphans.some(o => o.id === r.id)));
+          setTotal(prev => prev - orphans.length);
+        }
+      }
     } catch (e: any) {
       toast.error(e?.message || "Failed to load organizations");
     } finally {
@@ -176,6 +194,11 @@ function Organizations() {
     loadSummary();
   }
 
+  const getToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  };
+
   const handleDeleteClick = async (orgId: string, orgName: string) => {
     setDeleteOrgId(orgId);
     setDeleteOrgName(orgName);
@@ -183,11 +206,16 @@ function Organizations() {
     setDeleteFetching(true);
 
     try {
-      const response = await fetch(`/api/delete-organization?orgId=${orgId}`);
+      const token = await getToken();
+      if (!token) { toast.error("Session expired"); setDeleteOpen(false); return; }
+      const response = await fetch(`/api/delete-organization?orgId=${orgId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load impact");
       setDeleteImpact(data.impact);
     } catch (error: any) {
-      toast.error("Failed to load deletion impact");
+      toast.error(error?.message || "Failed to load deletion impact");
       setDeleteOpen(false);
     } finally {
       setDeleteFetching(false);
@@ -198,9 +226,11 @@ function Organizations() {
     if (!deleteOrgId) return;
 
     try {
+      const token = await getToken();
+      if (!token) throw new Error("Session expired");
       const response = await fetch(`/api/delete-organization`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ orgId: deleteOrgId, confirmationText: "DELETE" }),
       });
 
@@ -211,6 +241,7 @@ function Organizations() {
 
       const result = await response.json();
       if (result.success) {
+        toast.success(result.message);
         load();
         loadSummary();
         setDeleteOpen(false);

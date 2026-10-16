@@ -466,6 +466,11 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
 
   const refresh = () => { onChanged(); extra.reload(); };
 
+  const getToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  };
+
   const handleDeleteClick = async (outletId: string, outletName: string) => {
     setDeleteOutletId(outletId);
     setDeleteOutletName(outletName);
@@ -473,11 +478,16 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
     setDeleteFetching(true);
 
     try {
-      const response = await fetch(`/api/delete-outlet?outletId=${outletId}`);
+      const token = await getToken();
+      if (!token) { toast.error("Session expired"); setDeleteOpen(false); return; }
+      const response = await fetch(`/api/delete-outlet?outletId=${outletId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load impact");
       setDeleteImpact(data.impact);
     } catch (error: any) {
-      toast.error("Failed to load deletion impact");
+      toast.error(error?.message || "Failed to load deletion impact");
       setDeleteOpen(false);
     } finally {
       setDeleteFetching(false);
@@ -488,9 +498,11 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
     if (!deleteOutletId) return;
 
     try {
+      const token = await getToken();
+      if (!token) throw new Error("Session expired");
       const response = await fetch(`/api/delete-outlet`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ outletId: deleteOutletId, confirmationText: "DELETE" }),
       });
 
@@ -501,6 +513,7 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
 
       const result = await response.json();
       if (result.success) {
+        toast.success(result.message);
         refresh();
         setDeleteOpen(false);
       } else {

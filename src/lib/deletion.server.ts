@@ -1,10 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Import admin client for deletion operations (bypasses RLS)
 const getAdminClient = async () => {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // console.log("[ADMIN CLIENT] Successfully loaded admin client");
     return supabaseAdmin;
   } catch (error) {
     console.error("[ADMIN CLIENT] Failed to load admin client:", error);
@@ -39,7 +38,6 @@ export async function getOrganizationDeletionImpact(
   totalSubscriptions: number;
 }> {
   try {
-    // Get outlets for this organization
     const { data: outlets, error: outletsError } = await (supabase as any)
       .from("tenants")
       .select("id")
@@ -50,32 +48,17 @@ export async function getOrganizationDeletionImpact(
     const outletIds = ((outlets ?? []) as { id: string }[]).map((o) => o.id);
 
     if (outletIds.length === 0) {
-      return {
-        outletsCount: 0,
-        totalOrders: 0,
-        totalCustomers: 0,
-        totalSubscriptions: 0,
-      };
+      return { outletsCount: 0, totalOrders: 0, totalCustomers: 0, totalSubscriptions: 0 };
     }
 
-    // Count related records
     const [
       { count: ordersCount },
       { count: customersCount },
       { count: subscriptionsCount },
     ] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .in("tenant_id", outletIds),
-      supabase
-        .from("customers")
-        .select("id", { count: "exact", head: true })
-        .in("tenant_id", outletIds),
-      supabase
-        .from("subscriptions")
-        .select("id", { count: "exact", head: true })
-        .in("tenant_id", outletIds),
+      supabase.from("orders").select("id", { count: "exact", head: true }).in("tenant_id", outletIds),
+      supabase.from("customers").select("id", { count: "exact", head: true }).in("tenant_id", outletIds),
+      supabase.from("subscriptions").select("id", { count: "exact", head: true }).in("tenant_id", outletIds),
     ]);
 
     return {
@@ -104,22 +87,10 @@ export async function getOutletDeletionImpact(outletId: string): Promise<{
       { count: subscriptionsCount },
       { count: invoicesCount },
     ] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", outletId),
-      supabase
-        .from("customers")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", outletId),
-      supabase
-        .from("subscriptions")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", outletId),
-      supabase
-        .from("invoices")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", outletId),
+      supabase.from("orders").select("id", { count: "exact", head: true }).eq("tenant_id", outletId),
+      supabase.from("customers").select("id", { count: "exact", head: true }).eq("tenant_id", outletId),
+      supabase.from("subscriptions").select("id", { count: "exact", head: true }).eq("tenant_id", outletId),
+      supabase.from("invoices").select("id", { count: "exact", head: true }).eq("tenant_id", outletId),
     ]);
 
     return {
@@ -134,69 +105,79 @@ export async function getOutletDeletionImpact(outletId: string): Promise<{
   }
 }
 
-/** Delete an organization and all its related data */
-export async function deleteOrganization(
-  organizationId: string
-): Promise<DeleteResult> {
-  try {
-    // console.log(`[DELETE] Starting deletion for organization: ${organizationId}`);
+async function collectTenantAuthIds(adminClient: SupabaseClient, tenantId: string) {
+  const [{ data: kitchen }, { data: sales }] = await Promise.all([
+    (adminClient as SupabaseClient).from("kitchen_accounts").select("user_id").eq("tenant_id", tenantId),
+    (adminClient as SupabaseClient).from("sales_accounts").select("user_id").eq("tenant_id", tenantId),
+  ]);
+  return [
+    ...((kitchen ?? []) as { user_id: string }[]).map((a) => a.user_id),
+    ...((sales ?? []) as { user_id: string }[]).map((a) => a.user_id),
+  ].filter(Boolean);
+}
 
-    // Use admin client to check if org exists (bypass RLS for read)
+async function deleteAuthUsers(adminClient: any, userIds: string[]) {
+  for (const uid of userIds) {
+    await adminClient.auth.admin.deleteUser(uid).catch(() => {});
+  }
+}
+
+/** Delete an organization and all its related data, including auth accounts */
+export async function deleteOrganization(organizationId: string): Promise<DeleteResult> {
+  try {
     const adminClient = await getAdminClient();
-    const { data: org, error: orgError } = await (adminClient as any)
+    const { data: org, error: orgError } = await (adminClient as SupabaseClient)
       .from("organizations")
-      .select("id, name")
+      .select("id, name, owner_id")
       .eq("id", organizationId)
       .single();
 
-    // console.log(`[DELETE] Org lookup result:`, { org, orgError });
-
     if (orgError || !org) {
-      console.error(`[DELETE] Organization not found: ${organizationId}`, orgError);
-      return {
-        success: false,
-        message: "Organization not found",
-        error: orgError?.message || "Invalid organization ID",
-      };
+      return { success: false, message: "Organization not found", error: orgError?.message || "Invalid organization ID" };
     }
 
-    // Get impact summary before deletion
     const impact = await getOrganizationDeletionImpact(organizationId);
 
-    // Log the deletion intent
-    // console.log(`[DELETION] Organization: ${org.name} (${organizationId})`, {
-    //   outletsCount: impact.outletsCount,
-    //   ordersCount: impact.totalOrders,
-    //   customersCount: impact.totalCustomers,
-    //   subscriptionsCount: impact.totalSubscriptions,
-    // });
+    // Collect auth account ids from every outlet before cascade removes them
+    const { data: outlets } = await (adminClient as SupabaseClient)
+      .from("tenants")
+      .select("id")
+      .eq("organization_id", organizationId);
+    const outletIds = ((outlets ?? []) as { id: string }[]).map((o) => o.id);
 
-    // Perform deletion (cascade will handle all related records)
-    // Use admin client to bypass RLS policies
-    const { error: deleteError } = await (adminClient as any)
+    const scopedAuthIds: string[] = [];
+    for (const oid of outletIds) {
+      scopedAuthIds.push(...(await collectTenantAuthIds(adminClient as SupabaseClient, oid)));
+    }
+
+    // Delete the organization (cascades to all tenants and their children)
+    const { error: deleteError } = await (adminClient as SupabaseClient)
       .from("organizations")
       .delete()
       .eq("id", organizationId);
 
     if (deleteError) {
       console.error(`[DELETION FAILED] Organization ${organizationId}:`, deleteError);
-      return {
-        success: false,
-        message: "Failed to delete organization",
-        error: deleteError.message,
-      };
+      return { success: false, message: "Failed to delete organization", error: deleteError.message };
     }
 
-    // console.log(`[DELETION SUCCESS] Organization ${organizationId} and all related records deleted`);
+    // Clean up scoped auth accounts (kitchen/sales)
+    await deleteAuthUsers(adminClient, scopedAuthIds);
+
+    // Delete the owner's auth account so they can re-register
+    const ownerId = (org as any).owner_id as string | null;
+    if (ownerId) {
+      await adminClient.auth.admin.deleteUser(ownerId).catch(() => {});
+    }
 
     return {
       success: true,
-      message: `Organization "${org.name}" and all ${impact.outletsCount} outlet(s) with ${impact.totalOrders} order(s), ${impact.totalCustomers} customer(s), and ${impact.totalSubscriptions} subscription(s) have been permanently deleted.`,
+      message: `Organization "${(org as any).name}" and all ${impact.outletsCount} outlet(s) with ${impact.totalOrders} order(s), ${impact.totalCustomers} customer(s), and ${impact.totalSubscriptions} subscription(s) have been permanently deleted.`,
       deletedCounts: {
         orders: impact.totalOrders,
         customers: impact.totalCustomers,
         subscriptions: impact.totalSubscriptions,
-        invoices: 0, // Not counted but deleted
+        invoices: 0,
         tables: 0,
         reviews: 0,
         staffMembers: 0,
@@ -206,71 +187,82 @@ export async function deleteOrganization(
     };
   } catch (error: any) {
     console.error("[DELETION ERROR] Organization deletion failed:", error);
-    return {
-      success: false,
-      message: "An error occurred while deleting the organization",
-      error: error?.message || "Unknown error",
-    };
+    return { success: false, message: "An error occurred while deleting the organization", error: error?.message || "Unknown error" };
   }
 }
 
-/** Delete an outlet (restaurant/hotel) and all its related data */
+/** Delete an outlet (restaurant/hotel) and all its related data, including auth accounts */
 export async function deleteOutlet(outletId: string): Promise<DeleteResult> {
   try {
-    // Validation: Check if outlet exists
-    const { data: outlet, error: outletError } = await (supabase as any)
+    const adminClient = await getAdminClient();
+
+    const { data: outlet, error: outletError } = await (adminClient as SupabaseClient)
       .from("tenants")
-      .select("id, name, organization_id")
+      .select("id, name, organization_id, owner_id")
       .eq("id", outletId)
       .single();
 
     if (outletError || !outlet) {
-      return {
-        success: false,
-        message: "Outlet not found",
-        error: "Invalid outlet ID",
-      };
+      return { success: false, message: "Outlet not found", error: "Invalid outlet ID" };
     }
 
-    // Get impact summary before deletion
     const impact = await getOutletDeletionImpact(outletId);
+    const scopedAuthIds = await collectTenantAuthIds(adminClient as SupabaseClient, outletId);
 
-    // Log the deletion intent
-    // console.log(`[DELETION] Outlet: ${outlet.name} (${outletId})`, {
-    //   ordersCount: impact.ordersCount,
-    //   customersCount: impact.customersCount,
-    //   subscriptionsCount: impact.subscriptionsCount,
-    //   invoicesCount: impact.invoicesCount,
-    // });
+    const ownerId = (outlet as any).owner_id as string | null;
+    const orgId = (outlet as any).organization_id as string | null;
 
-    // Perform deletion (cascade will handle all related records)
-    // Use admin client to bypass RLS policies
-    const adminClient = await getAdminClient();
-    const { error: deleteError } = await adminClient
+    // Check if owner has other outlets
+    let ownerHasOtherTenants = false;
+    if (ownerId) {
+      const { data: others } = await (adminClient as SupabaseClient)
+        .from("tenants")
+        .select("id")
+        .eq("owner_id", ownerId)
+        .neq("id", outletId)
+        .limit(1);
+      ownerHasOtherTenants = (others ?? []).length > 0;
+    }
+
+    // Delete the outlet (cascade handles child rows)
+    const { error: deleteError } = await (adminClient as SupabaseClient)
       .from("tenants")
       .delete()
       .eq("id", outletId);
 
     if (deleteError) {
       console.error(`[DELETION FAILED] Outlet ${outletId}:`, deleteError);
-      return {
-        success: false,
-        message: "Failed to delete outlet",
-        error: deleteError.message,
-      };
+      return { success: false, message: "Failed to delete outlet", error: deleteError.message };
     }
 
-    // console.log(`[DELETION SUCCESS] Outlet ${outletId} and all related records deleted`);
+    await deleteAuthUsers(adminClient, scopedAuthIds);
+
+    // If this was the owner's last outlet, clean up organization and owner auth
+    if (!ownerHasOtherTenants) {
+      if (orgId) {
+        const { data: remaining } = await (adminClient as SupabaseClient)
+          .from("tenants")
+          .select("id")
+          .eq("organization_id", orgId)
+          .limit(1);
+        if (!remaining || remaining.length === 0) {
+          await (adminClient as SupabaseClient).from("organizations").delete().eq("id", orgId);
+        }
+      }
+      if (ownerId) {
+        await adminClient.auth.admin.deleteUser(ownerId).catch(() => {});
+      }
+    }
 
     return {
       success: true,
-      message: `Outlet "${outlet.name}" with ${impact.ordersCount} order(s), ${impact.customersCount} customer(s), ${impact.subscriptionsCount} subscription(s), and ${impact.invoicesCount} invoice(s) has been permanently deleted.`,
+      message: `Outlet "${(outlet as any).name}" with ${impact.ordersCount} order(s), ${impact.customersCount} customer(s), ${impact.subscriptionsCount} subscription(s), and ${impact.invoicesCount} invoice(s) has been permanently deleted.`,
       deletedCounts: {
         orders: impact.ordersCount,
         customers: impact.customersCount,
         subscriptions: impact.subscriptionsCount,
         invoices: impact.invoicesCount,
-        tables: 0, // Counted in cascade
+        tables: 0,
         reviews: 0,
         staffMembers: 0,
         menuCategories: 0,
@@ -279,10 +271,6 @@ export async function deleteOutlet(outletId: string): Promise<DeleteResult> {
     };
   } catch (error: any) {
     console.error("[DELETION ERROR] Outlet deletion failed:", error);
-    return {
-      success: false,
-      message: "An error occurred while deleting the outlet",
-      error: error?.message || "Unknown error",
-    };
+    return { success: false, message: "An error occurred while deleting the outlet", error: error?.message || "Unknown error" };
   }
 }

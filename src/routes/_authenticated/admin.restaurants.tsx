@@ -34,27 +34,6 @@ const EXPIRING_DAYS = 7;
 const PAGE_SIZE = 10;
 const STATUSES: Status[] = ["pending", "approved", "suspended", "rejected"];
 
-// Child tables removed before the tenant row itself, in dependency order
-// (children before parents). Missing tables are skipped silently, so it is safe
-// to leave entries here for tables this deployment does not have.
-// If your foreign keys already use ON DELETE CASCADE, this loop is a no-op.
-// Typed as string[] on purpose: some of these may not exist in the generated
-// Supabase types, and a literal union would fail to type-check against them.
-const CHILD_TABLES: string[] = [
-  "order_items",
-  "orders",
-  "menu_items",
-  "menu_categories",
-  "restaurant_tables",
-  "staff",
-  "notifications",
-  "subscriptions",
-];
-
-// Postgres/PostgREST codes we treat as "nothing to do here"
-const MISSING_TABLE = "42P01";
-const MISSING_COLUMN = "42703";
-const NOT_FOUND = "PGRST205";
 
 function subState(sub: any): SubState {
   if (!sub?.current_period_end) return "none";
@@ -173,33 +152,22 @@ function Restaurants() {
 
     setDeleting(true);
     try {
-      // 1. Remove dependent rows first. Harmless if FKs already cascade.
-      // Cast scoped to this loop: table names are dynamic and may sit outside
-      // the generated types. The tenants delete below stays fully typed.
-      const db = supabase as any;
-      for (const table of CHILD_TABLES) {
-        const { error } = await db.from(table).delete().eq("tenant_id", deleteTarget.id);
-        if (error && ![MISSING_TABLE, MISSING_COLUMN, NOT_FOUND].includes(error.code as string)) {
-          throw error;
-        }
-      }
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) { toast.error("Session expired"); setDeleting(false); return; }
 
-      // 2. Remove the tenant itself, and confirm a row actually went.
-      const { data, error } = await supabase
-        .from("tenants")
-        .delete()
-        .eq("id", deleteTarget.id)
-        .select("id");
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("Nothing was deleted — the delete policy may not allow this account to remove restaurants.");
-      }
+      const res = await fetch("/api/admin-delete-restaurant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "delete", tenant_id: deleteTarget.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Delete failed");
 
       toast.success(`${deleteTarget.name} deleted permanently`);
       setDeleteTarget(null);
       setConfirmText("");
 
-      // Optimistic local prune, then refetch for the authoritative list.
       setRows(prev => prev.filter(r => r.id !== deleteTarget.id));
       setSubs(prev => {
         const next = { ...prev };
@@ -208,10 +176,7 @@ function Restaurants() {
       });
       load();
     } catch (e: any) {
-      const msg = e?.code === "23503"
-        ? "Other records still reference this restaurant. Add its table to CHILD_TABLES, or set the foreign keys to ON DELETE CASCADE."
-        : e?.message || "Delete failed";
-      toast.error(msg);
+      toast.error(e?.message || "Delete failed");
     } finally {
       setDeleting(false);
     }
@@ -758,8 +723,9 @@ function Restaurants() {
               Delete {deleteTarget?.name}?
             </DialogTitle>
             <DialogDescription>
-              This removes the restaurant and all of its data — subscription, menu, orders and
-              notifications — from the database. It cannot be undone.
+              This permanently removes the restaurant, its owner account, organization, and all
+              data (menu, orders, subscriptions, staff) from the system. The owner can sign up
+              again as a new account. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
