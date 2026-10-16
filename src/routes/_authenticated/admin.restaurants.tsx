@@ -249,7 +249,9 @@ function Restaurants() {
     () => Array.from(new Set(rows.map(r => r.city).filter(Boolean))).sort() as string[],
     [rows]
   );
-  const planList = useMemo(() => Object.values(plans), [plans]);
+  const planList = useMemo(() => Object.values(plans).filter((p: any) => !p.is_free), [plans]);
+  const freePlan = useMemo(() => Object.values(plans).find((p: any) => p.is_free) as any, [plans]);
+  const freeActive = !freePlan || freePlan.is_active !== false;
 
   const statusCounts = useMemo(() => {
     const c: Record<string, number> = { all: rows.length };
@@ -328,7 +330,7 @@ function Restaurants() {
   const subBadge = (sub: any, r: any) => {
     const st = subState(sub);
     if (st === "none") {
-      if (!r.created_at) return "—";
+      if (!r.created_at || !freeActive) return "—";
       const end = new Date(new Date(r.created_at).getTime() + trialDays * 86400000);
       const days = differenceInCalendarDays(end, new Date());
       const cls = days < 0 ? "text-destructive" : days <= EXPIRING_DAYS ? "text-warning" : "text-muted-foreground";
@@ -524,7 +526,7 @@ function Restaurants() {
                   <TableCell><div className="text-sm">{r.owner_name}</div><div className="text-xs text-muted-foreground">{r.owner_email}</div></TableCell>
                   <TableCell className="text-sm whitespace-nowrap">{r.owner_phone || "—"}</TableCell>
                   <TableCell>{r.city || "—"}</TableCell>
-                  <TableCell>{plan ? <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap">{plan.name}</span> : sub ? <span className="text-xs text-muted-foreground">—</span> : <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 whitespace-nowrap">Free trial</span>}</TableCell>
+                  <TableCell>{plan ? <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap">{plan.name}</span> : sub ? <span className="text-xs text-muted-foreground">—</span> : freeActive ? <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 whitespace-nowrap">{freePlan?.name ?? "Free trial"}</span> : <span className="text-xs px-2 py-0.5 rounded bg-destructive/10 text-destructive whitespace-nowrap">No active plan</span>}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{subBadge(sub, r)}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.created_at), "PP")}</TableCell>
                   <TableCell>

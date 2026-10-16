@@ -525,7 +525,7 @@ function CreateWizard({ open, onOpenChange, onCreated }: {
     if (!open) return;
     setStep(1); setType(null); setBiz(blankBiz()); setSingle({ address: "", city: "", state: "", pincode: "" });
     setOutlets([blankOutlet()]); setPlanId("none"); setCycle("monthly"); setActivateNow(false);
-    db.from("subscription_plans").select("id,name,monthly_price,half_yearly_price,yearly_price").eq("is_active", true).order("monthly_price")
+    db.from("subscription_plans").select("id,name,monthly_price,half_yearly_price,yearly_price").eq("is_active", true).eq("is_free", false).order("monthly_price")
       .then(({ data, error }: any) => { if (error) toast.error(error.message); else setPlans(data || []); });
   }, [open]);
 

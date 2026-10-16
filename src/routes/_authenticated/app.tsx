@@ -17,6 +17,9 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { SignOutButton } from "@/components/sign-out-button";
 import { DashboardLoader } from "@/components/dashboard-loader";
 import { differenceInCalendarDays, format } from "date-fns";
@@ -78,6 +81,7 @@ function AppLayout() {
   const [sub, setSub] = useState<any>(null);
   // False until the subscription lookup has finished, so a new owner isn't shown the trial-ended screen early.
   const [subLoaded, setSubLoaded] = useState(false);
+  const [freePlan, setFreePlan] = useState<any>(null);
   const trialDays = useTrialDays();
 
   // What the super admin has switched on for this restaurant.
@@ -90,11 +94,15 @@ function AppLayout() {
   // Outlet Managers run the outlet but never the business: billing and owner
   // settings are hidden here and also blocked by URL below (and by RLS server-side).
   // Pages the owner's plan doesn't include are dropped from the sidebar, and blocked by URL below.
-  // Only a paid, current plan restricts features. Without one the owner gets the full
-  // app for the trial period (from the date the tenant registered), then needs a plan.
-  const plan = sub?.paid ? sub.plan : null;
+  // A paid, current plan sets the features and limits. Without one the owner is on the
+  // admin's free plan for the trial period (from the date the tenant registered), then needs a plan.
+  const paidPlan = sub?.paid ? sub.plan : null;
   const trialEnd = tenant?.created_at ? new Date(tenant.created_at).getTime() + trialDays * 86400000 : 0;
-  const trialEnded = subLoaded && !!tenant && !plan && Date.now() >= trialEnd;
+  // The admin can switch the free plan off: then there is no trial and a plan must be bought.
+  const freeActive = !freePlan || freePlan.is_active !== false;
+  const noActivePlan = subLoaded && !!tenant && !paidPlan && !freeActive;
+  const trialEnded = subLoaded && !!tenant && !paidPlan && freeActive && Date.now() >= trialEnd;
+  const plan = paidPlan ?? (freeActive ? freePlan : null);
   const planSections = ownerVisibleSections
     .map((s) => ({ ...s, items: s.items.filter((i) => planAllows(plan?.features, i.feature)) }))
     .filter((s) => s.items.length > 0);
@@ -145,7 +153,7 @@ function AppLayout() {
 
     async function loadSub() {
       // Query subscriptions with all non-canceled statuses
-      const [{ data: subs }, { data: invoices }] = await Promise.all([
+      const [{ data: subs }, { data: invoices }, { data: free }] = await Promise.all([
         supabase
           .from("subscriptions")
           .select("*")
@@ -157,9 +165,16 @@ function AppLayout() {
           .select("*")
           .eq("tenant_id", tenantId)
           .order("issued_at", { ascending: false }),
+        // Errors (e.g. before the free-plan migration) leave this null: trial stays fully open.
+        supabase
+          .from("subscription_plans")
+          .select("name, features, max_tables, max_orders_month, max_menu_items, max_staff, is_active")
+          .eq("is_free", true)
+          .maybeSingle(),
       ]);
 
       if (cancelled) return;
+      setFreePlan(free ?? null);
 
       // Most recent subscription (any non-canceled status)
       // The active subscription if there is one, otherwise the newest non-canceled one.
@@ -226,6 +241,10 @@ function AppLayout() {
     }
   }, [loading, tenant, navigate]);
 
+  // Free plan switched off and nothing bought: a modal on every other page points to the plans.
+  // Closing it only hides it for the current page.
+  const [planModalClosedOn, setPlanModalClosedOn] = useState<string | null>(null);
+
   if (status === "loading") return <DashboardLoader />;
   if (status === "none") return <NoTenant />;
   if (status !== "approved") return <AwaitingApproval status={status} tenant={tenant} />;
@@ -253,11 +272,15 @@ function AppLayout() {
   const outletStatus = (tenant as (Tenant & { outlet_status?: string }) | null)?.outlet_status ?? "ACTIVE";
   const outletInactive = outletStatus !== "ACTIVE";
   const onPaymentPage = pathname === "/app/subscription" || pathname === "/app/franchise";
-  const outletBlocked = (outletInactive || trialEnded) && !onPaymentPage;
-  const blockedTitle = trialEnded && !outletInactive
+  const outletBlocked = (outletInactive || trialEnded || noActivePlan) && !onPaymentPage;
+  const blockedTitle = noActivePlan && !outletInactive
+    ? "No active plan"
+    : trialEnded && !outletInactive
     ? "Your free trial has ended"
     : outletStatus === "PENDING_PAYMENT" ? `Activate ${tenant?.name}` : `${tenant?.name} is not active`;
-  const blockedText = trialEnded && !outletInactive
+  const blockedText = noActivePlan && !outletInactive
+    ? "Your restaurant doesn't have an active plan. Choose a plan to start using it."
+    : trialEnded && !outletInactive
     ? `Your ${trialDays}-day free trial has ended. Choose a plan to keep using your restaurant.`
     : outletStatus === "PENDING_PAYMENT"
       ? "This outlet needs an active subscription before it can take orders. Choose a plan and pay to activate it."
@@ -378,7 +401,7 @@ function AppLayout() {
                   <Badge variant="secondary" className="shrink-0 md:ml-2">Manager</Badge>
                 )}
               </div>
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex min-w-0 items-center gap-1 sm:gap-2">
                 {onSecurePage && secureUnlocked && !pageDisabled && (
                   <Button
                     size="sm"
@@ -391,24 +414,33 @@ function AppLayout() {
                 )}
                 {!isOutletManager && <Link
                   to="/app/subscription"
-                  className="hidden items-center gap-2 rounded-full border px-3 py-1.5 text-xs hover:bg-accent/40 md:flex"
+                  className="flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] hover:bg-accent/40 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs"
                 >
-                  <CreditCard className="h-3 w-3 text-primary" />
-                  <span className="font-medium">{sub?.plan?.name ?? "Free trial"}</span>
+                  <CreditCard className="hidden h-3 w-3 shrink-0 text-primary sm:block" />
+                  <span className={`min-w-0 truncate font-medium ${!sub?.plan && noActivePlan ? "text-destructive" : ""}`}>
+                    {sub?.plan?.name ?? (noActivePlan ? "No active plan" : freePlan?.name ?? "Free trial")}
+                  </span>
                   {sub?.paid && sub?.cycle && (
-                    <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                    <span className="hidden rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline">
                       {CYCLE_LABEL[sub.cycle as string] ?? sub.cycle}
                     </span>
                   )}
+                  {/* Phones show only the days left; the date appears from sm up. */}
                   {sub?.current_period_end ? (
-                    <span className="text-muted-foreground">
-                      · renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}
+                    <span className="shrink-0 text-muted-foreground">
+                      <span className="hidden sm:inline">· renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}</span>
                       {daysLeftLabel(new Date(sub.current_period_end).getTime())}
                     </span>
-                  ) : !sub?.plan && trialEnd > 0 && (
-                    <span className={trialEnded ? "text-destructive" : "text-muted-foreground"}>
-                      · {trialEnded && "ended "}{format(new Date(trialEnd), "MMM d, yyyy")}
-                      {!trialEnded && daysLeftLabel(trialEnd)}
+                  ) : !sub?.plan && !noActivePlan && trialEnd > 0 && (
+                    <span className={`shrink-0 ${trialEnded ? "text-destructive" : "text-muted-foreground"}`}>
+                      {trialEnded ? (
+                        <>· ended<span className="hidden sm:inline"> {format(new Date(trialEnd), "MMM d, yyyy")}</span></>
+                      ) : (
+                        <>
+                          <span className="hidden sm:inline">· {format(new Date(trialEnd), "MMM d, yyyy")}</span>
+                          {daysLeftLabel(trialEnd)}
+                        </>
+                      )}
                     </span>
                   )}
                 </Link>}
@@ -468,6 +500,33 @@ function AppLayout() {
             </main>
 
             {!locked && <MobileNav tabs={mobileTabs} />}
+
+            <Dialog
+              open={noActivePlan && !onPaymentPage && planModalClosedOn !== pathname}
+              onOpenChange={(o) => { if (!o) setPlanModalClosedOn(pathname); }}
+            >
+              <DialogContent className="w-[calc(100%-2rem)] rounded-2xl sm:max-w-sm text-center">
+                <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-destructive/10 text-destructive">
+                  <CreditCard className="h-6 w-6" />
+                </div>
+                <DialogHeader className="items-center space-y-1 sm:text-center">
+                  <DialogTitle>No active plan</DialogTitle>
+                  <DialogDescription>
+                    {current?.label ? `${current.label} needs an active plan. ` : ""}
+                    Your restaurant doesn't have an active plan yet. Choose a plan to start using all pages.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="sm:justify-center">
+                  {isOutletManager ? (
+                    <p className="text-sm text-muted-foreground">Ask the owner to buy a plan.</p>
+                  ) : (
+                    <Button className="w-full" onClick={() => navigate({ to: "/app/subscription" })}>
+                      <CreditCard className="mr-1 h-4 w-4" />Choose a plan
+                    </Button>
+                  )}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </SidebarProvider>
@@ -478,7 +537,12 @@ function AppLayout() {
 function daysLeftLabel(end: number) {
   const days = differenceInCalendarDays(end, new Date());
   if (days < 0) return null;
-  return <span className="ml-1 font-medium text-foreground">({days === 0 ? "ends today" : `${days} day${days === 1 ? "" : "s"} left`})</span>;
+  return (
+    <span className="font-medium text-foreground sm:ml-1">
+      <span className="sm:hidden">{days === 0 ? "· today" : `· ${days}d left`}</span>
+      <span className="hidden sm:inline">({days === 0 ? "ends today" : `${days} day${days === 1 ? "" : "s"} left`})</span>
+    </span>
+  );
 }
 
 /** Shown when the page exists but the platform has switched it off. */
@@ -493,6 +557,7 @@ function PageUnavailable({ label, planLocked = false, lockedFeature }: { label?:
         .from("subscription_plans")
         .select("id,name,description,monthly_price,features,tag,icon")
         .eq("is_active", true)
+        .eq("is_free", false)
         .order("monthly_price");
       const qualifying = (data || []).filter((p: any) => {
         const f = p.features ?? {};

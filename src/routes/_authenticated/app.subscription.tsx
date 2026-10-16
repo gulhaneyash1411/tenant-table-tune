@@ -123,7 +123,7 @@ function SubscriptionPage() {
     try { await (supabase as any).rpc("activate_scheduled_subscriptions"); } catch { /* ignore */ }
 
     const [{ data: pl }, { data: sb }, { data: inv }] = await Promise.all([
-      supabase.from("subscription_plans").select("*").eq("is_active", true).order("sort_order"),
+      supabase.from("subscription_plans").select("*").eq("is_active", true).eq("is_free", false).order("sort_order"),
       (supabase as any)
         .from("subscriptions")
         .select("*, plan:subscription_plans(*)")

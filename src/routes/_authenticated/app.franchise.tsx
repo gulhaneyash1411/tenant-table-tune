@@ -48,7 +48,7 @@ function OutletsPage() {
     (async () => {
       const { data } = await supabase
         .from("subscription_plans").select("id,name,description,monthly_price,half_yearly_price,yearly_price")
-        .eq("is_active", true).order("monthly_price");
+        .eq("is_active", true).eq("is_free", false).order("monthly_price");
       setPlans(((data ?? []) as any[]).map((p) => ({ ...p, monthly_price: Number(p.monthly_price), half_yearly_price: p.half_yearly_price == null ? null : Number(p.half_yearly_price), yearly_price: p.yearly_price == null ? null : Number(p.yearly_price) })));
     })();
   }, [step, plans.length]);

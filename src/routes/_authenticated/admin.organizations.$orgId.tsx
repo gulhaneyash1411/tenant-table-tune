@@ -447,7 +447,7 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
   }, [idKey]);
 
   const plans = useAsync(async () => {
-    const { data, error } = await sb.from("subscription_plans").select("id, name, monthly_price, half_yearly_price, yearly_price").eq("is_active", true).order("monthly_price");
+    const { data, error } = await sb.from("subscription_plans").select("id, name, monthly_price, half_yearly_price, yearly_price").eq("is_active", true).eq("is_free", false).order("monthly_price");
     if (error) throw new Error(error.message);
     return data as Plan[];
   }, []);
