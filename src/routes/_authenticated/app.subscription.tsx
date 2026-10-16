@@ -488,6 +488,9 @@ function SubscriptionPage() {
                 <div className="flex min-w-0 items-center gap-2 font-semibold text-lg"><PlanIconGlyph name={p.icon} className="h-5 w-5 shrink-0 text-primary" />{p.name}</div>
                 <div className="flex flex-wrap justify-end gap-1">
                   {p.tag && <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">{p.tag}</span>}
+                  {planAllows(p.features, "settings_outlets") && (
+                    <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Multi-outlet</span>
+                  )}
                   {isCurrent && <Badge>{activeNow ? "Current" : completed ? "Completed" : "Expired"}</Badge>}
                   {isRequested && <Badge variant="outline">{hasNextPlan ? "Next plan" : "Requested"}</Badge>}
                 </div>

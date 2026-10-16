@@ -8,7 +8,7 @@ import {
   SidebarRail, SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
-  CreditCard, Rocket, AlertTriangle, LockKeyhole, Eye, EyeOff, Loader2,
+  Building2, CreditCard, Rocket, AlertTriangle, LockKeyhole, Eye, EyeOff, Loader2,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { OutletSwitcher } from "@/components/outlet-switcher";
@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "@/components/sign-out-button";
 import { DashboardLoader } from "@/components/dashboard-loader";
-import { format } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import {
   ALL_ITEMS, MOBILE_TAB_KEYS, findItemByPath, isActivePath, sectionOfItem,
   type NavItem, type NavSection,
@@ -266,9 +266,10 @@ function AppLayout() {
   // Pages the plan doesn't include. The Outlets page stays open while an outlet is
   // awaiting payment, otherwise it could never be activated.
   const onFranchisePage = pathname === "/app/franchise" || pathname.startsWith("/app/franchise/");
-  const planLocked =
-    (!!registryItem && !planAllows(plan?.features, registryItem.feature)) ||
-    (onFranchisePage && !outletInactive && !planAllows(plan?.features, "settings_outlets"));
+  const planLockedFeature =
+    (!!registryItem && !planAllows(plan?.features, registryItem.feature)) ? registryItem.feature :
+    (onFranchisePage && !outletInactive && !planAllows(plan?.features, "settings_outlets")) ? "settings_outlets" : null;
+  const planLocked = !!planLockedFeature;
   const pageDisabled =
     (isOutletManager && MANAGER_BLOCKED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) ||
     (!!registryItem &&
@@ -399,9 +400,15 @@ function AppLayout() {
                       {CYCLE_LABEL[sub.cycle as string] ?? sub.cycle}
                     </span>
                   )}
-                  {sub?.current_period_end && (
+                  {sub?.current_period_end ? (
                     <span className="text-muted-foreground">
                       · renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}
+                      {daysLeftLabel(new Date(sub.current_period_end).getTime())}
+                    </span>
+                  ) : !sub?.plan && trialEnd > 0 && (
+                    <span className={trialEnded ? "text-destructive" : "text-muted-foreground"}>
+                      · {trialEnded && "ended "}{format(new Date(trialEnd), "MMM d, yyyy")}
+                      {!trialEnded && daysLeftLabel(trialEnd)}
                     </span>
                   )}
                 </Link>}
@@ -421,7 +428,7 @@ function AppLayout() {
                 </div>
               )}
               {pageDisabled ? (
-                <PageUnavailable label={registryItem?.label} planLocked={planLocked} />
+                <PageUnavailable label={registryItem?.label} planLocked={planLocked} lockedFeature={planLockedFeature} />
               ) : outletBlocked ? (
                 <div className="grid min-h-[50vh] place-items-center">
                   <div className="max-w-md text-center">
@@ -468,26 +475,80 @@ function AppLayout() {
   );
 }
 
+function daysLeftLabel(end: number) {
+  const days = differenceInCalendarDays(end, new Date());
+  if (days < 0) return null;
+  return <span className="ml-1 font-medium text-foreground">({days === 0 ? "ends today" : `${days} day${days === 1 ? "" : "s"} left`})</span>;
+}
+
 /** Shown when the page exists but the platform has switched it off. */
-function PageUnavailable({ label, planLocked = false }: { label?: string; planLocked?: boolean }) {
+function PageUnavailable({ label, planLocked = false, lockedFeature }: { label?: string; planLocked?: boolean; lockedFeature?: string | null }) {
+  const [upgradePlans, setUpgradePlans] = useState<any[]>([]);
+  const isOutletLocked = lockedFeature === "settings_outlets";
+
+  useEffect(() => {
+    if (!isOutletLocked) return;
+    (async () => {
+      const { data } = await supabase
+        .from("subscription_plans")
+        .select("id,name,description,monthly_price,features,tag,icon")
+        .eq("is_active", true)
+        .order("monthly_price");
+      const qualifying = (data || []).filter((p: any) => {
+        const f = p.features ?? {};
+        if (Object.keys(f).length === 0) return true;
+        return f.settings_outlets === true;
+      });
+      setUpgradePlans(qualifying);
+    })();
+  }, [isOutletLocked]);
+
   return (
     <div className="grid min-h-[50vh] place-items-center">
-      <div className="max-w-md text-center">
-        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-muted text-muted-foreground">
-          <EyeOff className="h-6 w-6" />
+      <div className={isOutletLocked && upgradePlans.length > 0 ? "w-full max-w-2xl text-center" : "max-w-md text-center"}>
+        <div className={`mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full ${planLocked ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+          {planLocked ? <CreditCard className="h-6 w-6" /> : <EyeOff className="h-6 w-6" />}
         </div>
         <h1 className="text-xl font-semibold">
-          {planLocked
+          {isOutletLocked
+            ? "Multi-outlet requires a plan upgrade"
+            : planLocked
             ? `${label ?? "This page"} isn't included in your plan`
             : label ? `${label} isn't available` : "This page isn't available"}
         </h1>
         <p className="mt-2 text-muted-foreground">
-          {planLocked
+          {isOutletLocked
+            ? "To manage multiple outlets from one account, you need a plan that includes multi-outlet support. Choose one of the plans below to get started."
+            : planLocked
             ? "Upgrade your subscription to unlock this section."
             : "This section has been turned off for your account. Contact support if you need it enabled."}
         </p>
+
+        {isOutletLocked && upgradePlans.length > 0 && (
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 text-left">
+            {upgradePlans.map((p: any) => (
+              <Link key={p.id} to="/app/subscription">
+                <Card className="p-4 transition hover:border-primary hover:shadow-sm cursor-pointer h-full">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{p.name}</span>
+                    {p.tag && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">{p.tag}</span>}
+                  </div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(p.monthly_price))}
+                    <span className="text-xs font-normal text-muted-foreground"> /mo</span>
+                  </div>
+                  {p.description && <div className="mt-1 text-xs text-muted-foreground line-clamp-2">{p.description}</div>}
+                  <div className="mt-2 flex items-center gap-1 text-xs font-medium text-primary">
+                    <Building2 className="h-3.5 w-3.5" /> Multi-outlet included
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+
         <Link to={planLocked ? "/app/subscription" : "/app"}>
-          <Button className="mt-6" variant="outline">{planLocked ? "View plans" : "Back to dashboard"}</Button>
+          <Button className="mt-6" variant="outline">{planLocked ? "View all plans" : "Back to dashboard"}</Button>
         </Link>
       </div>
     </div>
