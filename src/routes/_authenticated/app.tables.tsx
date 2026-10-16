@@ -407,6 +407,7 @@ function TablesPage() {
       .from("restaurant_tables")
       .insert({ tenant_id: tenant.id, label, seats });
     if (error) return toast.error(error.message);
+    toast.success(`${clean} added — its QR code is generated`);
     setLabel("Table ");
     load();
   }
