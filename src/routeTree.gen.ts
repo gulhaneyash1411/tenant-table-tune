@@ -41,6 +41,9 @@ import { Route as AuthenticatedAppIndexRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as ApiPublicWhatsappStatusRouteImport } from './routes/api/public/whatsapp-status'
 import { Route as ApiPublicWhatsappDispatchRouteImport } from './routes/api/public/whatsapp-dispatch'
+import { Route as ApiCashfreeWebhookRouteImport } from './routes/api/cashfree/webhook'
+import { Route as ApiCashfreeVerifyRouteImport } from './routes/api/cashfree/verify'
+import { Route as ApiCashfreeCreateOrderRouteImport } from './routes/api/cashfree/create-order'
 import { Route as AuthenticatedAppWhatsappRouteImport } from './routes/_authenticated/app.whatsapp'
 import { Route as AuthenticatedAppTablesRouteImport } from './routes/_authenticated/app.tables'
 import { Route as AuthenticatedAppSubscriptionRouteImport } from './routes/_authenticated/app.subscription'
@@ -244,6 +247,21 @@ const ApiPublicWhatsappDispatchRoute =
     path: '/api/public/whatsapp-dispatch',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiCashfreeWebhookRoute = ApiCashfreeWebhookRouteImport.update({
+  id: '/api/cashfree/webhook',
+  path: '/api/cashfree/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCashfreeVerifyRoute = ApiCashfreeVerifyRouteImport.update({
+  id: '/api/cashfree/verify',
+  path: '/api/cashfree/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCashfreeCreateOrderRoute = ApiCashfreeCreateOrderRouteImport.update({
+  id: '/api/cashfree/create-order',
+  path: '/api/cashfree/create-order',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppWhatsappRoute =
   AuthenticatedAppWhatsappRouteImport.update({
     id: '/whatsapp',
@@ -534,6 +552,9 @@ export interface FileRoutesByFullPath {
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
+  '/api/cashfree/create-order': typeof ApiCashfreeCreateOrderRoute
+  '/api/cashfree/verify': typeof ApiCashfreeVerifyRoute
+  '/api/cashfree/webhook': typeof ApiCashfreeWebhookRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -605,6 +626,9 @@ export interface FileRoutesByTo {
   '/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/app/tables': typeof AuthenticatedAppTablesRoute
   '/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
+  '/api/cashfree/create-order': typeof ApiCashfreeCreateOrderRoute
+  '/api/cashfree/verify': typeof ApiCashfreeVerifyRoute
+  '/api/cashfree/webhook': typeof ApiCashfreeWebhookRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -680,6 +704,9 @@ export interface FileRoutesById {
   '/_authenticated/app/subscription': typeof AuthenticatedAppSubscriptionRoute
   '/_authenticated/app/tables': typeof AuthenticatedAppTablesRoute
   '/_authenticated/app/whatsapp': typeof AuthenticatedAppWhatsappRoute
+  '/api/cashfree/create-order': typeof ApiCashfreeCreateOrderRoute
+  '/api/cashfree/verify': typeof ApiCashfreeVerifyRoute
+  '/api/cashfree/webhook': typeof ApiCashfreeWebhookRoute
   '/api/public/whatsapp-dispatch': typeof ApiPublicWhatsappDispatchRoute
   '/api/public/whatsapp-status': typeof ApiPublicWhatsappStatusRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -755,6 +782,9 @@ export interface FileRouteTypes {
     | '/app/subscription'
     | '/app/tables'
     | '/app/whatsapp'
+    | '/api/cashfree/create-order'
+    | '/api/cashfree/verify'
+    | '/api/cashfree/webhook'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
     | '/admin/'
@@ -826,6 +856,9 @@ export interface FileRouteTypes {
     | '/app/subscription'
     | '/app/tables'
     | '/app/whatsapp'
+    | '/api/cashfree/create-order'
+    | '/api/cashfree/verify'
+    | '/api/cashfree/webhook'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
     | '/admin'
@@ -900,6 +933,9 @@ export interface FileRouteTypes {
     | '/_authenticated/app/subscription'
     | '/_authenticated/app/tables'
     | '/_authenticated/app/whatsapp'
+    | '/api/cashfree/create-order'
+    | '/api/cashfree/verify'
+    | '/api/cashfree/webhook'
     | '/api/public/whatsapp-dispatch'
     | '/api/public/whatsapp-status'
     | '/_authenticated/admin/'
@@ -933,6 +969,9 @@ export interface RootRouteChildren {
   SalesLoginRoute: typeof SalesLoginRoute
   TTableIdRoute: typeof TTableIdRoute
   TakeawayTenantIdRoute: typeof TakeawayTenantIdRoute
+  ApiCashfreeCreateOrderRoute: typeof ApiCashfreeCreateOrderRoute
+  ApiCashfreeVerifyRoute: typeof ApiCashfreeVerifyRoute
+  ApiCashfreeWebhookRoute: typeof ApiCashfreeWebhookRoute
   ApiPublicWhatsappDispatchRoute: typeof ApiPublicWhatsappDispatchRoute
   ApiPublicWhatsappStatusRoute: typeof ApiPublicWhatsappStatusRoute
 }
@@ -1161,6 +1200,27 @@ declare module '@tanstack/react-router' {
       path: '/api/public/whatsapp-dispatch'
       fullPath: '/api/public/whatsapp-dispatch'
       preLoaderRoute: typeof ApiPublicWhatsappDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cashfree/webhook': {
+      id: '/api/cashfree/webhook'
+      path: '/api/cashfree/webhook'
+      fullPath: '/api/cashfree/webhook'
+      preLoaderRoute: typeof ApiCashfreeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cashfree/verify': {
+      id: '/api/cashfree/verify'
+      path: '/api/cashfree/verify'
+      fullPath: '/api/cashfree/verify'
+      preLoaderRoute: typeof ApiCashfreeVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cashfree/create-order': {
+      id: '/api/cashfree/create-order'
+      path: '/api/cashfree/create-order'
+      fullPath: '/api/cashfree/create-order'
+      preLoaderRoute: typeof ApiCashfreeCreateOrderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/app/whatsapp': {
@@ -1592,6 +1652,9 @@ const rootRouteChildren: RootRouteChildren = {
   SalesLoginRoute: SalesLoginRoute,
   TTableIdRoute: TTableIdRoute,
   TakeawayTenantIdRoute: TakeawayTenantIdRoute,
+  ApiCashfreeCreateOrderRoute: ApiCashfreeCreateOrderRoute,
+  ApiCashfreeVerifyRoute: ApiCashfreeVerifyRoute,
+  ApiCashfreeWebhookRoute: ApiCashfreeWebhookRoute,
   ApiPublicWhatsappDispatchRoute: ApiPublicWhatsappDispatchRoute,
   ApiPublicWhatsappStatusRoute: ApiPublicWhatsappStatusRoute,
 }

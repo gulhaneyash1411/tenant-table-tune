@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { money } from "@/lib/format";
 import { ListOrdered, Utensils, Users, Star } from "lucide-react";
-import { BusinessOverview } from "@/components/business-overview";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
 export const Route = createFileRoute("/_authenticated/app/")({ component: Dashboard });
@@ -38,7 +37,6 @@ function Dashboard() {
   ];
   return (
     <div className="space-y-6">
-      <BusinessOverview />
       <div className="grid gap-4 md:grid-cols-4">
         {cards.map(c => (
           <Card key={c.label} className="p-5">
