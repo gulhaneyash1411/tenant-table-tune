@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { OfflineBanner } from "@/components/offline-banner";
-import { AppWelcome, APP_WELCOME_SCRIPT } from "@/components/app-welcome";
 import { supabase } from "@/integrations/supabase/client";
 import { absoluteUrl, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, DEFAULT_TITLE, SITE_NAME } from "@/lib/seo";
 
@@ -114,10 +113,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    // suppressHydrationWarning: the welcome script may set data-welcome before React hydrates.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <head>
-        <script dangerouslySetInnerHTML={{ __html: APP_WELCOME_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -142,7 +139,6 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppWelcome />
       <OfflineBanner />
       <Outlet />
       <Toaster richColors position="top-right" />
