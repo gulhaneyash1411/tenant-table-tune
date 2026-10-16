@@ -4,6 +4,8 @@ export const UPI_ID = import.meta.env.VITE_UPI_ID || "dineeatz@okaxis";
 export const UPI_PAYEE_NAME = import.meta.env.VITE_UPI_PAYEE_NAME || "DineEatz";
 
 export const PAYMENT_METHOD_UPI = "upi_qr";
+// Subscription payments made online through the Cashfree gateway.
+export const PAYMENT_METHOD_CASHFREE = "cashfree";
 
 export const INVOICE_STATUS = {
   PENDING: "pending",

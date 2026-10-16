@@ -1,30 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { money } from "@/lib/format";
 import { format } from "date-fns";
 import {
-  CalendarClock, Check, CheckCircle2, Clock, CreditCard, Download, History, QrCode, Smartphone, X, XCircle,
+  CalendarClock, Check, CheckCircle2, Clock, CreditCard, Download, History, ShieldCheck, X, XCircle,
 } from "lucide-react";
 import {
-  UPI_ID,
-  UPI_PAYEE_NAME,
   PAYMENT_METHOD_UPI,
+  PAYMENT_METHOD_CASHFREE,
   INVOICE_STATUS,
-  UTR_PATTERN,
-  buildUpiUrl,
   invoiceExpiry,
 } from "@/lib/payment-config";
+import { createCashfreeOrder, openCashfreeModal, verifyCashfreeOrder } from "@/lib/cashfree-checkout";
 import { useTrialDays } from "@/lib/site-settings";
 import { downloadInvoiceById } from "@/lib/invoice-download";
 import { BILLING_CYCLES, addBillingCycle, type BillingCycle } from "@/lib/payment-config";
@@ -42,7 +37,7 @@ const CYCLE_OPTIONS: { value: Cycle; label: string; months: number }[] = [
   { value: "half_yearly", label: "Half-yearly", months: 6 },
   { value: "yearly", label: "Yearly", months: 12 },
 ];
-type Checkout = { plan: any; cycle: Cycle; amount: number; invoiceNumber: string; startsAfter: Date | null };
+type Checkout = { plan: any; cycle: Cycle; amount: number; startsAfter: Date | null };
 
 // Compact, rounded, scrollable modal shell shared by both dialogs
 const MODAL_CLASS =
@@ -107,10 +102,9 @@ function SubscriptionPage() {
   function setCardCycle(id: string, c: Cycle) { setCycleByPlan((prev) => ({ ...prev, [id]: c })); }
 
   const [checkout, setCheckout] = useState<Checkout | null>(null);
-  const [step, setStep] = useState<"pay" | "done">("pay");
-  const [utr, setUtr] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [paying, setPaying] = useState(false);
+  // Outcome of a Cashfree payment, shown after Cashfree redirects back here.
+  const [payResult, setPayResult] = useState<"checking" | "paid" | "pending" | "failed" | null>(null);  const [historyOpen, setHistoryOpen] = useState(false);
 
   async function load() {
     const { data: u } = await supabase.auth.getUser();
@@ -138,9 +132,22 @@ function SubscriptionPage() {
     ]);
     setPlans(pl || []);
     setSubs(sb || []);
-    setHistory(inv || []);
+    // An online order that was never paid (abandoned or failed) isn't a real invoice for the owner.
+    setHistory((inv || []).filter((r: any) => r.payment_method !== PAYMENT_METHOD_CASHFREE || r.status === "paid"));
   }
   useEffect(() => { load(); }, []);
+
+  // Back from Cashfree: confirm the order on the server (it activates the plan if paid).
+  useEffect(() => {
+    const orderId = new URLSearchParams(window.location.search).get("cf_order");
+    if (!orderId) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    setPayResult("checking");
+    verifyCashfreeOrder(orderId)
+      .then(setPayResult)
+      .catch((e) => { setPayResult(null); toast.error(e.message); })
+      .finally(load);
+  }, []);
 
   // ---- derived plan state ----
   const now = new Date();
@@ -235,62 +242,61 @@ function SubscriptionPage() {
       plan,
       cycle: c,
       amount,
-      invoiceNumber: "INV-" + Date.now().toString().slice(-8),
       startsAfter: activeNow ? currentEnd : null,
     });
-    setUtr("");
-    setStep("pay");
   }
 
   function closeCheckout() {
     setCheckout(null);
-    setUtr("");
-    setStep("pay");
   }
 
-  async function submitPayment() {
+  // Opens Cashfree's payment popup over this page. The plan is activated on the
+  // server only after it confirms the payment with Cashfree (or via the webhook).
+  async function payNow() {
     if (!checkout || !tenant) return;
-    const ref = utr.trim().toUpperCase();
-    if (!UTR_PATTERN.test(ref)) {
-      return toast.error("Enter the UPI transaction ID (UTR) shown in your payment app");
+    setPaying(true);
+    let order;
+    try {
+      order = await createCashfreeOrder({ tenantId: tenant.id, planId: checkout.plan.id, cycle: checkout.cycle });
+    } catch (e: any) {
+      toast.error(e.message);
+      setPaying(false);
+      return;
     }
-
-    setSubmitting(true);
-    // Not activated here. The admin verifies the payment; approval either
-    // activates it now or schedules it after the current plan ends.
-    const { error } = await (supabase as any).from("invoices").insert({
-      tenant_id: tenant.id,
-      plan_id: checkout.plan.id,
-      plan: checkout.plan.name,
-      billing_cycle: checkout.cycle,
-      amount: checkout.amount,
-      tax: Math.round(checkout.amount * 0.18),
-      status: PENDING_APPROVAL,
-      payment_method: PAYMENT_METHOD_UPI,
-      utr: ref,
-      issued_at: new Date().toISOString(),
-      paid_at: null,
-      invoice_number: checkout.invoiceNumber,
-    });
-    setSubmitting(false);
-
-    if (error) {
-      if (error.code === "23505") return toast.error("This transaction ID has already been submitted");
-      return toast.error(error.message);
+    // Our dialog traps focus and clicks, so close it before Cashfree's popup opens.
+    closeCheckout();
+    setPaying(false);
+    try {
+      const { redirecting } = await openCashfreeModal(order.payment_session_id);
+      if (redirecting) return; // the bank page takes over; we verify on return
+    } catch (e: any) {
+      toast.error(e.message);
     }
-    setStep("done");
+    // Paid, failed or closed: the server asks Cashfree which one it was.
+    setPayResult("checking");
+    try {
+      const status = await verifyCashfreeOrder(order.order_id);
+      // Popup closed before Cashfree saw a payment. A UPI payment can still be in flight,
+      // so the order stays open and the webhook activates the plan if it goes through.
+      if (status === "pending") {
+        setPayResult(null);
+        toast.info("Payment not completed. If money was debited, your plan will start automatically once the bank confirms it.");
+      } else {
+        setPayResult(status);
+      }
+    } catch (e: any) {
+      setPayResult(null);
+      toast.error(e.message);
+    }
     load();
   }
 
   function paymentLabel(r: any) {
+    if (r.payment_method === PAYMENT_METHOD_CASHFREE) return "Online";
     if (r.payment_method === PAYMENT_METHOD_UPI) return "UPI";
     if (r.payment_method === "manual") return "Manual";
     return "—";
   }
-
-  const upiUrl = checkout
-    ? buildUpiUrl(checkout.amount, `${checkout.invoiceNumber} ${checkout.plan.name} ${checkout.cycle}`)
-    : "";
 
   return (
     <div className="space-y-6">
@@ -575,23 +581,23 @@ function SubscriptionPage() {
       </div>
 
       {/* Checkout dialog — compact, rounded, scrolls on small screens */}
-      <Dialog open={!!checkout} onOpenChange={(o) => !o && !submitting && closeCheckout()}>
+      <Dialog open={!!checkout} onOpenChange={(o) => !o && !paying && closeCheckout()}>
         <DialogContent className={`${MODAL_CLASS} sm:max-w-sm`}>
-          {checkout && step === "pay" && (
+          {checkout && (
             <>
               <DialogHeader className="space-y-1">
                 <DialogTitle className="flex items-center gap-2 text-base">
-                  <QrCode className="h-4 w-4 text-primary" />
+                  <CreditCard className="h-4 w-4 text-primary" />
                   Pay for {checkout.plan.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs">
-                  Scan with any UPI app and pay the exact amount.
+                  Pay securely with UPI, card, net banking or wallet. Your plan starts as soon as the payment succeeds.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-3">
                 <div className="rounded-xl bg-muted/40 px-3 py-2 text-sm flex justify-between">
-                  <span className="capitalize">{checkout.plan.name} · {checkout.cycle}</span>
+                  <span className="capitalize">{checkout.plan.name} · {CYCLE_NAME[checkout.cycle]}</span>
                   <span className="font-semibold">{money(checkout.amount)}</span>
                 </div>
 
@@ -602,90 +608,63 @@ function SubscriptionPage() {
                   </div>
                 )}
 
-                <div className="flex flex-col items-center gap-2">
-                  {/* White background keeps the QR scannable in dark mode */}
-                  <div className="rounded-xl bg-white p-2.5 border">
-                    <QRCodeSVG value={upiUrl} size={168} level="M" />
-
-                    {/* here below replace the Qr  */}
-              {/* <img src="\public\upi-qr.png" alt="UPI QR code" width={168} height={168} /> */}
-
-                  </div>
-                  <div className="text-xs text-muted-foreground text-center leading-relaxed">
-                    Paying <span className="font-medium text-foreground">{UPI_PAYEE_NAME}</span>
-                    <br />
-                    <span className="break-all">{UPI_ID}</span> · Ref {checkout.invoiceNumber}
-                  </div>
-                  <Button asChild variant="outline" size="sm" className="md:hidden rounded-full">
-                    <a href={upiUrl}>
-                      <Smartphone className="h-4 w-4 mr-1" />
-                      Open UPI app
-                    </a>
-                  </Button>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="utr" className="text-xs">UPI transaction ID (UTR)</Label>
-                  <Input
-                    id="utr"
-                    placeholder="e.g. 412345678901"
-                    value={utr}
-                    autoComplete="off"
-                    className="rounded-lg"
-                    onChange={(e) => setUtr(e.target.value.replace(/\s+/g, ""))}
-                  />
-                  <div className="text-[11px] text-muted-foreground">
-                    Copy the 12-digit transaction ID from your UPI app after paying.
-                  </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                  Payments are processed securely by Cashfree.
                 </div>
               </div>
 
               <DialogFooter className="gap-2 sm:gap-2">
-                <Button variant="outline" className="rounded-lg" onClick={closeCheckout} disabled={submitting}>
+                <Button variant="outline" className="rounded-lg" onClick={closeCheckout} disabled={paying}>
                   Cancel
                 </Button>
-                <Button className="rounded-lg" onClick={submitPayment} disabled={submitting || !utr}>
-                  {submitting ? "Submitting…" : "I've paid"}
+                <Button className="rounded-lg" onClick={payNow} disabled={paying}>
+                  {paying ? "Opening payment…" : `Pay ${money(checkout.amount)}`}
                 </Button>
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
 
-          {checkout && step === "done" && (
-            <div className="flex flex-col items-center text-center gap-2 py-2">
+      {/* Result of a Cashfree payment, after Cashfree redirects back */}
+      <Dialog open={!!payResult} onOpenChange={(o) => !o && payResult !== "checking" && setPayResult(null)}>
+        <DialogContent className={`${MODAL_CLASS} sm:max-w-sm`}>
+          <div className="flex flex-col items-center text-center gap-2 py-2">
+            {payResult === "paid" ? (
               <CheckCircle2 className="h-11 w-11 text-success" />
-              <DialogHeader className="items-center space-y-1">
-                <DialogTitle className="text-base">Payment successful</DialogTitle>
-                <DialogDescription className="text-sm">
-                  {checkout.startsAfter ? (
-                    <>
-                      We've received {money(checkout.amount)} for {checkout.plan.name} ({checkout.cycle}). Once the
-                      admin approves it, this plan will become active after your current plan ends on{" "}
-                      {format(checkout.startsAfter, "PP")}.
-                    </>
-                  ) : (
-                    <>
-                      We've received {money(checkout.amount)} for {checkout.plan.name} ({checkout.cycle}). Your plan
-                      starts once the admin approves it.
-                    </>
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="text-xs text-muted-foreground">
-                {checkout.invoiceNumber} · UTR <span className="font-mono">{utr.toUpperCase()}</span>
-              </div>
+            ) : payResult === "failed" ? (
+              <XCircle className="h-11 w-11 text-destructive" />
+            ) : (
+              <Clock className="h-11 w-11 text-warning" />
+            )}
+            <DialogHeader className="items-center space-y-1">
+              <DialogTitle className="text-base">
+                {payResult === "checking" ? "Confirming your payment…"
+                  : payResult === "paid" ? "Payment successful"
+                  : payResult === "failed" ? "Payment not completed"
+                  : "Payment is processing"}
+              </DialogTitle>
+              <DialogDescription className="text-sm">
+                {payResult === "checking" ? "Please wait while we confirm your payment with the bank."
+                  : payResult === "paid" ? "Your plan is active. If you already had a plan running, the new one starts after it ends."
+                  : payResult === "failed" ? "No money was taken for this order. You can choose a plan and try again."
+                  : "Your bank hasn't confirmed the payment yet. Your plan will start automatically once it does."}
+              </DialogDescription>
+            </DialogHeader>
+            {payResult !== "checking" && (
               <div className="flex gap-2 mt-2">
                 <Button
                   variant="outline"
                   className="rounded-lg"
-                  onClick={() => { closeCheckout(); setHistoryOpen(true); }}
+                  onClick={() => { setPayResult(null); setHistoryOpen(true); }}
                 >
                   View history
                 </Button>
-                <Button className="rounded-lg" onClick={closeCheckout}>Done</Button>
+                <Button className="rounded-lg" onClick={() => setPayResult(null)}>Done</Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
