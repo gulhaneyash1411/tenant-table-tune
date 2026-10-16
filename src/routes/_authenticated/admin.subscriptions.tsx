@@ -213,7 +213,7 @@ type Action = { type: "activate" | "suspend" | "cancel" | "extend" | "renew" | "
 function AdminSubscriptions() {
   const [plans, setPlans] = useState<Plan[]>([]);
   useEffect(() => {
-    sb.from("subscription_plans").select("id,name,monthly_price,half_yearly_price,yearly_price").order("monthly_price").then(({ data }: any) => setPlans(data ?? []));
+    sb.from("subscription_plans").select("*").order("monthly_price").then(({ data }: any) => setPlans((data ?? []).filter((p: any) => !p.is_free)));
   }, []);
 
   // filters

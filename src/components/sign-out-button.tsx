@@ -11,7 +11,9 @@ export function SignOutButton({ redirectTo = "/auth" }: { redirectTo?: string })
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="sm"><LogOut className="h-4 w-4 mr-1" />Sign out</Button>
+        <Button variant="ghost" size="sm" aria-label="Sign out" className="px-2 sm:px-3">
+          <LogOut className="h-4 w-4 sm:mr-1" /><span className="hidden sm:inline">Sign out</span>
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

@@ -24,6 +24,8 @@ import {
   Plus, Copy, KeyRound, Loader2,
 } from "lucide-react";
 
+import { useTrialDays } from "@/lib/site-settings";
+
 export const Route = createFileRoute("/_authenticated/admin/restaurants")({ component: Restaurants });
 
 type Status = "approved" | "pending" | "rejected" | "suspended";
@@ -34,27 +36,6 @@ const EXPIRING_DAYS = 7;
 const PAGE_SIZE = 10;
 const STATUSES: Status[] = ["pending", "approved", "suspended", "rejected"];
 
-// Child tables removed before the tenant row itself, in dependency order
-// (children before parents). Missing tables are skipped silently, so it is safe
-// to leave entries here for tables this deployment does not have.
-// If your foreign keys already use ON DELETE CASCADE, this loop is a no-op.
-// Typed as string[] on purpose: some of these may not exist in the generated
-// Supabase types, and a literal union would fail to type-check against them.
-const CHILD_TABLES: string[] = [
-  "order_items",
-  "orders",
-  "menu_items",
-  "menu_categories",
-  "restaurant_tables",
-  "staff",
-  "notifications",
-  "subscriptions",
-];
-
-// Postgres/PostgREST codes we treat as "nothing to do here"
-const MISSING_TABLE = "42P01";
-const MISSING_COLUMN = "42703";
-const NOT_FOUND = "PGRST205";
 
 function subState(sub: any): SubState {
   if (!sub?.current_period_end) return "none";
@@ -82,6 +63,7 @@ function Restaurants() {
   const [subs, setSubs] = useState<Record<string, any>>({});
   const [plans, setPlans] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const trialDays = useTrialDays();
 
   // Search & filters
   const [q, setQ] = useState("");
@@ -118,15 +100,21 @@ function Restaurants() {
 
   async function load() {
     setLoading(true);
-    const [{ data: t, error: te }, { data: s }, { data: p }] = await Promise.all([
+    const [{ data: t, error: te }, { data: s, error: se }, { data: p }] = await Promise.all([
       supabase.from("tenants").select("*").order("created_at", { ascending: false }),
-      supabase.from("subscriptions").select("*"),
+      supabase.from("subscriptions").select("*").neq("status", "canceled").order("created_at", { ascending: false }),
       supabase.from("subscription_plans").select("*"),
     ]);
     if (te) toast.error(te.message);
+    if (se) toast.error(se.message);
     setRows(t || []);
+    // Same choice as the owner's subscription page: the active one, else the latest non-scheduled one.
     const sMap: Record<string, any> = {};
-    (s || []).forEach((x: any) => { sMap[x.tenant_id] = x; });
+    (s || []).forEach((x: any) => {
+      const prev = sMap[x.tenant_id];
+      if (x.status === "scheduled") return;
+      if (!prev || (x.status === "active" && prev.status !== "active")) sMap[x.tenant_id] = x;
+    });
     setSubs(sMap);
     const pMap: Record<string, any> = {};
     (p || []).forEach((x: any) => { pMap[x.id] = x; });
@@ -173,33 +161,22 @@ function Restaurants() {
 
     setDeleting(true);
     try {
-      // 1. Remove dependent rows first. Harmless if FKs already cascade.
-      // Cast scoped to this loop: table names are dynamic and may sit outside
-      // the generated types. The tenants delete below stays fully typed.
-      const db = supabase as any;
-      for (const table of CHILD_TABLES) {
-        const { error } = await db.from(table).delete().eq("tenant_id", deleteTarget.id);
-        if (error && ![MISSING_TABLE, MISSING_COLUMN, NOT_FOUND].includes(error.code as string)) {
-          throw error;
-        }
-      }
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) { toast.error("Session expired"); setDeleting(false); return; }
 
-      // 2. Remove the tenant itself, and confirm a row actually went.
-      const { data, error } = await supabase
-        .from("tenants")
-        .delete()
-        .eq("id", deleteTarget.id)
-        .select("id");
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("Nothing was deleted — the delete policy may not allow this account to remove restaurants.");
-      }
+      const res = await fetch("/api/admin-delete-restaurant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "delete", tenant_id: deleteTarget.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Delete failed");
 
       toast.success(`${deleteTarget.name} deleted permanently`);
       setDeleteTarget(null);
       setConfirmText("");
 
-      // Optimistic local prune, then refetch for the authoritative list.
       setRows(prev => prev.filter(r => r.id !== deleteTarget.id));
       setSubs(prev => {
         const next = { ...prev };
@@ -208,10 +185,7 @@ function Restaurants() {
       });
       load();
     } catch (e: any) {
-      const msg = e?.code === "23503"
-        ? "Other records still reference this restaurant. Add its table to CHILD_TABLES, or set the foreign keys to ON DELETE CASCADE."
-        : e?.message || "Delete failed";
-      toast.error(msg);
+      toast.error(e?.message || "Delete failed");
     } finally {
       setDeleting(false);
     }
@@ -275,7 +249,9 @@ function Restaurants() {
     () => Array.from(new Set(rows.map(r => r.city).filter(Boolean))).sort() as string[],
     [rows]
   );
-  const planList = useMemo(() => Object.values(plans), [plans]);
+  const planList = useMemo(() => Object.values(plans).filter((p: any) => !p.is_free), [plans]);
+  const freePlan = useMemo(() => Object.values(plans).find((p: any) => p.is_free) as any, [plans]);
+  const freeActive = !freePlan || freePlan.is_active !== false;
 
   const statusCounts = useMemo(() => {
     const c: Record<string, number> = { all: rows.length };
@@ -348,12 +324,32 @@ function Restaurants() {
     : s === "suspended" ? "bg-destructive/15 text-destructive"
     : "bg-muted";
 
-  const subBadge = (sub: any) => {
+  const daysLeftText = (days: number) =>
+    days < 0 ? `${-days} day${days === -1 ? "" : "s"} ago` : days === 0 ? "Ends today" : `${days} day${days === 1 ? "" : "s"} left`;
+
+  const subBadge = (sub: any, r: any) => {
     const st = subState(sub);
-    if (st === "none") return "—";
-    const d = format(new Date(sub.current_period_end), "PP");
+    if (st === "none") {
+      if (!r.created_at || !freeActive) return "—";
+      const end = new Date(new Date(r.created_at).getTime() + trialDays * 86400000);
+      const days = differenceInCalendarDays(end, new Date());
+      const cls = days < 0 ? "text-destructive" : days <= EXPIRING_DAYS ? "text-warning" : "text-muted-foreground";
+      return (
+        <div className={cls}>
+          <div>{format(end, "PP")}</div>
+          <div className="text-[11px]">{days < 0 ? `Trial ended ${daysLeftText(days)}` : `Trial · ${daysLeftText(days)}`}</div>
+        </div>
+      );
+    }
+    const end = new Date(sub.current_period_end);
+    const days = differenceInCalendarDays(end, new Date());
     const cls = st === "expired" ? "text-destructive" : st === "expiring" ? "text-warning" : "";
-    return <span className={cls}>{d}{st === "expired" ? " (expired)" : st === "expiring" ? " (soon)" : ""}</span>;
+    return (
+      <div className={cls}>
+        <div>{format(end, "PP")}</div>
+        <div className={`text-[11px] ${cls || "text-muted-foreground"}`}>{st === "expired" ? `Expired ${daysLeftText(days)}` : daysLeftText(days)}</div>
+      </div>
+    );
   };
 
   const confirmOk = !!deleteTarget && confirmText.trim() === (deleteTarget.name || "").trim();
@@ -530,8 +526,8 @@ function Restaurants() {
                   <TableCell><div className="text-sm">{r.owner_name}</div><div className="text-xs text-muted-foreground">{r.owner_email}</div></TableCell>
                   <TableCell className="text-sm whitespace-nowrap">{r.owner_phone || "—"}</TableCell>
                   <TableCell>{r.city || "—"}</TableCell>
-                  <TableCell>{plan ? <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">{plan.name}</span> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">{subBadge(sub)}</TableCell>
+                  <TableCell>{plan ? <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap">{plan.name}</span> : sub ? <span className="text-xs text-muted-foreground">—</span> : freeActive ? <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 whitespace-nowrap">{freePlan?.name ?? "Free trial"}</span> : <span className="text-xs px-2 py-0.5 rounded bg-destructive/10 text-destructive whitespace-nowrap">No active plan</span>}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{subBadge(sub, r)}</TableCell>
                   <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.created_at), "PP")}</TableCell>
                   <TableCell>
                     <span className={`text-xs px-2 py-0.5 rounded ${statusClass(r.status)}`}>{r.status}</span>
@@ -758,8 +754,9 @@ function Restaurants() {
               Delete {deleteTarget?.name}?
             </DialogTitle>
             <DialogDescription>
-              This removes the restaurant and all of its data — subscription, menu, orders and
-              notifications — from the database. It cannot be undone.
+              This permanently removes the restaurant, its owner account, organization, and all
+              data (menu, orders, subscriptions, staff) from the system. The owner can sign up
+              again as a new account. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
 

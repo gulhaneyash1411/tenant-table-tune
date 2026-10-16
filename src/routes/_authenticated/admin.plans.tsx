@@ -10,9 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { money } from "@/lib/format";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Gift } from "lucide-react";
 import { FEATURE_GROUPS, FEATURE_LABEL, ALL_FEATURE_KEYS, ALWAYS_ON_FEATURES } from "@/config/plan-features";
 import { PLAN_ICON_OPTIONS, PlanIconGlyph } from "@/config/plan-icons";
+import {
+  SITE_KEYS, DEFAULT_TRIAL_DAYS, MAX_TRIAL_DAYS, parseTrialDays, readSettingValue, writeSettingValue,
+} from "@/lib/site-settings";
+
+const FREE_DEFAULT = { name: "Free trial", description: "", is_active: true, max_tables: null, max_orders_month: null, max_menu_items: null, max_staff: null, features: {} as Record<string, boolean> };
 
 
 const empty = { name: "", description: "", monthly_price: 0, half_yearly_price: 0, yearly_price: 0, max_tables: 10, max_orders_month: 500, max_menu_items: 100, max_staff: 5, is_active: true, features: {} as Record<string, boolean>, tag: null as string | null, icon: null as string | null, included_features: [] as string[], not_included_features: [] as string[] };
@@ -73,7 +78,59 @@ function Plans() {
   }, [editing?.id ?? (editing ? "new" : null)]);
 
   async function load() { const { data } = await supabase.from("subscription_plans").select("*").order("sort_order"); setRows(data || []); }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); loadTrialDays(); }, []);
+
+  // ---- Free plan: the hidden is_free row, plus the trial length from Platform settings ----
+  const freePlan = rows.find((p) => p.is_free) ?? null;
+  const paidPlans = rows.filter((p) => !p.is_free);
+  const [trialDays, setTrialDays] = useState(DEFAULT_TRIAL_DAYS);
+  const [editingFree, setEditingFree] = useState<any | null>(null);
+  const [savingFree, setSavingFree] = useState(false);
+
+  async function loadTrialDays() {
+    const { data } = await supabase.from("platform_settings").select("key,value").eq("key", SITE_KEYS.trialDays).maybeSingle();
+    if (data) setTrialDays(parseTrialDays(readSettingValue(data.key, data.value)));
+  }
+
+  function openFree() {
+    // Plan names are unique, so a new free plan avoids names paid plans already use.
+    const taken = new Set(rows.map((p) => String(p.name).trim().toLowerCase()));
+    const name = ["Free trial", "Free plan", "Trial plan"].find((n) => !taken.has(n.toLowerCase())) ?? "";
+    const base = freePlan ?? { ...FREE_DEFAULT, name };
+    // {} means every feature is open, so show every switch on.
+    const f = base.features && Object.keys(base.features).length ? base.features : Object.fromEntries(ALL_FEATURE_KEYS.map((k) => [k, true]));
+    setEditingFree({ ...base, features: f, trial_days: String(trialDays) });
+  }
+
+  async function saveFree() {
+    const days = Number(editingFree.trial_days);
+    if (!Number.isInteger(days) || days < 1 || days > MAX_TRIAL_DAYS) return toast.error(`Trial days must be a whole number from 1 to ${MAX_TRIAL_DAYS}`);
+    if (!editingFree.name?.trim()) return toast.error("Name is required");
+    setSavingFree(true);
+    const body = {
+      name: editingFree.name.trim(),
+      description: editingFree.description || null,
+      max_tables: editingFree.max_tables, max_orders_month: editingFree.max_orders_month,
+      max_menu_items: editingFree.max_menu_items, max_staff: editingFree.max_staff,
+      features: Object.fromEntries(ALL_FEATURE_KEYS.map((k) => [k, ALWAYS_ON_FEATURES.includes(k) || !!editingFree.features?.[k]])),
+      is_free: true, is_active: editingFree.is_active !== false, monthly_price: 0, half_yearly_price: 0, yearly_price: 0,
+    };
+    const [planRes, daysRes] = await Promise.all([
+      editingFree.id
+        ? supabase.from("subscription_plans").update(body).eq("id", editingFree.id)
+        : supabase.from("subscription_plans").insert({ ...body, sort_order: -1 }),
+      supabase.from("platform_settings").upsert([writeSettingValue(SITE_KEYS.trialDays, String(days))], { onConflict: "key" }),
+    ]);
+    setSavingFree(false);
+    if (planRes.error) {
+      return toast.error(planRes.error.code === "23505"
+        ? `A plan named "${body.name}" already exists. Give the free plan a different name.`
+        : planRes.error.message);
+    }
+    if (daysRes.error) return toast.error(daysRes.error.message);
+    toast.success("Free plan saved");
+    setTrialDays(days); setEditingFree(null); load();
+  }
 
   async function save() {
     const { id, ...rest0 } = editing;
@@ -93,10 +150,59 @@ function Plans() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end items-center"><Button onClick={()=>setEditing({...empty})}><Plus className="h-4 w-4 mr-1"/>New plan</Button></div>
+      <Card className="p-4 border-dashed border-primary/40 bg-primary/5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-semibold">
+              <Gift className="h-4 w-4 text-primary" />{freePlan?.name ?? "Free trial"}
+              <span className="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-medium text-blue-600">Free plan</span>
+              {freePlan && (
+                <span className={`text-xs px-2 py-0.5 rounded ${freePlan.is_active ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
+                  {freePlan.is_active ? "Active" : "Inactive"}
+                </span>
+              )}
+            </div>
+            {freePlan && !freePlan.is_active && (
+              <div className="mt-1 text-xs text-destructive">
+                Off: restaurants without a paid plan see "No active plan" and are sent to the subscription page.
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {freePlan?.description || "What every new restaurant gets before buying a plan. Not shown for sale."}
+            </div>
+          </div>
+          <Button size="sm" variant={freePlan ? "outline" : "default"} onClick={openFree}>
+            {freePlan ? <><Pencil className="h-3 w-3 mr-1" />Edit free plan</> : <><Plus className="h-3 w-3 mr-1" />Set up free plan</>}
+          </Button>
+        </div>
+        <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
+          <div>
+            <div className="text-muted-foreground">Trial length</div>
+            <div className="text-lg font-semibold">{trialDays} day{trialDays === 1 ? "" : "s"}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Limits</div>
+            <div>Tables: {freePlan?.max_tables ?? "∞"} · Orders/mo: {freePlan?.max_orders_month ?? "∞"}</div>
+            <div>Menu items: {freePlan?.max_menu_items ?? "∞"} · Staff: {freePlan?.max_staff ?? "∞"}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Features</div>
+            <div>
+              {!freePlan || !freePlan.features || Object.keys(freePlan.features).length === 0
+                ? "All features"
+                : Object.keys(FEATURE_LABEL).filter((k) => freePlan.features[k]).map((k) => FEATURE_LABEL[k]).join(" · ") || "No features enabled"}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <div className="flex justify-between items-center">
+        <div className="text-sm font-medium">Paid plans</div>
+        <Button onClick={()=>setEditing({...empty})}><Plus className="h-4 w-4 mr-1"/>New plan</Button>
+      </div>
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {/* Cheapest monthly price first */}
-        {[...rows].sort((a, b) => Number(a.monthly_price) - Number(b.monthly_price)).map(p => (
+        {[...paidPlans].sort((a, b) => Number(a.monthly_price) - Number(b.monthly_price)).map(p => (
           <Card key={p.id} className="p-4 space-y-2">
             <div className="flex justify-between items-start">
               <div>
@@ -219,6 +325,58 @@ function Plans() {
               </div>
               <div className="col-span-2 flex items-center gap-2"><Switch checked={editing.is_active} onCheckedChange={v=>setEditing({...editing,is_active:v})}/><Label>Active</Label></div>
               <div className="col-span-2 flex justify-end"><Button onClick={save}>Save</Button></div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingFree} onOpenChange={o=>!o&&!savingFree&&setEditingFree(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Free plan</DialogTitle></DialogHeader>
+          {editingFree && (
+            <div className="grid grid-cols-2 gap-3">
+              <p className="col-span-2 text-xs text-muted-foreground">
+                Applies to every restaurant that hasn't bought a plan yet, for the trial length below. After that they must buy a paid plan.
+              </p>
+              <div className="col-span-2"><Label>Name</Label><Input value={editingFree.name} onChange={e=>setEditingFree({...editingFree,name:e.target.value})}/></div>
+              <div className="col-span-2"><Label>Description</Label><Textarea rows={2} value={editingFree.description||""} onChange={e=>setEditingFree({...editingFree,description:e.target.value})}/></div>
+              <div className="col-span-2"><Label>Trial length (days)</Label><Input type="number" min={1} max={MAX_TRIAL_DAYS} value={editingFree.trial_days} onChange={e=>setEditingFree({...editingFree,trial_days:e.target.value})}/></div>
+              <div><Label>Max tables</Label><Input type="number" placeholder="Unlimited" value={editingFree.max_tables ?? ""} onChange={e=>setEditingFree({...editingFree,max_tables:e.target.value===""?null:Number(e.target.value)})}/></div>
+              <div><Label>Max orders/mo</Label><Input type="number" placeholder="Unlimited" value={editingFree.max_orders_month ?? ""} onChange={e=>setEditingFree({...editingFree,max_orders_month:e.target.value===""?null:Number(e.target.value)})}/></div>
+              <div><Label>Max menu items</Label><Input type="number" placeholder="Unlimited" value={editingFree.max_menu_items ?? ""} onChange={e=>setEditingFree({...editingFree,max_menu_items:e.target.value===""?null:Number(e.target.value)})}/></div>
+              <div><Label>Max staff</Label><Input type="number" placeholder="Unlimited" value={editingFree.max_staff ?? ""} onChange={e=>setEditingFree({...editingFree,max_staff:e.target.value===""?null:Number(e.target.value)})}/></div>
+              <div className="col-span-2 space-y-3 rounded-lg border p-3">
+                <Label>Features</Label>
+                {FEATURE_GROUPS.map((g) => (
+                  <div key={g.title} className="space-y-1.5">
+                    <div className="text-xs font-medium text-muted-foreground">{g.title}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {g.items.map((f) => (
+                        <div key={f.key} className="flex items-center gap-2">
+                          <Switch
+                            checked={ALWAYS_ON_FEATURES.includes(f.key) || !!editingFree.features?.[f.key]}
+                            disabled={ALWAYS_ON_FEATURES.includes(f.key)}
+                            onCheckedChange={v=>setEditingFree({...editingFree,features:{...(editingFree.features||{}),[f.key]:v}})}
+                          />
+                          <Label className="text-sm font-normal">{f.label}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="col-span-2 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Switch checked={editingFree.is_active !== false} onCheckedChange={v=>setEditingFree({...editingFree,is_active:v})}/>
+                  <Label>Active</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {editingFree.is_active !== false
+                    ? "New restaurants get this free trial."
+                    : "No free trial: restaurants without a paid plan see \"No active plan\" and are sent to the subscription page."}
+                </p>
+              </div>
+              <div className="col-span-2 flex justify-end"><Button onClick={saveFree} disabled={savingFree}>{savingFree ? "Saving…" : "Save"}</Button></div>
             </div>
           )}
         </DialogContent>

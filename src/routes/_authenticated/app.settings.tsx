@@ -7,6 +7,7 @@ import { useOutletContext, useTenantContext } from "@/hooks/use-session";
 import { planAllows } from "@/config/plan-features";
 import { OutletManagers } from "@/components/outlet-managers";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -111,7 +112,7 @@ function SettingsPage() {
         </TabsList>
 
         <TabsContent value="restaurant" className="space-y-6">
-          {!readOnly && planAllows(plan?.features, "settings_outlets") && (
+          {!readOnly && (planAllows(plan?.features, "settings_outlets") ? (
             <Card className="p-5 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="font-medium">Outlets</div>
@@ -119,7 +120,15 @@ function SettingsPage() {
               </div>
               <Link to="/app/franchise"><Button variant="outline" size="sm">Manage / add outlet</Button></Link>
             </Card>
-          )}
+          ) : (
+            <Card className="p-5 flex flex-wrap items-center justify-between gap-3 border-dashed border-muted-foreground/30">
+              <div>
+                <div className="font-medium flex items-center gap-2">Outlets <Badge variant="secondary" className="text-[10px]">Plan upgrade needed</Badge></div>
+                <div className="text-xs text-muted-foreground">Want to run multiple outlets from one account? Upgrade to a plan that includes multi-outlet support.</div>
+              </div>
+              <Link to="/app/subscription"><Button size="sm">View plans</Button></Link>
+            </Card>
+          ))}
           {/* A disabled fieldset disables every input inside it — nothing is editable for a manager. */}
           <fieldset disabled={readOnly} className="m-0 min-w-0 space-y-6 border-0 p-0">
           <Card className="p-5 space-y-4">
