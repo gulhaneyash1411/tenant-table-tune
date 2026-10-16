@@ -196,7 +196,7 @@ function AppLayout() {
         // Billing cycle: saved on the subscription, else from its period length.
         const days = (new Date(activeSub.current_period_end).getTime() - new Date(activeSub.current_period_start).getTime()) / 86400000;
         const cycle = (activeSub as any).billing_cycle ??(days > 320 ? "yearly" : days > 120 ? "half_yearly" : "monthly");
-        setSub({ plan: plan ?? { name: "Plan" }, paid, cycle });
+        setSub({ plan: plan ?? { name: "Plan" }, paid, cycle, current_period_end: activeSub.current_period_end });
       } else if (latestInvoice?.status === "pending_approval") {
         setSub({ plan: { name: `${latestInvoice.plan} (pending approval)` }, paid: false });
       } else {
@@ -412,7 +412,8 @@ function AppLayout() {
                     <LockIcon className="mr-1 h-3.5 w-3.5" />Lock
                   </Button>
                 )}
-                {!isOutletManager && <Link
+                {/* Managers see the plan too; the Subscription page is view-only for them. */}
+                <Link
                   to="/app/subscription"
                   className="flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] hover:bg-accent/40 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs"
                 >
@@ -426,12 +427,16 @@ function AppLayout() {
                     </span>
                   )}
                   {/* Phones show only the days left; the date appears from sm up. */}
-                  {sub?.current_period_end ? (
+                  {sub?.current_period_end && !sub.paid ? (
+                    <span className="shrink-0 text-destructive">
+                      · expired<span className="hidden sm:inline"> {format(new Date(sub.current_period_end), "MMM d, yyyy")}</span>
+                    </span>
+                  ) : sub?.current_period_end ? (
                     <span className="shrink-0 text-muted-foreground">
-                      <span className="hidden sm:inline">· renews {format(new Date(sub.current_period_end), "MMM d, yyyy")}</span>
+                      <span className="hidden sm:inline">· {format(new Date(sub.current_period_end), "MMM d, yyyy")}</span>
                       {daysLeftLabel(new Date(sub.current_period_end).getTime())}
                     </span>
-                  ) : !sub?.plan && !noActivePlan && trialEnd > 0 && (
+                  ) :!sub?.plan && !noActivePlan && trialEnd > 0 && (
                     <span className={`shrink-0 ${trialEnded ? "text-destructive" : "text-muted-foreground"}`}>
                       {trialEnded ? (
                         <>· ended<span className="hidden sm:inline"> {format(new Date(trialEnd), "MMM d, yyyy")}</span></>
@@ -443,7 +448,7 @@ function AppLayout() {
                       )}
                     </span>
                   )}
-                </Link>}
+                </Link>
                 <NotificationBell />
                 <SignOutButton />
               </div>
