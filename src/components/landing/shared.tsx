@@ -58,8 +58,8 @@ export const agentQuickReplies = [
   { label: "📱 QR ordering", message: "Hi DineEatz! Tell me more about QR table ordering." },
 ];
 
-// Demo video: a YouTube link or a file path (e.g. "/videos/platesos-demo.mp4" in /public)
-export const DEMO_VIDEO_URL = "/videos/platesos_teaser.mp4";
+// Demo video: a YouTube link or a file path (e.g. "/videos/dineeatz-demo.mp4" in /public)
+export const DEMO_VIDEO_URL = "/videos/dineeatz_teaser.mp4";
 
 export const NAV = [
   { id: "home", label: "Home" },
