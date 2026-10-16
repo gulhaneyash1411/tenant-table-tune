@@ -123,7 +123,7 @@ function SubscriptionPage() {
     try { await (supabase as any).rpc("activate_scheduled_subscriptions"); } catch { /* ignore */ }
 
     const [{ data: pl }, { data: sb }, { data: inv }] = await Promise.all([
-      supabase.from("subscription_plans").select("*").eq("is_active", true).order("sort_order"),
+      supabase.from("subscription_plans").select("*").eq("is_active", true).eq("is_free", false).order("sort_order"),
       (supabase as any)
         .from("subscriptions")
         .select("*, plan:subscription_plans(*)")
@@ -488,6 +488,9 @@ function SubscriptionPage() {
                 <div className="flex min-w-0 items-center gap-2 font-semibold text-lg"><PlanIconGlyph name={p.icon} className="h-5 w-5 shrink-0 text-primary" />{p.name}</div>
                 <div className="flex flex-wrap justify-end gap-1">
                   {p.tag && <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary">{p.tag}</span>}
+                  {planAllows(p.features, "settings_outlets") && (
+                    <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Multi-outlet</span>
+                  )}
                   {isCurrent && <Badge>{activeNow ? "Current" : completed ? "Completed" : "Expired"}</Badge>}
                   {isRequested && <Badge variant="outline">{hasNextPlan ? "Next plan" : "Requested"}</Badge>}
                 </div>

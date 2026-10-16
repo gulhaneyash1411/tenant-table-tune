@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { OfflineBanner } from "@/components/offline-banner";
+import { AppWelcome, APP_WELCOME_SCRIPT } from "@/components/app-welcome";
 import { supabase } from "@/integrations/supabase/client";
 import { absoluteUrl, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, DEFAULT_TITLE, SITE_NAME } from "@/lib/seo";
 
@@ -100,9 +101,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", type: "image/png", href: "/favicon.png?v=3" },
-      { rel: "apple-touch-icon", href: "/app-icon-192.png?v=3" },
-      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/png", href: "/favicon.png?v=4" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png?v=4" },
+      { rel: "manifest", href: "/manifest.webmanifest?v=4" },
     ],
   }),
   shellComponent: RootShell,
@@ -113,8 +114,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the welcome script may set data-welcome before React hydrates.
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: APP_WELCOME_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
@@ -139,6 +142,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AppWelcome />
       <OfflineBanner />
       <Outlet />
       <Toaster richColors position="top-right" />

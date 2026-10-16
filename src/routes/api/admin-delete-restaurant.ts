@@ -1,23 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Super Admin → Restaurants → Delete. This is a hard delete, not a status
-// change: the tenant row goes away and every tenant-scoped table cascades
-// with it (see supabase/migrations/20260926140000_delete_restaurant_cascade.sql,
-// which guarantees ON DELETE CASCADE on every FK pointing at
-// public.tenants), so there is no partial "deleted but still listed" state.
+// Super Admin → Restaurants → Delete. This is a COMPLETE hard delete: the
+// tenant row, its parent organization (when no other outlets remain), every
+// tenant-scoped child table (via ON DELETE CASCADE), the owner's auth.users
+// row, and any tenant-scoped logins (kitchen / sales accounts) are all removed
+// so there is zero trace left in the application.
 //
-// It runs server-side with the service-role client for the same reasons as
-// kitchen-account.ts / sales-account.ts: `authenticated` has no DELETE grant
-// on public.tenants at all (so a compromised browser session can't drop a
-// hotel), and removing the owner's auth.users row needs the admin API.
+// Because the owner's auth account is deleted, they can sign up again from
+// scratch as a brand-new restaurant — the register_tenant function will see no
+// existing tenant for their (new) user id and allow the registration.
 
 type Body = {
   action: "delete";
   tenant_id: string;
-  // Also remove the owner's login (auth.users row + their profile). Off means
-  // the person keeps their account and can register a new restaurant with it.
-  delete_owner_account?: boolean;
 };
 
 function bad(message: string, status = 400) {
@@ -53,18 +49,18 @@ async function handle(request: Request) {
     .eq("role", "super_admin");
   if (!callerRoles || callerRoles.length === 0) return bad("Super admin access required", 403);
 
-  const { data: tenant, error: tenantErr } = await supabaseAdmin
+  const { data: tenant, error: tenantErr } = await (supabaseAdmin as SupabaseClient)
     .from("tenants")
-    .select("id,name,slug,owner_id,owner_name,owner_email,owner_phone,city,status,created_at")
+    .select("id,name,slug,owner_id,owner_name,owner_email,owner_phone,city,status,organization_id,created_at")
     .eq("id", tenantId)
     .maybeSingle();
   if (tenantErr) return bad(tenantErr.message, 500);
   if (!tenant) return bad("That restaurant no longer exists", 404);
 
-  // Tenant-scoped logins have to be collected before the tenant row goes:
-  // kitchen_accounts cascades away with it, taking the auth user id with it.
-  // (`kitchen_accounts` predates the generated Database types, same as in
-  // kitchen-account.ts, so it's queried untyped.)
+  const organizationId = (tenant as any).organization_id as string | null;
+  const ownerId = tenant.owner_id as string | null;
+
+  // Collect tenant-scoped logins before the cascade deletes them.
   const { data: kitchenAccounts } = await (supabaseAdmin as SupabaseClient)
     .from("kitchen_accounts")
     .select("user_id")
@@ -73,43 +69,94 @@ async function handle(request: Request) {
     .map((a) => a.user_id)
     .filter(Boolean);
 
+  const { data: salesAccounts } = await (supabaseAdmin as SupabaseClient)
+    .from("sales_accounts")
+    .select("user_id")
+    .eq("tenant_id", tenant.id);
+  const salesUserIds = ((salesAccounts ?? []) as { user_id: string }[])
+    .map((a) => a.user_id)
+    .filter(Boolean);
+
+  // Check if the owner has other tenants (multi-outlet) so we know whether
+  // to delete the organization and owner account.
+  let ownerHasOtherTenants = false;
+  if (ownerId) {
+    const { data: otherTenants } = await supabaseAdmin
+      .from("tenants")
+      .select("id")
+      .eq("owner_id", ownerId)
+      .neq("id", tenant.id)
+      .limit(1);
+    ownerHasOtherTenants = (otherTenants ?? []).length > 0;
+  }
+
+  // --- Delete the tenant row (cascades to all child tables) ---
   const { error: deleteErr } = await supabaseAdmin.from("tenants").delete().eq("id", tenant.id);
   if (deleteErr) return bad(deleteErr.message, 500);
 
-  // Past this point the restaurant is gone. Anything that still fails is
-  // leftover-account cleanup, reported as a warning rather than an error so
-  // the admin isn't told the delete failed when it didn't.
+  // Past this point the restaurant is gone. Cleanup failures are warnings.
   const warnings: string[] = [];
 
-  for (const userId of kitchenUserIds) {
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (error) warnings.push(`Kitchen login could not be removed: ${error.message}`);
+  // --- Delete the organization if it has no remaining outlets ---
+  let organizationDeleted = false;
+  if (organizationId && !ownerHasOtherTenants) {
+    const { data: remainingOutlets } = await (supabaseAdmin as SupabaseClient)
+      .from("tenants")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .limit(1);
+    if (!remainingOutlets || remainingOutlets.length === 0) {
+      const { error } = await (supabaseAdmin as SupabaseClient)
+        .from("organizations")
+        .delete()
+        .eq("id", organizationId);
+      if (error) warnings.push(`Organization cleanup failed: ${error.message}`);
+      else organizationDeleted = true;
+    }
   }
 
+  // --- Remove tenant-scoped auth accounts (kitchen + sales) ---
+  for (const userId of kitchenUserIds) {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (error) warnings.push(`Kitchen login cleanup failed: ${error.message}`);
+  }
+  for (const userId of salesUserIds) {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (error) warnings.push(`Sales login cleanup failed: ${error.message}`);
+  }
+
+  // --- Remove the owner's auth account (and cascaded user_roles / profile) ---
   let ownerDeleted = false;
-  if (body.delete_owner_account && tenant.owner_id) {
-    // Cascades to public.profiles and any remaining user_roles rows.
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(tenant.owner_id);
-    if (error) warnings.push(`Owner login could not be removed: ${error.message}`);
+  if (ownerId && !ownerHasOtherTenants) {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(ownerId);
+    if (error) warnings.push(`Owner login cleanup failed: ${error.message}`);
     else ownerDeleted = true;
   }
 
-  // tenant_id is deliberately null: audit_logs is itself tenant-scoped and
-  // cascades, so a row tagged with the deleted tenant would delete itself.
-  // The snapshot in old_value is the only remaining record of the hotel.
+  // Audit log with tenant_id null (the tenant row is already gone).
   const { error: auditErr } = await supabaseAdmin.from("audit_logs").insert({
     actor_id: caller.id,
     tenant_id: null,
     action: "tenant.deleted",
     entity: "tenant",
     entity_id: tenant.id,
-    old_value: { ...tenant, owner_account_deleted: ownerDeleted },
+    old_value: {
+      ...tenant,
+      owner_account_deleted: ownerDeleted,
+      organization_deleted: organizationDeleted,
+    },
     ip: request.headers.get("x-forwarded-for"),
     user_agent: request.headers.get("user-agent"),
   });
   if (auditErr) warnings.push(`Audit log entry failed: ${auditErr.message}`);
 
-  return Response.json({ ok: true, name: tenant.name, owner_deleted: ownerDeleted, warnings });
+  return Response.json({
+    ok: true,
+    name: tenant.name,
+    owner_deleted: ownerDeleted,
+    organization_deleted: organizationDeleted,
+    warnings,
+  });
 }
 
 export const Route = createFileRoute("/api/admin-delete-restaurant")({
