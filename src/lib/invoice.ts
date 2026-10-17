@@ -113,7 +113,7 @@ export async function downloadInvoicePdf(order: any, rawItems: any[], tenant?: I
   y += 8; doc.setDrawColor(230).line(48, y, 547, y); y += 20;
 
   doc.setTextColor(0).setFont("helvetica", "bold").setFontSize(12).text(`Invoice #${order.order_number}`, 48, y);
-  const tableTag = order.table_label ? `Table ${order.table_label}` : order.table_number ? `Table ${order.table_number}` : null;
+  const tableTag = order.table_label ? `${order.table_label}` : order.table_number ? `Table ${order.table_number}` : null;
   doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
   const subLine = [format(new Date(order.created_at), "PPpp"), tableTag].filter(Boolean).join("  \u00b7  ");
   doc.text(subLine, 48, y + 14);
