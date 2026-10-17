@@ -5,7 +5,7 @@ import { Utensils, ArrowRight, PlayCircle, Check, X, Globe, ChevronDown, Menu } 
 import { EMPTY_SITE_SETTINGS, loadSiteSettings, safeUrl, type SiteSettings } from "@/lib/site-settings";
 import { absoluteUrl, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, DEFAULT_LOGO, DEFAULT_TITLE, jsonLdScript, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { BRAND, buildSite, SiteCtx, useSite, fillTokens, DEMO_VIDEO_URL, NAV, scrollTo, Lang, LANGS, LangCtx, useT, loadDict, Pill, Reveal, PrimaryBtn, socialsFor, ring, ProductCarousel } from "@/components/landing/shared";
-// import platesos_teaser from "public/videos/platesos_teaser.mp4"
+// import dineeatz_teaser from "public/videos/dineeatz_teaser.mp4"
 
 export const Route = createFileRoute("/")({
   loader: () => loadSiteSettings(),
