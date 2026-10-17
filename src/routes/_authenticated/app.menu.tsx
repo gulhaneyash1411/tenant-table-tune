@@ -23,6 +23,7 @@ type Item = {
   description: string | null;
   price: number;
   image_url: string | null;
+  is_veg: boolean;
   is_must_try: boolean;
   is_available: boolean;
   sort_order: number | null;
@@ -133,6 +134,9 @@ function ItemRow({
 
       <div className={`min-w-0 flex-1 ${item.is_available ? "" : "opacity-60"}`}>
         <div className="flex items-center gap-2">
+          <span className={`inline-block h-3.5 w-3.5 rounded-sm border-2 shrink-0 ${item.is_veg !== false ? "border-green-600" : "border-red-600"}`}>
+            <span className={`block h-full w-full rounded-full ${item.is_veg !== false ? "bg-green-600" : "bg-red-600"}`} style={{ transform: "scale(0.5)" }} />
+          </span>
           <span className="truncate font-medium">{item.name}</span>
           {!item.is_available && (
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600">
@@ -194,6 +198,7 @@ function ItemEditor({
     price: item.price,
     image_url: item.image_url ?? "",
     category_id: item.category_id,
+    is_veg: item.is_veg !== false,
     is_must_try: !!item.is_must_try,
     is_available: !!item.is_available,
   });
@@ -204,6 +209,7 @@ function ItemEditor({
     f.price !== item.price ||
     f.image_url !== (item.image_url ?? "") ||
     f.category_id !== item.category_id ||
+    f.is_veg !== (item.is_veg !== false) ||
     f.is_must_try !== !!item.is_must_try ||
     f.is_available !== !!item.is_available;
 
@@ -223,6 +229,7 @@ function ItemEditor({
       price: f.price,
       image_url: f.image_url.trim() || null,
       category_id: f.category_id,
+      is_veg: f.is_veg,
       is_must_try: f.is_must_try,
       is_available: f.is_available,
     });
@@ -281,6 +288,29 @@ function ItemEditor({
               placeholder="What's in it, how it's served" className={inputCls + " resize-none"} />
           </Field>
 
+          <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">Veg / Non-veg</div>
+              <div className="mt-0.5 text-xs text-slate-500">{f.is_veg ? "This item is vegetarian." : "This item is non-vegetarian."}</div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => setF({ ...f, is_veg: true })}
+                className={`h-7 w-7 rounded-md grid place-items-center ring-1 transition ${f.is_veg ? "ring-green-500 bg-green-50" : "ring-slate-200 bg-white"}`}
+                aria-label="Veg" title="Veg">
+                <span className={`block h-3.5 w-3.5 rounded-sm border-2 ${f.is_veg ? "border-green-600" : "border-slate-300"}`}>
+                  <span className={`block h-full w-full rounded-full ${f.is_veg ? "bg-green-600" : ""}`} style={{ transform: "scale(0.5)" }} />
+                </span>
+              </button>
+              <button onClick={() => setF({ ...f, is_veg: false })}
+                className={`h-7 w-7 rounded-md grid place-items-center ring-1 transition ${!f.is_veg ? "ring-red-500 bg-red-50" : "ring-slate-200 bg-white"}`}
+                aria-label="Non-veg" title="Non-veg">
+                <span className={`block h-3.5 w-3.5 rounded-sm border-2 ${!f.is_veg ? "border-red-600" : "border-slate-300"}`}>
+                  <span className={`block h-full w-full rounded-full ${!f.is_veg ? "bg-red-600" : ""}`} style={{ transform: "scale(0.5)" }} />
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
             {[
               {
@@ -313,6 +343,9 @@ function ItemEditor({
               <Thumb url={f.image_url} size="h-16 w-16" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
+                  <span className={`inline-block h-3.5 w-3.5 rounded-sm border-2 shrink-0 ${f.is_veg ? "border-green-600" : "border-red-600"}`}>
+                    <span className={`block h-full w-full rounded-full ${f.is_veg ? "bg-green-600" : "bg-red-600"}`} style={{ transform: "scale(0.5)" }} />
+                  </span>
                   <span className="truncate font-medium">{f.name || "Item name"}</span>
                   {f.is_must_try && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />}
                 </div>
