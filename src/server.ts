@@ -44,9 +44,24 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+let envPopulated = false;
+
+function populateProcessEnv() {
+  if (envPopulated) return;
+  envPopulated = true;
+  const cfEnv = (globalThis as any).__env__;
+  if (!cfEnv || typeof cfEnv !== "object") return;
+  for (const [key, value] of Object.entries(cfEnv as Record<string, unknown>)) {
+    if (typeof value === "string" && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      populateProcessEnv();
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

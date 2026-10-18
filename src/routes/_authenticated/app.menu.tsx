@@ -5,11 +5,14 @@ import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { toast } from "sonner";
 import {
   Search, Plus, Pencil, Trash2, Star, EyeOff, Check, X,
-  UtensilsCrossed, ImagePlus, Loader2, CornerDownRight,
+  UtensilsCrossed, ImagePlus, Loader2, CornerDownRight, GripVertical,
 } from "lucide-react";
 import { money } from "@/lib/format";
 import { useTenantContext } from "@/hooks/use-session";
 import { planLimitError } from "@/lib/plan-limits";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, useSortable, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 export const Route = createFileRoute("/_authenticated/app/menu")({ component: Menu });
 
@@ -23,6 +26,7 @@ type Item = {
   description: string | null;
   price: number;
   image_url: string | null;
+  is_veg: boolean;
   is_must_try: boolean;
   is_available: boolean;
   sort_order: number | null;
@@ -127,12 +131,24 @@ function ItemRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, position: "relative" as const };
+
   return (
-    <li className={`flex items-center gap-4 px-5 py-3.5 ${item.is_available ? "" : "bg-slate-50/60"}`}>
+    <li ref={setNodeRef} style={style}
+      className={`flex items-center gap-4 px-5 py-3.5 ${item.is_available ? "" : "bg-slate-50/60"} ${isDragging ? "bg-white shadow-lg ring-1 ring-slate-200 rounded-lg" : ""}`}>
+      <button {...attributes} {...listeners} aria-label="Drag to reorder"
+        className="shrink-0 cursor-grab touch-none rounded p-1 text-slate-300 hover:text-slate-500 active:cursor-grabbing">
+        <GripVertical className="h-4 w-4" />
+      </button>
+
       <Thumb url={item.image_url} />
 
       <div className={`min-w-0 flex-1 ${item.is_available ? "" : "opacity-60"}`}>
         <div className="flex items-center gap-2">
+          <span className={`inline-block h-3.5 w-3.5 rounded-sm border-2 shrink-0 ${item.is_veg !== false ? "border-green-600" : "border-red-600"}`}>
+            <span className={`block h-full w-full rounded-full ${item.is_veg !== false ? "bg-green-600" : "bg-red-600"}`} style={{ transform: "scale(0.5)" }} />
+          </span>
           <span className="truncate font-medium">{item.name}</span>
           {!item.is_available && (
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600">
@@ -169,6 +185,35 @@ function ItemRow({
   );
 }
 
+function SortableCatTab({ cat, isActive, isHit, count, onClick }: {
+  cat: Category; isActive: boolean; isHit: boolean; count: number; onClick: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, position: "relative" as const };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`shrink-0 inline-flex items-center rounded-full transition
+      ${isActive ? "bg-white font-medium shadow-sm ring-1 ring-slate-200"
+        : isHit ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+          : "text-slate-600 hover:bg-white/70"}
+      ${isDragging ? "shadow-lg" : ""}`}>
+      <span {...attributes} {...listeners} aria-label={`Drag ${cat.name}`}
+        className="cursor-grab touch-none pl-2 py-2 text-slate-300 hover:text-slate-500 active:cursor-grabbing">
+        <GripVertical className="h-3.5 w-3.5" />
+      </span>
+      <button onClick={onClick} aria-current={isActive ? "true" : undefined}
+        className="inline-flex items-center gap-2 pr-3.5 py-2 text-sm"
+        style={isActive ? { color: BLUE } : undefined}>
+        <span className="whitespace-nowrap">{cat.name}</span>
+        <span className={`rounded-full px-1.5 py-0.5 text-[11px] tabular-nums
+          ${isActive ? "bg-blue-50" : isHit ? "bg-white/70" : "bg-slate-100 text-slate-500"}`}>
+          {count}
+        </span>
+      </button>
+    </div>
+  );
+}
+
 // ====================
 // ITEM EDITOR
 // ====================
@@ -194,6 +239,7 @@ function ItemEditor({
     price: item.price,
     image_url: item.image_url ?? "",
     category_id: item.category_id,
+    is_veg: item.is_veg !== false,
     is_must_try: !!item.is_must_try,
     is_available: !!item.is_available,
   });
@@ -204,6 +250,7 @@ function ItemEditor({
     f.price !== item.price ||
     f.image_url !== (item.image_url ?? "") ||
     f.category_id !== item.category_id ||
+    f.is_veg !== (item.is_veg !== false) ||
     f.is_must_try !== !!item.is_must_try ||
     f.is_available !== !!item.is_available;
 
@@ -223,6 +270,7 @@ function ItemEditor({
       price: f.price,
       image_url: f.image_url.trim() || null,
       category_id: f.category_id,
+      is_veg: f.is_veg,
       is_must_try: f.is_must_try,
       is_available: f.is_available,
     });
@@ -281,6 +329,29 @@ function ItemEditor({
               placeholder="What's in it, how it's served" className={inputCls + " resize-none"} />
           </Field>
 
+          <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">Veg / Non-veg</div>
+              <div className="mt-0.5 text-xs text-slate-500">{f.is_veg ? "This item is vegetarian." : "This item is non-vegetarian."}</div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => setF({ ...f, is_veg: true })}
+                className={`h-7 w-7 rounded-md grid place-items-center ring-1 transition ${f.is_veg ? "ring-green-500 bg-green-50" : "ring-slate-200 bg-white"}`}
+                aria-label="Veg" title="Veg">
+                <span className={`block h-3.5 w-3.5 rounded-sm border-2 ${f.is_veg ? "border-green-600" : "border-slate-300"}`}>
+                  <span className={`block h-full w-full rounded-full ${f.is_veg ? "bg-green-600" : ""}`} style={{ transform: "scale(0.5)" }} />
+                </span>
+              </button>
+              <button onClick={() => setF({ ...f, is_veg: false })}
+                className={`h-7 w-7 rounded-md grid place-items-center ring-1 transition ${!f.is_veg ? "ring-red-500 bg-red-50" : "ring-slate-200 bg-white"}`}
+                aria-label="Non-veg" title="Non-veg">
+                <span className={`block h-3.5 w-3.5 rounded-sm border-2 ${!f.is_veg ? "border-red-600" : "border-slate-300"}`}>
+                  <span className={`block h-full w-full rounded-full ${!f.is_veg ? "bg-red-600" : ""}`} style={{ transform: "scale(0.5)" }} />
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">
             {[
               {
@@ -313,6 +384,9 @@ function ItemEditor({
               <Thumb url={f.image_url} size="h-16 w-16" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
+                  <span className={`inline-block h-3.5 w-3.5 rounded-sm border-2 shrink-0 ${f.is_veg ? "border-green-600" : "border-red-600"}`}>
+                    <span className={`block h-full w-full rounded-full ${f.is_veg ? "bg-green-600" : "bg-red-600"}`} style={{ transform: "scale(0.5)" }} />
+                  </span>
                   <span className="truncate font-medium">{f.name || "Item name"}</span>
                   {f.is_must_try && <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />}
                 </div>
@@ -506,6 +580,40 @@ function Menu() {
 
   const editingItem = items.find((i) => i.id === editing) ?? null;
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  async function onCatDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIdx = cats.findIndex((c) => c.id === active.id);
+    const newIdx = cats.findIndex((c) => c.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(cats, oldIdx, newIdx);
+    setCats(reordered);
+    const updates = reordered.map((c, i) => ({ id: c.id, sort_order: i }));
+    await Promise.all(updates.map((u) =>
+      supabase.from("menu_categories").update({ sort_order: u.sort_order }).eq("id", u.id)
+    ));
+  }
+
+  async function onItemDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const catItems = items.filter((i) => i.category_id === activeId);
+    const oldIdx = catItems.findIndex((i) => i.id === active.id);
+    const newIdx = catItems.findIndex((i) => i.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(catItems, oldIdx, newIdx);
+    const otherItems = items.filter((i) => i.category_id !== activeId);
+    setItems([...otherItems, ...reordered.map((item, i) => ({ ...item, sort_order: i }))]);
+    await Promise.all(reordered.map((item, i) =>
+      supabase.from("menu_items").update({ sort_order: i }).eq("id", item.id)
+    ));
+  }
+
   // --- render ---
   if (loading) {
     return (
@@ -550,27 +658,18 @@ function Menu() {
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-6 sm:px-8">
-        {/* Categories — horizontal strip above the list */}
+        {/* Categories — draggable horizontal strip above the list */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onCatDragEnd}>
+        <SortableContext items={cats.map((c) => c.id)} strategy={horizontalListSortingStrategy}>
         <nav aria-label="Menu categories"
-          className="-mx-5 flex items-center gap-2 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0">
-          {cats.map((c) => {
-            const on = !q && c.id === activeId;
-            const hit = !!q && c.name.toLowerCase().includes(q);
-            return (
-              <button key={c.id} onClick={() => openCategory(c.id)} aria-current={on ? "true" : undefined}
-                className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-sm transition
-                  ${on ? "bg-white font-medium shadow-sm ring-1 ring-slate-200"
-                       : hit ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
-                             : "text-slate-600 hover:bg-white/70"}`}
-                style={on ? { color: BLUE } : undefined}>
-                <span className="whitespace-nowrap">{c.name}</span>
-                <span className={`rounded-full px-1.5 py-0.5 text-[11px] tabular-nums
-                  ${on ? "bg-blue-50" : hit ? "bg-white/70" : "bg-slate-100 text-slate-500"}`}>
-                  {countFor(c.id)}
-                </span>
-              </button>
-            );
-          })}
+          className="-mx-5 flex items-center gap-2 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {cats.map((c) => (
+            <SortableCatTab key={c.id} cat={c}
+              isActive={!q && c.id === activeId}
+              isHit={!!q && c.name.toLowerCase().includes(q)}
+              count={countFor(c.id)}
+              onClick={() => openCategory(c.id)} />
+          ))}
 
           {addingCat ? (
             <div className="flex shrink-0 items-center gap-1.5">
@@ -598,6 +697,8 @@ function Menu() {
             </button>
           )}
         </nav>
+        </SortableContext>
+        </DndContext>
 
         {q ? (
           /* Search results — across every category */
@@ -713,6 +814,8 @@ function Menu() {
                     </p>
                   </div>
                 ) : (
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onItemDragEnd}>
+                  <SortableContext items={shown.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                   <ul className="divide-y divide-slate-100">
                     {shown.map((item) => (
                       <ItemRow key={item.id} item={item}
@@ -721,6 +824,8 @@ function Menu() {
                         onDelete={() => askDelItem(item)} />
                     ))}
                   </ul>
+                  </SortableContext>
+                  </DndContext>
                 )}
 
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
