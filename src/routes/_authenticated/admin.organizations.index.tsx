@@ -704,7 +704,7 @@ function CreateWizard({ open, onOpenChange, onCreated }: {
                     <Field label="City" req><Input value={o.city} onChange={e => setO(i, "city", e.target.value)} /></Field>
                     <Field label="State"><Input value={o.state} onChange={e => setO(i, "state", e.target.value)} /></Field>
                     <Field label="Pincode"><Input value={o.pincode} onChange={e => setO(i, "pincode", e.target.value)} /></Field>
-                    <Field label="Contact number"><Input type="tel" value={o.contact} onChange={e => setO(i, "contact", e.target.value)} /></Field>
+                    <Field label="Contact number"><Input type="tel" inputMode="numeric" maxLength={10} value={o.contact} onChange={e => setO(i, "contact", e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="10 digit phone number" /></Field>
                     <Field label="Email"><Input type="email" value={o.email} onChange={e => setO(i, "email", e.target.value)} /></Field>
                     <Field label="GST number"><Input value={o.gst_number} onChange={e => setO(i, "gst_number", e.target.value.toUpperCase())} placeholder={biz.gst_number || "Uses organization GST if blank"} /></Field>
                     <Field label="Opening time"><Input type="time" value={o.opening_time} onChange={e => setO(i, "opening_time", e.target.value)} /></Field>

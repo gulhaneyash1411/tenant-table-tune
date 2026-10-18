@@ -687,7 +687,7 @@ function AddOutletDialog({ orgId, open, onClose, onDone }: { orgId: string; open
             <div><Label>Pincode</Label><Input value={f.pincode} onChange={set("pincode")} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Contact</Label><Input value={f.contact} onChange={set("contact")} /></div>
+            <div><Label>Contact</Label><Input type="tel" inputMode="numeric" maxLength={10} value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10 digit phone number" /></div>
             <div><Label>Email</Label><Input type="email" value={f.email} onChange={set("email")} /></div>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -984,7 +984,7 @@ function ManagersTab({ orgId, outlets }: { orgId: string; outlets: Outlet[] }) {
           <form onSubmit={invite} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Full name</Label><Input required value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} /></div>
-              <div><Label>Mobile</Label><Input value={f.mobile} onChange={(e) => setF({ ...f, mobile: e.target.value })} /></div>
+              <div><Label>Mobile</Label><Input type="tel" inputMode="numeric" maxLength={10} value={f.mobile} onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10 digit phone number" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Login email</Label><Input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>

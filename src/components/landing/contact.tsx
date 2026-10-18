@@ -97,7 +97,8 @@ export const ContactSection = () => {
             <div className="grid sm:grid-cols-2 gap-4">
               <div><Label t={t("Full name")} req /><input {...field("name")} maxLength={120} placeholder={t("Your name")} /><Err k="name" /></div>
               <div><Label t={t("Email")} req /><input type="email" {...field("email")} maxLength={254} placeholder="you@example.com" /><Err k="email" /></div>
-              <div><Label t={t("Phone")} /><input {...field("phone")} placeholder="+91 98765 43210" /><Err k="phone" /></div>
+              <div><Label t={t("Phone")} /><input {...field("phone")} type="tel" inputMode="numeric" maxLength={10}
+                onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="9876543210" /><Err k="phone" /></div>
               <div><Label t={t("Restaurant name")} /><input {...field("restaurant")} maxLength={160} placeholder="Spice Garden" /></div>
             </div>
             <div><Label t={t("Subject")} req />

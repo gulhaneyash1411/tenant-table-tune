@@ -60,20 +60,23 @@ function SettingsPage() {
     const missing = requiredFields.filter(([, v]) => !String(v ?? "").trim()).map(([label]) => label);
     if (missing.length) return toast.error(`Please fill: ${missing.join(", ")}`);
     setSaving(true);
-    const { error } = await supabase.from("tenants").update({
+    const patch = {
       name: t.name, owner_name: t.owner_name, owner_phone: t.owner_phone,
       address: t.address, city: t.city, state: t.state, pincode: t.pincode,
       gst_number: t.gst_number, business_type: t.business_type, brand_color: t.brand_color,
       currency: t.currency, timezone: "Asia/Kolkata", settings: t.settings || {},
       slogan: t.slogan, opening_time: t.opening_time || "09:00", closing_time: t.closing_time, logo_url: t.logo_url,
       google_review_url: t.google_review_url || null,
-    } as any).eq("id", t.id);
+    };
+    const { error } = await supabase.from("tenants").update(patch as any).eq("id", t.id);
     setSaving(false);
     if (error) return toast.error(error.message);
-    // Push the freshly-saved row into the layout's cached tenant so the
-    // "complete your profile" banner and sidebar update immediately —
-    // no refetch, no full page reload needed.
-    setTenant(t);
+    // Push exactly what was saved (incl. defaults such as the 09:00 opening time,
+    // which the form only displays) into the layout's cached tenant, so the
+    // "complete your profile" lock lifts immediately — no page reload needed.
+    const saved = { ...t, ...patch };
+    setT(saved);
+    setTenant(saved);
     toast.success("Settings saved");
   }
   if (!t) return <div>Loading…</div>;

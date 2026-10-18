@@ -192,7 +192,7 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
       )}
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Owner name</Label><Input required value={f.full_name} onChange={e=>setF({...f,full_name:e.target.value})}/></div>
-        <div><Label>Phone</Label><Input required value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/></div>
+        <div><Label>Phone</Label><Input required type="tel" inputMode="numeric" maxLength={10} value={f.phone} onChange={e=>setF({...f,phone:e.target.value.replace(/\D/g,"").slice(0,10)})} placeholder="10 digit phone number"/></div>
       </div>
       <div><Label>Email</Label><Input required type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/></div>
       <div><Label>Password</Label><PasswordInput required value={f.password} onChange={e=>setF({...f,password:e.target.value})}/></div>
