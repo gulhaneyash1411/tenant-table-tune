@@ -125,7 +125,18 @@ export function useUserContext(user: User | null) {
   // push the new row straight into this cached copy, so anything reading
   // `tenant` from this hook re-renders immediately — no refetch, no reload.
   const setTenant = useCallback((tenant: Tenant) => {
-    setCtx((prev) => (prev ? { ...prev, tenant, approvalStatus: tenant.status ?? null } : prev));
+    // Merged, not replaced: the cached row may carry fields the caller's copy lacks.
+    // The outlet list is kept in step so the switcher shows the new name too.
+    setCtx((prev) => {
+      if (!prev) return prev;
+      const merged = prev.tenant && prev.tenant.id === tenant.id ? { ...prev.tenant, ...tenant } : tenant;
+      return {
+        ...prev,
+        tenant: merged,
+        outlets: prev.outlets.map((o) => (o.id === merged.id ? { ...o, ...merged } : o)),
+        approvalStatus: merged.status ?? null,
+      };
+    });
   }, []);
 
   return {

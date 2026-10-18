@@ -140,13 +140,46 @@ const Navbar = () => {
   const t = useT();
   const [active, setActive] = useState("home");
   const [menu, setMenu] = useState(false);
+  // Section to scroll to once the mobile drawer has finished collapsing. Scrolling while the
+  // drawer animates shifts the layout mid-scroll, which cancels/misdirects smooth scrolling on mobile.
+  const pendingScroll = useRef<string | null>(null);
+  // While a nav-triggered scroll is in flight, keep the clicked item active instead of
+  // flickering through every section the page passes on the way.
+  const scrollLock = useRef(false);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const holdLock = (ms: number) => {
+    clearTimeout(lockTimer.current);
+    lockTimer.current = setTimeout(() => { scrollLock.current = false; }, ms);
+  };
+  const goTo = (id: string) => {
+    setActive(id);
+    scrollLock.current = true;
+    holdLock(600); // covers the mobile drawer collapse before scrolling starts
+  };
   useEffect(() => {
+    const onScroll = () => { if (scrollLock.current) holdLock(150); };
+    window.addEventListener("scroll", onScroll, { passive: true });
     const obs = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && setActive(e.target.id)),
+      (entries) => entries.forEach((e) => e.isIntersecting && !scrollLock.current && setActive(e.target.id)),
       { rootMargin: "-45% 0px -50% 0px" },
     );
-    NAV.forEach((n) => { const el = document.getElementById(n.id); if (el) obs.observe(el); });
-    return () => obs.disconnect();
+    // Most sections are lazy-loaded, so they may not exist yet on mount; observe them as they appear.
+    const seen = new Set<Element>();
+    const attach = () => {
+      NAV.forEach((n) => {
+        const el = document.getElementById(n.id);
+        if (el && !seen.has(el)) { seen.add(el); obs.observe(el); }
+      });
+    };
+    attach();
+    const mo = new MutationObserver(attach);
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      obs.disconnect();
+      mo.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      clearTimeout(lockTimer.current);
+    };
   }, []);
   return (
     <header className="sticky top-0 z-50 bg-white/85 backdrop-blur border-b border-slate-100">
@@ -154,7 +187,7 @@ const Navbar = () => {
         <Logo />
         <nav className="hidden md:flex items-center gap-8 text-sm">
           {NAV.map((n) => (
-            <button key={n.id} onClick={() => scrollTo(n.id)}
+            <button key={n.id} onClick={() => { goTo(n.id); scrollTo(n.id); }}
               className="relative py-5 transition-colors"
               style={{ color: active === n.id ? BRAND.primary : "#475569", fontWeight: active === n.id ? 600 : 400 }}>
               {t(n.label)}
@@ -181,14 +214,18 @@ const Navbar = () => {
       </div>
 
       {/* mobile drawer */}
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => {
+        const id = pendingScroll.current;
+        pendingScroll.current = null;
+        if (id) scrollTo(id);
+      }}>
         {menu && (
           <motion.nav id="mobile-nav" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }}
             className="md:hidden overflow-hidden border-t border-slate-100 bg-white">
             <div className="px-6 py-4 space-y-1">
               {NAV.map((n) => (
-                <button key={n.id} onClick={() => { setMenu(false); scrollTo(n.id); }}
+                <button key={n.id} onClick={() => { goTo(n.id); pendingScroll.current = n.id; setMenu(false); }}
                   className="block w-full rounded-lg px-3 py-2.5 text-left text-[15px]"
                   style={active === n.id ? { background: BRAND.soft, color: BRAND.primary, fontWeight: 600 } : { color: "#334155" }}>
                   {t(n.label)}

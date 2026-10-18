@@ -131,7 +131,7 @@ function OutletsPage() {
               <div><Label>State</Label><Input value={f.state} onChange={(e) => setF({ ...f, state: e.target.value })} /></div>
               <div><Label>Pincode</Label><Input value={f.pincode} onChange={(e) => setF({ ...f, pincode: e.target.value })} /></div>
             </div>
-            <div><Label>Contact number</Label><Input value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value })} /></div>
+            <div><Label>Contact number</Label><Input type="tel" inputMode="numeric" maxLength={10} value={f.contact} onChange={(e) => setF({ ...f, contact: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10 digit phone number" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Opens</Label><Input type="time" value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value })} /></div>
               <div><Label>Closes</Label><Input type="time" value={f.closing} onChange={(e) => setF({ ...f, closing: e.target.value })} /></div>
