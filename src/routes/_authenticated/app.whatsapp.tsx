@@ -580,7 +580,7 @@ function Settings() {
         <p className="text-xs text-muted-foreground">
           The number must have opted in to your WhatsApp sender (or joined the Twilio sandbox).
         </p>
-        <div><Label>Phone (with country code)</Label><Input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="+919876543210" /></div>
+        <div><Label>Phone (with country code)</Label><Input type="tel" inputMode="numeric" maxLength={15} value={testPhone} onChange={(e) => setTestPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} placeholder="919876543210" /></div>
         <Button
           variant="outline"
           onClick={async () => {
