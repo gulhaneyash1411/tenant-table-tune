@@ -7,11 +7,15 @@ const API_VERSION = "2023-08-01";
 
 export const CASHFREE_METHOD = "cashfree";
 
+function getEnv(key: string): string | undefined {
+  return process.env[key] ?? (globalThis as any).__env__?.[key];
+}
+
 function config() {
-  const appId = process.env.CASHFREE_APP_ID;
-  const secret = process.env.CASHFREE_SECRET_KEY;
+  const appId = getEnv("CASHFREE_APP_ID");
+  const secret = getEnv("CASHFREE_SECRET_KEY");
   if (!appId || !secret) throw new Error("Cashfree is not configured (CASHFREE_APP_ID / CASHFREE_SECRET_KEY)");
-  const base = process.env.CASHFREE_ENV === "production" ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
+  const base = getEnv("CASHFREE_ENV") === "production" ? "https://api.cashfree.com/pg" : "https://sandbox.cashfree.com/pg";
   return { appId, secret, base };
 }
 
