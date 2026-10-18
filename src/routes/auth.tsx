@@ -35,7 +35,6 @@ function AuthPage() {
             Sign in to manage orders, tables, menus and staff. New restaurants are activated after super-admin approval.
           </p>
         </div>
-        <div className="text-sm text-muted-foreground">Are you the platform owner? <Link to="/admin/auth" className="text-primary">Super admin sign in →</Link></div>
       </div>
       <div className="flex items-center justify-center p-6">
         <Card className="w-full max-w-md p-8">
