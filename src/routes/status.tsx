@@ -276,7 +276,7 @@ function StatusPage() {
                 <div className="text-xs text-muted-foreground mt-0.5">
                   {format(new Date(o.created_at), "PPp")}
                   {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? o.order_type}</>}
-                  {o.table_label && <> · Table {o.table_label}</>}
+                  {o.table_label && <> · {o.table_label}</>}
                 </div>
                 <OrderProgress status={o.status} orderType={o.order_type} />
               </button>

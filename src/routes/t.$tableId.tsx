@@ -177,6 +177,15 @@ function Stepper({ qty, onDec, onInc, className = "" }: { qty: number; onDec: ()
   );
 }
 
+function VegBadge({ isVeg }: { isVeg: boolean }) {
+  return (
+    <span className={`inline-block h-4 w-4 rounded-[3px] border-2 shrink-0 ${isVeg ? "border-green-600" : "border-red-600"}`}
+      title={isVeg ? "Veg" : "Non-veg"}>
+      <span className={`block h-full w-full rounded-full ${isVeg ? "bg-green-600" : "bg-red-600"}`} style={{ transform: "scale(0.45)" }} />
+    </span>
+  );
+}
+
 // Shown when the table can't take an order right now. Uses the same phone-width
 // column, page tint and 32px card as the menu and cart, so a blocked scan reads
 // as the same place rather than an error page from somewhere else. The copy
@@ -205,7 +214,7 @@ function TableNotice({
 
           {table?.label && (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-muted rounded-full pl-2.5 pr-3 py-1.5 mt-5">
-              <MapPin className="h-3.5 w-3.5" />Table {table.label}
+              <MapPin className="h-3.5 w-3.5" />{table.label}
             </span>
           )}
 
@@ -238,7 +247,10 @@ function ItemCard({ item, qty, onAdd, onDec, onOpen }: { item: any; qty: number;
           )}
         </div>
         <div className="px-1 pt-2.5">
-          <h3 className="text-sm font-bold leading-snug line-clamp-1">{item.name}</h3>
+          <div className="flex items-center gap-1.5">
+            <VegBadge isVeg={item.is_veg !== false} />
+            <h3 className="text-sm font-bold leading-snug line-clamp-1">{item.name}</h3>
+          </div>
           {item.description && (
             <p className="text-xs text-muted-foreground leading-snug line-clamp-2 mt-0.5">{item.description}</p>
           )}
@@ -308,11 +320,17 @@ function ItemDetail({ item, qty, onAdd, onDec, onClose }: { item: any; qty: numb
             <Thumb src={item.image_url} alt={item.name} className="h-full w-full" />
           </div>
 
-          {item.is_must_try && (
-            <span className="shrink-0 self-start inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-600 px-3 py-1.5 text-[11px] font-bold mt-4">
-              <Sparkles className="h-3.5 w-3.5" />Must try
+          <div className="shrink-0 flex flex-wrap items-center gap-2 mt-4">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold ${item.is_veg !== false ? "bg-green-500/10 text-green-700" : "bg-red-500/10 text-red-700"}`}>
+              <VegBadge isVeg={item.is_veg !== false} />
+              {item.is_veg !== false ? "Veg" : "Non-veg"}
             </span>
-          )}
+            {item.is_must_try && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-600 px-3 py-1.5 text-[11px] font-bold">
+                <Sparkles className="h-3.5 w-3.5" />Must try
+              </span>
+            )}
+          </div>
 
           <h2 className="shrink-0 text-2xl font-bold tracking-tight mt-3">{item.name}</h2>
           {item.description && (
@@ -345,6 +363,7 @@ function TableOrder() {
   const [activeOrder, setActiveOrder] = useState<any>(loaderData.activeOrder);
   const [placing, setPlacing] = useState(false);
   const [search, setSearch] = useState("");
+  const [dietFilter, setDietFilter] = useState<"all" | "veg" | "nonveg">("all");
   // No "All" pill any more, so the first category is the landing tab.
   const [activeCat, setActiveCat] = useState<string>(cats[0]?.id ?? "");
   const railRef = useRef<HTMLDivElement>(null);
@@ -496,7 +515,7 @@ function TableOrder() {
           <div className="w-full max-w-md rounded-[32px] bg-background p-5 shadow-xl shadow-black/5 space-y-4">
             <h1 className="text-xl font-bold tracking-tight">View your order status</h1>
             <p className="text-sm text-muted-foreground">
-              Table {table?.label} has an order in progress. Enter the name and phone used on that order to follow it.
+              {table?.label} has an order in progress. Enter the name and phone used on that order to follow it.
             </p>
             <Input
               placeholder="Name"
@@ -543,10 +562,11 @@ function TableOrder() {
   // ---- Free: the menu ------------------------------------------------------
 
   const q = search.trim().toLowerCase();
+  const dietOk = (i: any) => dietFilter === "all" || (dietFilter === "veg" ? i.is_veg !== false : i.is_veg === false);
   // While searching, look across the whole menu rather than only the open tab —
   // with no "All" pill there'd otherwise be no way to search everything.
-  const visibleItems = items.filter((i: any) => i.is_available !== false && (q ? true : i.category_id === activeCat) && (!q || i.name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q)));
-  const mustTry = items.filter((i: any) => i.is_available !== false && i.is_must_try);
+  const visibleItems = items.filter((i: any) => i.is_available !== false && dietOk(i) && (q ? true : i.category_id === activeCat) && (!q || i.name.toLowerCase().includes(q) || (i.description || "").toLowerCase().includes(q)));
+  const mustTry = items.filter((i: any) => i.is_available !== false && i.is_must_try && dietOk(i));
 
   return (
     <div className="min-h-screen bg-background">
@@ -571,7 +591,7 @@ function TableOrder() {
 
               <div className="flex flex-wrap gap-2 mt-4">
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-white/15 rounded-full pl-2.5 pr-3 py-1.5">
-                  <MapPin className="h-3.5 w-3.5" />Table {table?.label}
+                  <MapPin className="h-3.5 w-3.5" />{table?.label}
                 </span>
                 {(tenant?.opening_time || tenant?.closing_time) && (
                   <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-white/15 rounded-full pl-2.5 pr-3 py-1.5">
@@ -607,6 +627,17 @@ function TableOrder() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+      </div>
+
+      <div className="flex items-center gap-2 px-4 mt-4">
+        {(["all", "veg", "nonveg"] as const).map(f => (
+          <button key={f} onClick={() => setDietFilter(f)}
+            className={`inline-flex items-center gap-1.5 text-[13px] font-semibold px-4 py-2 rounded-full transition-colors ${dietFilter === f ? (f === "veg" ? "bg-green-600 text-white shadow-md shadow-green-600/25" : f === "nonveg" ? "bg-red-600 text-white shadow-md shadow-red-600/25" : "bg-primary text-primary-foreground shadow-md shadow-primary/25") : "bg-background text-muted-foreground"}`}>
+            {f === "veg" && <span className="inline-block h-3.5 w-3.5 rounded-[2px] border-2 border-current"><span className="block h-full w-full rounded-full bg-current" style={{ transform: "scale(0.45)" }} /></span>}
+            {f === "nonveg" && <span className="inline-block h-3.5 w-3.5 rounded-[2px] border-2 border-current"><span className="block h-full w-full rounded-full bg-current" style={{ transform: "scale(0.45)" }} /></span>}
+            {f === "all" ? "All" : f === "veg" ? "Veg" : "Non-veg"}
+          </button>
+        ))}
       </div>
 
       <div className="px-4 mt-6 space-y-6">
