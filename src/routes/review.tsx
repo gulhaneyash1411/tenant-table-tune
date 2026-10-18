@@ -179,11 +179,61 @@ function ReviewPage() {
           </div>
 
           {reviewUrl && (
-            <p className="text-center text-sm">
-              <a href={reviewUrl} target="_blank" rel="noreferrer" className="font-medium text-primary underline-offset-4 hover:underline">
-                Review us on Google
-              </a>
-            </p>
+            <a
+              href={reviewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Leave a review for this restaurant on Google"
+              className="group flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm transition-all duration-200 hover:border-blue-400 hover:bg-blue-100 hover:shadow-md active:scale-[0.98] dark:border-blue-900 dark:bg-blue-950/40 dark:hover:bg-blue-950/70"
+            >
+              {/* Google Icon */}
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white shadow-sm">
+                <svg
+                  viewBox="0 0 48 48"
+                  className="h-7 w-7"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="#4285F4"
+                    d="M43.6 24.5c0-1.4-.1-2.7-.4-4H24v7.6h11a9.4 9.4 0 0 1-4.1 6.2v5h6.6c3.9-3.6 6.1-8.8 6.1-14.8Z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M24 44c5.5 0 10.1-1.8 13.5-4.8l-6.6-5c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.2A20 20 0 0 0 24 44Z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M12.6 27.8a12 12 0 0 1 0-7.6V15H5.8a20 20 0 0 0 0 18Z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M24 11.8c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 5.8 29.5 4 24 4A20 20 0 0 0 5.8 15l6.8 5.2c1.6-4.8 6.1-8.4 11.4-8.4Z"
+                  />
+                </svg>
+              </div>
+
+              {/* Call to Action */}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Enjoyed your visit?
+                </p>
+                <p className="mt-0.5 text-xs text-gray-600 dark:text-gray-300">
+                  Share your experience on Google
+                </p>
+                <span className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-blue-700 group-hover:underline dark:text-blue-400">
+                  Review us on Google
+                  <span aria-hidden="true">↗</span>
+                </span>
+              </div>
+
+              {/* Right Arrow */}
+              <span
+                aria-hidden="true"
+                className="text-xl text-blue-600 transition-transform duration-200 group-hover:translate-x-1 dark:text-blue-400"
+              >
+                →
+              </span>
+            </a>
           )}
 
           <Button type="submit" disabled={submitting} className="mt-1 h-11 w-full">
