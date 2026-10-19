@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pager } from "@/components/admin/admin-ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -362,6 +363,7 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
   const [uniqueMenuTotal, setUniqueMenuTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [dateFrom, setDateFrom] = useState(iso(new Date()));
   const [dateTo, setDateTo] = useState(iso(new Date()));
   const [activePreset, setActivePreset] = useState("Today");
@@ -569,7 +571,7 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
               placeholder="Search outlets…"
               className="pl-9 h-9"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
         </div>
@@ -593,7 +595,7 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
                   </TableCell>
                 </TableRow>
               )}
-              {filtered.map((r) => (
+              {filtered.slice((page - 1) * 10, page * 10).map((r) => (
                 <TableRow
                   key={r.id}
                   className="cursor-pointer hover:bg-muted/50"
@@ -638,6 +640,9 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
           </Table>
         </div>
       </Card>
+      {filtered.length > 0 && (
+        <Pager page={page} total={filtered.length} pageSize={10} onPage={setPage} />
+      )}
     </div>
   );
 }
