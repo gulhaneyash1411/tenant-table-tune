@@ -13,15 +13,21 @@ import { noindexHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/auth")({ head: noindexHead, component: AuthPage });
 
+function safeRedirect(url: string | null): string {
+  if (!url || !url.startsWith("/") || url.startsWith("//")) return "/app";
+  return url;
+}
+
 function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const navigate = useNavigate();
+  const redirectTo = safeRedirect(new URLSearchParams(window.location.search).get("redirect"));
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/app" });
+      if (data.session) window.location.href = redirectTo;
     });
-  }, [navigate]);
+  }, [redirectTo]);
 
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-background">
@@ -44,7 +50,7 @@ function AuthPage() {
               <button onClick={() => setMode("signup")} className={`flex-1 cursor-pointer rounded-md py-2 text-sm ${mode==="signup"?"bg-background shadow":""}`}>Register restaurant</button>
             </div>
           )}
-          {mode === "signin" && <SignInForm onForgot={() => setMode("forgot")} />}
+          {mode === "signin" && <SignInForm onForgot={() => setMode("forgot")} redirectTo={redirectTo} />}
           {mode === "signup" && <SignUpForm onDone={() => setMode("signin")} />}
           {mode === "forgot" && <ForgotForm onBack={() => setMode("signin")} />}
         </Card>
@@ -53,18 +59,17 @@ function AuthPage() {
   );
 }
 
-function SignInForm({ onForgot }: { onForgot: () => void }) {
+function SignInForm({ onForgot, redirectTo }: { onForgot: () => void; redirectTo: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return toast.error(error.message);
-    navigate({ to: "/app" });
+    window.location.href = redirectTo;
   }
   return (
     <form onSubmit={submit} className="space-y-4">
