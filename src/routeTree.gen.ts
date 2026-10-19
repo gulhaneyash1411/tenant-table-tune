@@ -9,9 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsOfServiceRouteImport } from './routes/terms-of-service'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as ReviewRouteImport } from './routes/review'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ForceResetPasswordRouteImport } from './routes/force-reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -86,6 +88,11 @@ import { Route as AuthenticatedAdminAnnouncementsRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminOrganizationsIndexRouteImport } from './routes/_authenticated/admin.organizations.index'
 import { Route as AuthenticatedAdminOrganizationsOrgIdRouteImport } from './routes/_authenticated/admin.organizations.$orgId'
 
+const TermsOfServiceRoute = TermsOfServiceRouteImport.update({
+  id: '/terms-of-service',
+  path: '/terms-of-service',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StatusRoute = StatusRouteImport.update({
   id: '/status',
   path: '/status',
@@ -99,6 +106,11 @@ const ReviewRoute = ReviewRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -497,9 +509,11 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/force-reset-password': typeof ForceResetPasswordRoute
   '/pricing': typeof PricingRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
+  '/terms-of-service': typeof TermsOfServiceRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/app': typeof AuthenticatedAppRouteWithChildren
   '/kitchen': typeof AuthenticatedKitchenRoute
@@ -574,9 +588,11 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/force-reset-password': typeof ForceResetPasswordRoute
   '/pricing': typeof PricingRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
+  '/terms-of-service': typeof TermsOfServiceRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/admin/auth': typeof AdminAuthRoute
@@ -651,9 +667,11 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/force-reset-password': typeof ForceResetPasswordRoute
   '/pricing': typeof PricingRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/review': typeof ReviewRoute
   '/status': typeof StatusRoute
+  '/terms-of-service': typeof TermsOfServiceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
@@ -730,9 +748,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/force-reset-password'
     | '/pricing'
+    | '/privacy-policy'
     | '/reset-password'
     | '/review'
     | '/status'
+    | '/terms-of-service'
     | '/admin'
     | '/app'
     | '/kitchen'
@@ -807,9 +827,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/force-reset-password'
     | '/pricing'
+    | '/privacy-policy'
     | '/reset-password'
     | '/review'
     | '/status'
+    | '/terms-of-service'
     | '/kitchen'
     | '/sales'
     | '/admin/auth'
@@ -883,9 +905,11 @@ export interface FileRouteTypes {
     | '/auth'
     | '/force-reset-password'
     | '/pricing'
+    | '/privacy-policy'
     | '/reset-password'
     | '/review'
     | '/status'
+    | '/terms-of-service'
     | '/_authenticated/admin'
     | '/_authenticated/app'
     | '/_authenticated/kitchen'
@@ -962,9 +986,11 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ForceResetPasswordRoute: typeof ForceResetPasswordRoute
   PricingRoute: typeof PricingRoute
+  PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ReviewRoute: typeof ReviewRoute
   StatusRoute: typeof StatusRoute
+  TermsOfServiceRoute: typeof TermsOfServiceRoute
   AdminAuthRoute: typeof AdminAuthRoute
   ApiAdminCreateRestaurantRoute: typeof ApiAdminCreateRestaurantRoute
   ApiAdminDeleteRestaurantRoute: typeof ApiAdminDeleteRestaurantRoute
@@ -991,6 +1017,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms-of-service': {
+      id: '/terms-of-service'
+      path: '/terms-of-service'
+      fullPath: '/terms-of-service'
+      preLoaderRoute: typeof TermsOfServiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/status': {
       id: '/status'
       path: '/status'
@@ -1010,6 +1043,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -1653,9 +1693,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ForceResetPasswordRoute: ForceResetPasswordRoute,
   PricingRoute: PricingRoute,
+  PrivacyPolicyRoute: PrivacyPolicyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ReviewRoute: ReviewRoute,
   StatusRoute: StatusRoute,
+  TermsOfServiceRoute: TermsOfServiceRoute,
   AdminAuthRoute: AdminAuthRoute,
   ApiAdminCreateRestaurantRoute: ApiAdminCreateRestaurantRoute,
   ApiAdminDeleteRestaurantRoute: ApiAdminDeleteRestaurantRoute,
