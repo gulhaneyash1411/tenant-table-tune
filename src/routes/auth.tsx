@@ -13,23 +13,29 @@ import { noindexHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/auth")({ head: noindexHead, component: AuthPage });
 
+function safeRedirect(url: string | null): string {
+  if (!url || !url.startsWith("/") || url.startsWith("//")) return "/app";
+  return url;
+}
+
 function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const navigate = useNavigate();
+  const redirectTo = safeRedirect(new URLSearchParams(window.location.search).get("redirect"));
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/app" });
+      if (data.session) window.location.href = redirectTo;
     });
-  }, [navigate]);
+  }, [redirectTo]);
 
   return (
     <div className="min-h-screen grid md:grid-cols-2 bg-background">
-      <div className="hidden md:flex flex-col justify-between p-10 bg-gradient-to-br from-primary/10 via-accent/10 to-background border-r border-border">
+      <div className="hidden md:flex flex-col p-10 bg-gradient-to-br from-primary/10 via-accent/10 to-background border-r border-border">
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <img src="/brand/dineeatz-logo.png?v=3" alt="DineEatz" className="h-20 w-auto object-contain" />
         </Link>
-        <div>
+        <div className="mt-auto mb-auto">
           <h2 className="text-3xl font-semibold tracking-tight">Restaurant portal</h2>
           <p className="text-muted-foreground mt-2 max-w-sm">
             Sign in to manage orders, tables, menus and staff. New restaurants are activated after super-admin approval.
@@ -40,11 +46,11 @@ function AuthPage() {
         <Card className="w-full max-w-md p-8">
           {mode !== "forgot" && (
             <div className="flex gap-1 rounded-lg bg-muted p-1 mb-6">
-              <button onClick={() => setMode("signin")} className={`flex-1 cursor-pointer rounded-md py-2 text-sm ${mode==="signin"?"bg-background shadow":""}`}>Sign in</button>
-              <button onClick={() => setMode("signup")} className={`flex-1 cursor-pointer rounded-md py-2 text-sm ${mode==="signup"?"bg-background shadow":""}`}>Register restaurant</button>
+              <button onClick={() => setMode("signin")} className={`flex-1 cursor-pointer rounded-md px-3 py-2 text-sm whitespace-nowrap ${mode==="signin"?"bg-background shadow":""}`}>Sign in</button>
+              <button onClick={() => setMode("signup")} className={`flex-1 cursor-pointer rounded-md px-3 py-2 text-sm whitespace-nowrap ${mode==="signup"?"bg-background shadow":""}`}>Register restaurant</button>
             </div>
           )}
-          {mode === "signin" && <SignInForm onForgot={() => setMode("forgot")} />}
+          {mode === "signin" && <SignInForm onForgot={() => setMode("forgot")} redirectTo={redirectTo} />}
           {mode === "signup" && <SignUpForm onDone={() => setMode("signin")} />}
           {mode === "forgot" && <ForgotForm onBack={() => setMode("signin")} />}
         </Card>
@@ -53,18 +59,17 @@ function AuthPage() {
   );
 }
 
-function SignInForm({ onForgot }: { onForgot: () => void }) {
+function SignInForm({ onForgot, redirectTo }: { onForgot: () => void; redirectTo: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return toast.error(error.message);
-    navigate({ to: "/app" });
+    window.location.href = redirectTo;
   }
   return (
     <form onSubmit={submit} className="space-y-4">

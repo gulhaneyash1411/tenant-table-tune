@@ -575,12 +575,12 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-5 sm:px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-6">
         <Logo />
         <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-slate-500">
-          <a href="#" className="hover:text-slate-800">
+          <Link to="/privacy-policy" className="hover:text-slate-800">
             {t("Privacy Policy")}
-          </a>
-          <a href="#" className="hover:text-slate-800">
+          </Link>
+          <Link to="/terms-of-service" className="hover:text-slate-800">
             {t("Terms of Service")}
-          </a>
+          </Link>
           <button onClick={() => scrollTo("contact")} className="hover:text-slate-800">
             {t("Contact")}
           </button>
