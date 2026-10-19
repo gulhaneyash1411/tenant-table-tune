@@ -457,6 +457,7 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
   const [extendFor, setExtendFor] = useState<Sub | null>(null);
   const [detail, setDetail] = useState<Outlet | null>(null);
   const [adding, setAdding] = useState(false);
+  const [outletPage, setOutletPage] = useState(1);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteOutletId, setDeleteOutletId] = useState<string | null>(null);
@@ -575,7 +576,7 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {outlets.map((o) => {
+              {outlets.slice((outletPage - 1) * ADMIN_PAGE_SIZE, outletPage * ADMIN_PAGE_SIZE).map((o) => {
                 const s = extra.data?.subs[o.id];
                 return (
                   <TableRow key={o.id}>
@@ -627,6 +628,9 @@ function OutletsTab({ orgId, outlets, loading, error, onChanged }: {
           </Table>
         )}
       </Card>
+      {outlets.length > 0 && !loading && !error && (
+        <Pager page={outletPage} total={outlets.length} pageSize={ADMIN_PAGE_SIZE} onPage={setOutletPage} />
+      )}
 
       <AddOutletDialog orgId={orgId} open={adding} onClose={() => setAdding(false)} onDone={refresh} />
       <SubscribeDialog outlet={subFor} plans={plans.data ?? []} onClose={() => setSubFor(null)} onDone={refresh} />
@@ -882,6 +886,7 @@ function ManagersTab({ orgId, outlets }: { orgId: string; outlets: Outlet[] }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [assign, setAssign] = useState<{ m: Manager; ids: string[] } | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const [mgrPage, setMgrPage] = useState(1);
   const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
   const outletName = (id: string) => outlets.find((o) => o.id === id)?.name ?? "Outlet";
 
@@ -922,7 +927,7 @@ function ManagersTab({ orgId, outlets }: { orgId: string; outlets: Outlet[] }) {
               <TableRow><TableHead>Manager</TableHead><TableHead>Status</TableHead><TableHead>Outlets</TableHead><TableHead className="w-10" /></TableRow>
             </TableHeader>
             <TableBody>
-              {q.data.map((m) => (
+              {q.data.slice((mgrPage - 1) * ADMIN_PAGE_SIZE, mgrPage * ADMIN_PAGE_SIZE).map((m) => (
                 <TableRow key={m.user_id}>
                   <TableCell>
                     <div className="font-medium">{m.full_name || m.email}</div>
@@ -964,6 +969,9 @@ function ManagersTab({ orgId, outlets }: { orgId: string; outlets: Outlet[] }) {
           </Table>
         )}
       </Card>
+      {q.data && q.data.length > 0 && (
+        <Pager page={mgrPage} total={q.data.length} pageSize={ADMIN_PAGE_SIZE} onPage={setMgrPage} />
+      )}
 
       <ResetPasswordDialog
         open={!!resetFor}

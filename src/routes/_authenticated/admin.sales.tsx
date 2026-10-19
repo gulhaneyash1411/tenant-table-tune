@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Briefcase, UserPlus } from "lucide-react";
+import { ADMIN_PAGE_SIZE, Pager } from "@/components/admin/admin-ui";
 
 export const Route = createFileRoute("/_authenticated/admin/sales")({ component: SalesTeam });
 
@@ -73,6 +74,7 @@ function SalesTeam() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordEdits, setPasswordEdits] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
 
   async function load() {
     const res = await callSalesApi({ action: "list" });
@@ -163,7 +165,7 @@ function SalesTeam() {
                 </TableCell>
               </TableRow>
             ) : (
-              accounts.map((a) => (
+              accounts.slice((page - 1) * ADMIN_PAGE_SIZE, page * ADMIN_PAGE_SIZE).map((a) => (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium">{a.full_name || "—"}</TableCell>
                   <TableCell className="text-sm">{a.email}</TableCell>
@@ -232,6 +234,9 @@ function SalesTeam() {
           </TableBody>
         </Table>
       </Card>
+      {accounts && accounts.length > 0 && (
+        <Pager page={page} total={accounts.length} pageSize={ADMIN_PAGE_SIZE} onPage={setPage} />
+      )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>

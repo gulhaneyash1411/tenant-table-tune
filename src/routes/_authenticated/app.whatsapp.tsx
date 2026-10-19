@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { MessageCircle, Send, Users, CheckCheck, XCircle, Plus, Trash2, Eye, RefreshCw } from "lucide-react";
+import { Pager } from "@/components/admin/admin-ui";
 
 export const Route = createFileRoute("/_authenticated/app/whatsapp")({ component: WhatsAppPage });
 
@@ -316,6 +317,8 @@ function Campaigns() {
   const [open, setOpen] = useState<Record<string, unknown> | null>(null);
   const [msgs, setMsgs] = useState<Record<string, unknown>[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [msgPage, setMsgPage] = useState(1);
   const sync = useServerFn(syncCampaignStatuses);
 
   const load = useCallback(async () => {
@@ -346,6 +349,7 @@ function Campaigns() {
 
   async function view(c: Record<string, unknown>) {
     setOpen(c);
+    setMsgPage(1);
     const { data } = await supabase
       .from("whatsapp_messages")
       .select("*")
@@ -393,7 +397,7 @@ function Campaigns() {
             {rows.length === 0 && (
               <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-10">No campaigns yet.</TableCell></TableRow>
             )}
-            {rows.map((c) => (
+            {rows.slice((page - 1) * 10, page * 10).map((c) => (
               <TableRow key={String(c["id"])}>
                 <TableCell className="font-medium">{String(c["name"])}</TableCell>
                 <TableCell className="text-muted-foreground">{String(c["kind"])}</TableCell>
@@ -410,6 +414,9 @@ function Campaigns() {
           </TableBody>
         </Table>
       </Card>
+      {rows.length > 0 && (
+        <Pager page={page} total={rows.length} pageSize={10} onPage={setPage} />
+      )}
 
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent className="max-w-2xl">
@@ -419,7 +426,7 @@ function Campaigns() {
             <Table>
               <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Phone</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
               <TableBody>
-                {msgs.map((m) => (
+                {msgs.slice((msgPage - 1) * 10, msgPage * 10).map((m) => (
                   <TableRow key={String(m["id"])}>
                     <TableCell>{String(m["to_name"] ?? "—")}</TableCell>
                     <TableCell className="text-muted-foreground">{String(m["to_phone"])}</TableCell>
@@ -433,6 +440,9 @@ function Campaigns() {
               </TableBody>
             </Table>
           </div>
+          {msgs.length > 0 && (
+            <Pager page={msgPage} total={msgs.length} pageSize={10} onPage={setMsgPage} />
+          )}
         </DialogContent>
       </Dialog>
     </div>
