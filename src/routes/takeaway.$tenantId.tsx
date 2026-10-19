@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { money } from "@/lib/format";
+import { computeBill, discountLabel, readBillCharges, readTaxRate } from "@/lib/billing";
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, ShoppingBag, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
@@ -240,10 +241,14 @@ function TakeawayOrder() {
 
   const cartItems = items.filter((i: any) => cart[i.id]);
   const subtotal = cartItems.reduce((a: number, b: any) => a + Number(b.price) * cart[b.id], 0);
-  // Tax % comes from the tenant's Settings → Tax rate, the same value the server applies.
-  const taxPercent = Number((tenant?.settings as any)?.tax_rate ?? 0);
-  const tax = Math.round(subtotal * (Number.isFinite(taxPercent) ? Math.min(Math.max(taxPercent, 0), 100) : 0)) / 100;
-  const total = subtotal + tax;
+  // Tax, discount and service charges come from the tenant's Settings, through
+  // the same calculator the server bills with — this is the bill they'll get.
+  const bill = computeBill({
+    itemsSubtotal: subtotal,
+    taxRate: readTaxRate(tenant?.settings),
+    ...readBillCharges(tenant?.settings),
+  });
+  const { tax, total } = bill;
   const count = cartItems.reduce((a: number, b: any) => a + cart[b.id], 0);
   const detailItem = detailId ? items.find((i: any) => i.id === detailId) : null;
 
@@ -497,9 +502,24 @@ function TakeawayOrder() {
               <div className="flex justify-between items-center text-sm text-muted-foreground">
                 <span>Subtotal</span><span className="tabular-nums">{money(subtotal)}</span>
               </div>
+              {bill.discountAmount > 0 && (
+                <>
+                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <span>{discountLabel(bill, money)}</span><span className="tabular-nums">− {money(bill.discountAmount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <span>After discount</span><span className="tabular-nums">{money(bill.subtotalAfterDiscount)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between items-center text-sm text-muted-foreground">
                 <span>Tax</span><span className="tabular-nums">{money(tax)}</span>
               </div>
+              {bill.serviceCharge > 0 && (
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>Service charges</span><span className="tabular-nums">+ {money(bill.serviceCharge)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
                 <span>Total</span><span className="tabular-nums">{money(total)}</span>
               </div>

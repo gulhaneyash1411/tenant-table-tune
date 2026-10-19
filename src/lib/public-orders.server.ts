@@ -1,3 +1,5 @@
+import { computeBill, itemsSubtotal, orderBillColumns, readBillCharges, readTaxRate } from "@/lib/billing";
+
 type PublicOrderInput = {
   tenant_id: string;
   table_id?: string | null;
@@ -90,9 +92,14 @@ export async function createPublicOrder(input: PublicOrderInput) {
     throw new Error(`Minimum order for delivery is ${minOrder}`);
   }
 
-  const configuredTax = Number(settings["tax_rate"] ?? 0);
-  const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 0;
-  const tax = Math.round(subtotal * taxRate) / 100;
+  // Tax, discount and service charges all come from the tenant's settings,
+  // never the request, and go through the same calculator as the staff bill.
+  const bill = computeBill({
+    itemsSubtotal: subtotal,
+    taxRate: readTaxRate(settings),
+    ...readBillCharges(settings),
+    deliveryFee,
+  });
 
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
@@ -104,10 +111,8 @@ export async function createPublicOrder(input: PublicOrderInput) {
       order_type: input.order_type,
       status: "new",
       payment_status: "unpaid",
-      subtotal,
-      tax,
+      ...orderBillColumns(bill),
       delivery_fee: deliveryFee,
-      total: subtotal + tax + deliveryFee,
       delivery_address: input.order_type === "home_delivery" ? address : null,
       delivery_landmark: input.order_type === "home_delivery" ? (input.delivery_landmark?.trim() || null) : null,
       delivery_pincode: input.order_type === "home_delivery" ? pincode : null,
@@ -232,21 +237,17 @@ export async function appendPublicOrderItems(input: AppendOrderInput) {
     throw new Error(rowsError?.message ?? "Failed to update the order total");
   }
 
-  const subtotal = rows.reduce((sum, r) => sum + Number(r.price) * Number(r.quantity), 0);
-  const settings = tenant.settings && typeof tenant.settings === "object" && !Array.isArray(tenant.settings)
-    ? tenant.settings as Record<string, unknown>
-    : {};
-  const configuredTax = Number(settings["tax_rate"] ?? 0);
-  const taxRate = Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 0;
-  const tax = Math.round(subtotal * taxRate) / 100;
-  const deliveryFee = Number((order as any).delivery_fee ?? 0) || 0;
+  const bill = computeBill({
+    itemsSubtotal: itemsSubtotal(rows),
+    taxRate: readTaxRate(tenant.settings),
+    ...readBillCharges(tenant.settings),
+    deliveryFee: Number((order as any).delivery_fee ?? 0) || 0,
+  });
 
   const { data: updated, error: updateError } = await supabaseAdmin
     .from("orders")
     .update({
-      subtotal,
-      tax,
-      total: subtotal + tax + deliveryFee,
+      ...orderBillColumns(bill),
       // The kitchen had already finished this order; a new round puts it back
       // in the queue, otherwise the round is never cooked.  served_at is kept
       // (not cleared) so the live board and kitchen display can compare each

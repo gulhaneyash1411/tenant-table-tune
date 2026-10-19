@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getOrderDetail } from "@/lib/public-orders.functions";
 import { downloadInvoicePdf } from "@/lib/invoice";
+import { discountLabel, readOrderBill } from "@/lib/billing";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,6 +150,8 @@ function OrderHistory() {
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [tableNames, setTableNames] = useState<TableNames>({});
   const [selected, setSelected] = useState<any>(null);
+  // The bill as it was charged — the same figures the invoice PDF prints.
+  const selectedBill = readOrderBill(selected);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   // Which order's invoice is being built. The PDF needs a round trip for the
@@ -305,7 +308,7 @@ function OrderHistory() {
   function exportCsv() {
     const header = [
       "Order #", "Date", "Customer", "Phone", "Type", "Table", "Address", "Landmark", "Pincode",
-      "Status", "Payment", "Subtotal", "Tax", "Delivery", "Total",
+      "Status", "Payment", "Subtotal", "Tax", "Delivery", "Total", "Discount", "Service charges",
     ];
     const csv = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = [header.join(",")];
@@ -329,6 +332,8 @@ function OrderHistory() {
         o.tax,
         o.delivery_fee || 0,
         o.total,
+        o.discount_amount || 0,
+        o.service_charge || 0,
       ].join(","));
     });
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
@@ -677,18 +682,33 @@ function OrderHistory() {
 
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span><span>{money(Number(selected.subtotal))}</span>
+                  <span>Subtotal</span><span>{money(selectedBill.itemsSubtotal)}</span>
                 </div>
+                {selectedBill.discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>{discountLabel(selectedBill, money)}</span><span>− {money(selectedBill.discountAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>After discount</span><span>{money(selectedBill.subtotalAfterDiscount)}</span>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Tax</span><span>{money(Number(selected.tax))}</span>
+                  <span>Tax</span><span>{money(selectedBill.tax)}</span>
                 </div>
-                {Number(selected.delivery_fee) > 0 && (
+                {selectedBill.serviceCharge > 0 && (
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Delivery</span><span>{money(Number(selected.delivery_fee))}</span>
+                    <span>Service charges</span><span>+ {money(selectedBill.serviceCharge)}</span>
+                  </div>
+                )}
+                {selectedBill.deliveryFee > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Delivery</span><span>{money(selectedBill.deliveryFee)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-semibold">
-                  <span>Total</span><span>{money(Number(selected.total))}</span>
+                  <span>Total</span><span>{money(selectedBill.total)}</span>
                 </div>
               </div>
 

@@ -14,6 +14,16 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DEFAULT_DISCOUNT_TYPE,
+  isDiscountType,
+  readBillCharges,
+  sanitizeAmountInput,
+  validateBillCharges,
+  type DiscountType,
+} from "@/lib/billing";
+import { money } from "@/lib/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,12 +69,28 @@ function SettingsPage() {
     ];
     const missing = requiredFields.filter(([, v]) => !String(v ?? "").trim()).map(([label]) => label);
     if (missing.length) return toast.error(`Please fill: ${missing.join(", ")}`);
+    const s = t.settings || {};
+    const chargesError = validateBillCharges({
+      discountType: s.discount_type ?? DEFAULT_DISCOUNT_TYPE,
+      discountValue: s.discount_value,
+      serviceCharge: s.service_charge,
+    });
+    if (chargesError) return toast.error(chargesError);
+    // Stored as numbers (the boxes hold strings so "12." can be typed); every
+    // reader goes through readBillCharges, which defaults anything missing.
+    const charges = readBillCharges(s);
+    const settings = {
+      ...s,
+      discount_type: charges.discountType,
+      discount_value: charges.discountValue,
+      service_charge: charges.serviceCharge,
+    };
     setSaving(true);
     const patch = {
       name: t.name, owner_name: t.owner_name, owner_phone: t.owner_phone,
       address: t.address, city: t.city, state: t.state, pincode: t.pincode,
       gst_number: t.gst_number, business_type: t.business_type, brand_color: t.brand_color,
-      currency: t.currency, timezone: "Asia/Kolkata", settings: t.settings || {},
+      currency: t.currency, timezone: "Asia/Kolkata", settings,
       slogan: t.slogan, opening_time: t.opening_time || "09:00", closing_time: t.closing_time, logo_url: t.logo_url,
       google_review_url: t.google_review_url || null,
     };
@@ -190,6 +216,10 @@ function SettingsPage() {
                 <Label>Timezone</Label>
                 <Input value="Asia/Kolkata" readOnly disabled />
               </div>
+              <BillChargesFields
+                settings={t.settings}
+                onChange={patch => setT({ ...t, settings: { ...(t.settings || {}), ...patch } })}
+              />
             </div>
           </Card>
           <Card className="p-5 space-y-4">
@@ -561,6 +591,77 @@ function KitchenAccountCard({ tenantId, readOnly = false }: { tenantId: string; 
         </form>
       )}
     </Card>
+  );
+}
+
+/**
+ * Discount and service charge put on every bill (staff and guest orders alike).
+ * The boxes hold strings so a half-typed "12." survives; save() turns them into
+ * numbers. The bill itself is worked out in @/lib/billing.
+ */
+function BillChargesFields({ settings, onChange }: {
+  settings: Record<string, unknown> | null | undefined;
+  onChange: (patch: Record<string, string>) => void;
+}) {
+  const s = settings ?? {};
+  const type: DiscountType = isDiscountType(s.discount_type) ? s.discount_type : DEFAULT_DISCOUNT_TYPE;
+  const discount = String(s.discount_value ?? "0");
+  const service = String(s.service_charge ?? "0");
+  const charges = readBillCharges(s);
+
+  function setType(next: string) {
+    if (!isDiscountType(next)) return;
+    // A flat ₹250 becomes 100%, not 250%: switching type never leaves an invalid value behind.
+    const value = next === "percentage" && Number(discount) > 100 ? "100" : discount;
+    onChange({ discount_type: next, discount_value: value });
+  }
+
+  return (
+    <>
+      <div className="col-span-2 sm:col-span-1">
+        <Label htmlFor="bill-discount">Discount</Label>
+        <div className="flex gap-2">
+          <Input
+            id="bill-discount"
+            inputMode="decimal"
+            placeholder="0"
+            value={discount}
+            onChange={e => onChange({ discount_value: sanitizeAmountInput(e.target.value, discount, type === "percentage" ? 100 : undefined) })}
+            aria-describedby="bill-charges-hint"
+          />
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="w-32 shrink-0" aria-label="Discount type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rupees">₹ Rupees</SelectItem>
+              <SelectItem value="percentage">% Percent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="col-span-2 sm:col-span-1">
+        <Label htmlFor="bill-service-charge">Service charges (₹)</Label>
+        <Input
+          id="bill-service-charge"
+          inputMode="decimal"
+          placeholder="0"
+          value={service}
+          onChange={e => onChange({ service_charge: sanitizeAmountInput(e.target.value, service) })}
+          aria-describedby="bill-charges-hint"
+        />
+      </div>
+      <p id="bill-charges-hint" className="col-span-2 text-xs text-muted-foreground">
+        {charges.discountValue > 0
+          ? type === "percentage"
+            ? `${charges.discountValue}% off the item subtotal of every bill, before tax.`
+            : `${money(charges.discountValue)} off every bill, before tax — never more than the item subtotal.`
+          : "No discount."}{" "}
+        {charges.serviceCharge > 0
+          ? `${money(charges.serviceCharge)} service charge added to every bill after tax.`
+          : "No service charge."}
+      </p>
+    </>
   );
 }
 

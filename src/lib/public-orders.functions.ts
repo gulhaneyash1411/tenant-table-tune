@@ -76,7 +76,7 @@ export const getOrdersByPhone = createServerFn({ method: "GET" })
     // order I just placed" instead of exposing someone's full order history.
     const recentCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const columns =
-      "id,order_number,status,payment_status,total,subtotal,tax,delivery_fee,delivery_address,delivery_landmark,delivery_pincode,created_at,tenant_id,table_id,order_type,customer_name,customer_phone";
+      "id,order_number,status,payment_status,total,subtotal,discount_type,discount_value,discount_amount,service_charge,tax,delivery_fee,delivery_address,delivery_landmark,delivery_pincode,created_at,tenant_id,table_id,order_type,customer_name,customer_phone";
     // An order placed without a phone is only reachable by its ID. The empty-phone
     // filter means a phone-based order can never be returned this way.
     const { data: orders } = data.order_id
