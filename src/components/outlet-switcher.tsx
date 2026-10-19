@@ -43,7 +43,12 @@ export function OutletSwitcher({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60">
-        {organization && <DropdownMenuLabel className="truncate">{organization.name}</DropdownMenuLabel>}
+        {organization && (
+          <DropdownMenuLabel className="flex items-center gap-2">
+            <span className="truncate">{organization.name}</span>
+            <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600">Multi-outlet</span>
+          </DropdownMenuLabel>
+        )}
         {outlets.map((o) => {
           const active = status(o) === "ACTIVE";
           return (
