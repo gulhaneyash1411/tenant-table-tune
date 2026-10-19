@@ -237,6 +237,7 @@ function RevenuePage() {
     setOrgId("all"); setOutletId("all"); setPlanId("all"); setMethod("all"); setPayStatus("completed");
   };
 
+  const CARD_ACCENTS = ["border-l-indigo-500", "border-l-violet-500", "border-l-emerald-500", "border-l-amber-500", "border-l-rose-500", "border-l-blue-500", "border-l-teal-500"];
   const cards: [string, string, string?][] = data ? [
     ["Total revenue", fmtMoney(data.totalRevenue), "Completed payments in range"],
     ["Subscription revenue", fmtMoney(data.subscriptionRevenue), "Subscription / renewal / plan invoices"],
@@ -324,8 +325,8 @@ function RevenuePage() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {loading
           ? Array.from({ length: 7 }).map((_, i) => <Card key={i} className="h-24 animate-pulse bg-muted/40" />)
-          : cards.map(([k, v, sub]) => (
-              <Card key={k} className="p-4">
+          : cards.map(([k, v, sub], i) => (
+              <Card key={k} className={`p-4 border-l-4 ${CARD_ACCENTS[i % CARD_ACCENTS.length]}`}>
                 <div className="text-xs text-muted-foreground">{k}</div>
                 <div className="text-2xl font-semibold">{v}</div>
                 {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
@@ -343,12 +344,18 @@ function RevenuePage() {
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthly} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis tickLine={false} axisLine={false} fontSize={12} width={56}
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6366f1" stopOpacity={1}/>
+                    <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.8}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.15} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} stroke="#94a3b8" />
+                <YAxis tickLine={false} axisLine={false} fontSize={12} width={56} stroke="#94a3b8"
                   tickFormatter={(v) => (v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))} />
-                <Tooltip formatter={(v: number) => fmtMoney(v)} cursor={{ fill: "hsl(var(--muted))" }} />
-                <Bar dataKey="revenue" name="Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Tooltip formatter={(v: number) => fmtMoney(v)} cursor={{ fill: "rgba(99,102,241,0.08)" }} contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
+                <Bar dataKey="revenue" name="Revenue" fill="url(#revenueGrad)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
