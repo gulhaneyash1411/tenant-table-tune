@@ -37,7 +37,7 @@ const CYCLE_OPTIONS: { value: Cycle; label: string; months: number }[] = [
   { value: "half_yearly", label: "Half-yearly", months: 6 },
   { value: "yearly", label: "Yearly", months: 12 },
 ];
-type Checkout = { plan: any; cycle: Cycle; amount: number; startsAfter: Date | null };
+type Checkout = { plan: any; cycle: Cycle; amount: number; startsAfter: Date | null; isRenewal?: boolean };
 
 // Compact, rounded, scrollable modal shell shared by both dialogs
 const MODAL_CLASS =
@@ -226,7 +226,7 @@ function SubscriptionPage() {
       ? { label: "Next plan", disabled: true }
       : { label: "Awaiting approval", disabled: true };
     if (isCurrent && activeNow && currentCycle !== c) return { label: "Switch plan", disabled: locked };
-    if (isCurrent && activeNow) return { label: "Current plan", disabled: true };
+    if (isCurrent && activeNow) return { label: "Buy again", disabled: locked };
     if (isCurrent) return { label: "Renew", disabled: locked };
     if (!activeNow) return { label: "Buy plan", disabled: locked };
     const label = priceOf(p, c) > priceOf(currentPlan, c) ? "Upgrade" : "Switch plan";
@@ -238,11 +238,13 @@ function SubscriptionPage() {
     if (locked) return toast.error("You already have a next plan selected");
     const amount = priceOf(plan, c);
     if (amount <= 0) return toast.error("This plan has no price set. Contact support.");
+    const isRenewal = plan.id === currentPlanId && activeNow && currentCycle === c;
     setCheckout({
       plan,
       cycle: c,
       amount,
-      startsAfter: activeNow ? currentEnd : null,
+      startsAfter: activeNow && !isRenewal ? currentEnd : null,
+      isRenewal,
     });
   }
 
@@ -601,7 +603,13 @@ function SubscriptionPage() {
                   <span className="font-semibold">{money(checkout.amount)}</span>
                 </div>
 
-                {checkout.startsAfter && (
+                {checkout.isRenewal && (
+                  <div className="rounded-xl border border-success/30 bg-success/5 px-3 py-2 text-xs">
+                    Your current plan will be extended by one {CYCLE_NAME[checkout.cycle]} billing cycle from{" "}
+                    <span className="font-medium">{currentEnd ? format(currentEnd, "PP") : "now"}</span>.
+                  </div>
+                )}
+                {checkout.startsAfter && !checkout.isRenewal && (
                   <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
                     Your current plan continues as normal. This plan will become active after it ends on{" "}
                     <span className="font-medium">{format(checkout.startsAfter, "PP")}</span>.
