@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fmtMoney } from "@/components/admin/admin-ui";
+import { ADMIN_PAGE_SIZE, Pager, fmtMoney } from "@/components/admin/admin-ui";
 
 const db = supabase as any;
 
@@ -65,6 +65,7 @@ function RevenuePage() {
   const [names, setNames] = useState<Record<string, { outlet: string; org: string }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [revPage, setRevPage] = useState(1);
 
   useEffect(() => {
     (async () => {
@@ -202,7 +203,7 @@ function RevenuePage() {
       x.sum += e.amount; x.count++;
       m.set(e.tenant, x);
     });
-    return Array.from(m.entries()).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.sum - a.sum).slice(0, 20);
+    return Array.from(m.entries()).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.sum - a.sum);
   }, [data]);
 
   // Resolve names for just the top outlets.
@@ -356,7 +357,7 @@ function RevenuePage() {
 
       <Card className="p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-medium">Outlet-wise revenue (top 20)</h2>
+          <h2 className="font-medium">Outlet-wise revenue</h2>
           <Button size="sm" variant="outline" disabled={byOutlet.length === 0} onClick={exportCsv}>
             <Download className="mr-1 h-4 w-4" /> Export CSV
           </Button>
@@ -376,9 +377,9 @@ function RevenuePage() {
             {!loading && byOutlet.length === 0 && (
               <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No revenue in this range.</TableCell></TableRow>
             )}
-            {!loading && byOutlet.map((o, i) => (
+            {!loading && byOutlet.slice((revPage - 1) * ADMIN_PAGE_SIZE, revPage * ADMIN_PAGE_SIZE).map((o, i) => (
               <TableRow key={o.id}>
-                <TableCell>{i + 1}</TableCell>
+                <TableCell>{(revPage - 1) * ADMIN_PAGE_SIZE + i + 1}</TableCell>
                 <TableCell>{names[o.id]?.outlet ?? "…"}</TableCell>
                 <TableCell>{names[o.id]?.org || "—"}</TableCell>
                 <TableCell className="text-right">{o.count}</TableCell>
@@ -388,6 +389,9 @@ function RevenuePage() {
           </TableBody>
         </Table>
       </Card>
+      {!loading && byOutlet.length > 0 && (
+        <Pager page={revPage} total={byOutlet.length} pageSize={ADMIN_PAGE_SIZE} onPage={setRevPage} />
+      )}
     </div>
   );
 }

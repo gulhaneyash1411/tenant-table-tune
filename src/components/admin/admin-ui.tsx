@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 
 /** Shared pieces for the multi-outlet admin pages (organizations, outlets, subscriptions, invoices, ...). */
 
-export const ADMIN_PAGE_SIZE = 15;
+export const ADMIN_PAGE_SIZE = 10;
 
 /** Debounce a fast-changing value (search boxes) so each keystroke isn't a query. */
 export function useDebounced<T>(value: T, ms = 300): T {
