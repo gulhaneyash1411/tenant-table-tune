@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "tenant-table-tune",
+  // Keep at or below the workerd release bundled with the installed wrangler,
+  // or `vite dev` refuses to start.
+  "compatibility_date": "2026-10-12",
+  "compatibility_flags": ["nodejs_compat"],
+  // src/server.ts wraps TanStack Start's server entry with the SSR error page
+  // and copies Worker env bindings into process.env (see populateProcessEnv).
+  "main": "src/server.ts",
+  "observability": {
+    "enabled": true
+  }
+}
