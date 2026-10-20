@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { discountLabel, readOrderBill } from "@/lib/billing";
 
 // The outlet the caller is working in (an owner may own several; a manager is
 // assigned some), taken from the
@@ -185,7 +186,7 @@ export const sendOrderInvoice = createServerFn({ method: "POST" })
 
     const { data: order } = await supabase
       .from("orders")
-      .select("id,order_number,total,subtotal,tax,customer_name,customer_phone,created_at,tenant_id")
+      .select("id,order_number,total,subtotal,discount_type,discount_value,discount_amount,service_charge,tax,delivery_fee,customer_name,customer_phone,created_at,tenant_id")
       .eq("id", data.order_id)
       .eq("tenant_id", tenant.id)
       .maybeSingle();
@@ -206,15 +207,20 @@ export const sendOrderInvoice = createServerFn({ method: "POST" })
 
     const rs = (n: unknown) => `Rs ${Math.round(Number(n) || 0).toLocaleString("en-IN")}`;
     const lines = (items ?? []).map((i) => `• ${i.quantity}× ${i.name} — ${rs(Number(i.price) * i.quantity)}`);
+    // Same figures as the invoice PDF and the order screens.
+    const bill = readOrderBill(order);
     const body = [
       `Hi ${order.customer_name || "there"}, thanks for your payment!`,
       "",
       `*Invoice #${order.order_number}*`,
       ...lines,
       "",
-      `Subtotal: ${rs(order.subtotal)}`,
-      `Tax: ${rs(order.tax)}`,
-      `*Total paid: ${rs(order.total)}*`,
+      `Subtotal: ${rs(bill.itemsSubtotal)}`,
+      ...(bill.discountAmount > 0 ? [`${discountLabel(bill, rs)}: -${rs(bill.discountAmount)}`] : []),
+      `Tax: ${rs(bill.tax)}`,
+      ...(bill.serviceCharge > 0 ? [`Service charges: +${rs(bill.serviceCharge)}`] : []),
+      ...(bill.deliveryFee > 0 ? [`Delivery: ${rs(bill.deliveryFee)}`] : []),
+      `*Total paid: ${rs(bill.total)}*`,
     ].join("\n");
 
     const res = await sendWhatsApp(creds, {

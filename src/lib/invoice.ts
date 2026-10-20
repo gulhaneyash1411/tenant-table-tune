@@ -8,6 +8,7 @@
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import { mergeOrderItems } from "@/lib/order-items";
+import { discountLabel, readOrderBill } from "@/lib/billing";
 
 // jsPDF's built-in helvetica has no glyph for the rupee sign, so the PDF uses
 // an ASCII "Rs" rather than the ₹ the screens show.
@@ -152,15 +153,25 @@ export async function downloadInvoicePdf(order: any, rawItems: any[], tenant?: I
     y += 16;
   });
 
-  if (y > 660) { doc.addPage(); y = 64; }
+  // The same figures the order screens show (readOrderBill), so the PDF can't
+  // disagree with the preview. Up to seven rows plus the footer have to fit
+  // under the items, hence the earlier page break than the item loop's.
+  const bill = readOrderBill(order);
+  const total = (label: string, value: string) => {
+    doc.text(label, 430, y, { align: "right" }); doc.text(value, 547, y, { align: "right" }); y += 14;
+  };
+  if (y > 620) { doc.addPage(); y = 64; }
   y += 8; doc.setDrawColor(230).line(340, y, 547, y); y += 16;
-  doc.text("Subtotal", 430, y, { align: "right" }); doc.text(rs(order.subtotal), 547, y, { align: "right" }); y += 14;
-  doc.text("Tax", 430, y, { align: "right" }); doc.text(rs(order.tax), 547, y, { align: "right" }); y += 14;
-  if (Number(order.delivery_fee) > 0) {
-    doc.text("Delivery", 430, y, { align: "right" }); doc.text(rs(order.delivery_fee), 547, y, { align: "right" }); y += 14;
+  total("Subtotal", rs(bill.itemsSubtotal));
+  if (bill.discountAmount > 0) {
+    total(discountLabel(bill, rs), `- ${rs(bill.discountAmount)}`);
+    total("After discount", rs(bill.subtotalAfterDiscount));
   }
+  total("Tax", rs(bill.tax));
+  if (bill.serviceCharge > 0) total("Service charges", `+ ${rs(bill.serviceCharge)}`);
+  if (bill.deliveryFee > 0) total("Delivery", rs(bill.deliveryFee));
   y += 2;
-  doc.setFont("helvetica", "bold").text("Total", 430, y, { align: "right" }); doc.text(rs(order.total), 547, y, { align: "right" });
+  doc.setFont("helvetica", "bold").text("Total", 430, y, { align: "right" }); doc.text(rs(bill.total), 547, y, { align: "right" });
   y += 40; doc.setFont("helvetica", "italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);
   y += 20; doc.setFont("helvetica", "normal").setFontSize(8).setTextColor(160).text("Powered by DineEatz", 48, y);
 

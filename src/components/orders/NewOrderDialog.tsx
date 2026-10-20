@@ -13,6 +13,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { money } from "@/lib/format";
+import {
+  computeBill,
+  discountLabel,
+  itemsSubtotal,
+  orderBillColumns,
+  readBillCharges,
+  readTaxRate,
+  type Bill,
+} from "@/lib/billing";
 import { toast } from "sonner";
 import { Loader2, Plus, Minus, ShoppingCart, Info } from "lucide-react";
 import { clearRoundMarkers } from "@/lib/public-orders.functions";
@@ -256,7 +265,22 @@ function MenuPicker({
   );
 }
 
-function CartSummary({ lines, total, heading }: { lines: Line[]; total: number; heading: string }) {
+// With a `bill`, the summary is the bill this order will be charged: the same
+// figures recalcOrder writes on save. Without one (adding a round) it is just
+// the items, since the discount and tax are worked out on the whole order.
+function CartSummary({
+  lines,
+  total,
+  heading,
+  bill,
+}: {
+  lines: Line[];
+  total: number;
+  heading: string;
+  bill?: Bill;
+}) {
+  const breakdown =
+    bill && lines.length > 0 && (bill.discountAmount > 0 || bill.tax > 0 || bill.serviceCharge > 0);
   return (
     <div className="rounded-md border p-3">
       <div className="mb-2 flex items-center gap-1.5 text-sm font-medium">
@@ -277,10 +301,37 @@ function CartSummary({ lines, total, heading }: { lines: Line[]; total: number; 
           ))}
         </ul>
       )}
+      {breakdown && (
+        <dl className="mt-2 space-y-1 border-t pt-2 text-xs text-muted-foreground">
+          <BillRow label="Subtotal" value={money(bill.itemsSubtotal)} />
+          {bill.discountAmount > 0 && (
+            <>
+              <BillRow
+                label={discountLabel(bill, money)}
+                value={`− ${money(bill.discountAmount)}`}
+              />
+              <BillRow label="After discount" value={money(bill.subtotalAfterDiscount)} />
+            </>
+          )}
+          {bill.tax > 0 && <BillRow label="Tax" value={money(bill.tax)} />}
+          {bill.serviceCharge > 0 && (
+            <BillRow label="Service charges" value={`+ ${money(bill.serviceCharge)}`} />
+          )}
+        </dl>
+      )}
       <div className="mt-2 flex justify-between border-t pt-2 text-sm font-medium">
         <span>Total</span>
-        <span>{money(total)}</span>
+        <span>{money(bill && lines.length > 0 ? bill.total : total)}</span>
       </div>
+    </div>
+  );
+}
+
+function BillRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   );
 }
@@ -306,8 +357,6 @@ function itemRows(order: any, lines: Line[]) {
 // Order numbers are now generated per-tenant by the database trigger.
 // The trigger calls get_next_order_number(p_tenant_id UUID) which safely handles
 // concurrent order creation with advisory locking.
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // The INSERT policy on orders requires tenant_id to be non-null and to name a
 // real tenant, so the client has to supply it. This asks the database for the
@@ -367,12 +416,8 @@ async function recalcOrder(order: any): Promise<number | null> {
     return null;
   }
 
-  const gross = (rows || []).reduce(
-    (s: number, r: any) => s + Number(r.price ?? 0) * Number(r.quantity ?? 0),
-    0,
-  );
-  // Same rate the guest checkout applies (public-orders.server.ts): the tenant's
-  // Settings → Tax rate (%), clamped to 0–100.
+  // Same bill the guest checkout charges (public-orders.server.ts): the tenant's
+  // Settings → Tax rate, Discount and Service charges, applied by @/lib/billing.
   const { data: tenantRow, error: tenantError } = await supabase
     .from("tenants")
     .select("settings")
@@ -382,24 +427,24 @@ async function recalcOrder(order: any): Promise<number | null> {
     toast.error(`Totals could not be recalculated: ${tenantError.message}`);
     return null;
   }
-  const settings = (tenantRow?.settings ?? {}) as Record<string, unknown>;
-  const configuredTax = Number(settings["tax_rate"] ?? 0);
-  const rate = (Number.isFinite(configuredTax) ? Math.max(0, Math.min(configuredTax, 100)) : 0) / 100;
-  const subtotal = TAX_INCLUSIVE ? gross / (1 + rate) : gross;
-  const tax = TAX_INCLUSIVE ? gross - subtotal : gross * rate;
-  const delivery = Number(order.delivery_fee ?? 0);
-  const total = round2(subtotal + tax + delivery);
+  const bill = computeBill({
+    itemsSubtotal: itemsSubtotal(rows || []),
+    taxRate: readTaxRate(tenantRow?.settings),
+    ...readBillCharges(tenantRow?.settings),
+    deliveryFee: Number(order.delivery_fee ?? 0),
+    taxInclusive: TAX_INCLUSIVE,
+  });
 
   const { error: updateError } = await supabase
     .from("orders")
-    .update({ subtotal: round2(subtotal), tax: round2(tax), total })
+    .update(orderBillColumns(bill))
     .eq("id", order.id);
 
   if (updateError) {
     toast.error(`Totals could not be saved: ${updateError.message}`);
     return null;
   }
-  return total;
+  return bill.total;
 }
 
 // Adds items to an order that already exists: inserts the rows, re-reads the
@@ -469,12 +514,25 @@ async function appendToOrder(orderId: string, lines: Line[]): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSaved: () => void }) {
-  const { plan: ownerPlan } = useTenantContext();
+  const { plan: ownerPlan, tenant } = useTenantContext();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const { menu, tables, loading } = useMenu(open, tenantId);
   const { cart, lines, total, bump, clear } = useCart(menu);
+  // Live preview of the bill a new order will get; recalcOrder re-reads the
+  // settings on save, so a stale copy here can't end up on the invoice.
+  const tenantSettings = tenant?.settings;
+  const previewBill = useMemo(
+    () =>
+      computeBill({
+        itemsSubtotal: total,
+        taxRate: readTaxRate(tenantSettings),
+        ...readBillCharges(tenantSettings),
+        taxInclusive: TAX_INCLUSIVE,
+      }),
+    [total, tenantSettings],
+  );
 
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
   const [tableId, setTableId] = useState("");
@@ -613,10 +671,15 @@ export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSav
   // phone, where the running cart belongs below the thing you're tapping.
   const summary = (
     <>
-      <CartSummary lines={lines} total={total} heading={appending ? "Adding" : "Order"} />
+      <CartSummary
+        lines={lines}
+        total={total}
+        heading={appending ? "Adding" : "Order"}
+        bill={appending ? undefined : previewBill}
+      />
       {appending && (
         <p className="mt-3 text-xs text-muted-foreground">
-          Adding {money(total)} before tax — the order total is recalculated on save.
+          Adding {money(total)} before tax and charges — the order total is recalculated on save.
         </p>
       )}
     </>
@@ -818,8 +881,9 @@ export function AddItemsDialog({ order, onSaved }: { order: any; onSaved: () => 
             <div className="order-2 space-y-3 md:order-1">
               <CartSummary lines={lines} total={total} heading="Adding" />
               <p className="text-xs text-muted-foreground">
-                Current total {money(Number(order.total ?? 0))}. Adding {money(total)} before tax —
-                subtotal, tax and total are recalculated on save.
+                Current total {money(Number(order.total ?? 0))}. Adding {money(total)} before tax
+                and charges — subtotal, discount, tax, service charges and total are recalculated on
+                save.
                 {["ready", "served"].includes(order.status) &&
                   " This order will move back to Preparing."}
               </p>

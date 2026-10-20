@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { money } from "@/lib/format";
 import { mergeOrderItems } from "@/lib/order-items";
 import { downloadInvoicePdf } from "@/lib/invoice";
+import { discountLabel, readOrderBill } from "@/lib/billing";
 import { format } from "date-fns";
 import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
 import { noindexHead } from "@/lib/seo";
@@ -131,6 +132,8 @@ function StatusPage() {
   // quantities summed; rows only merge at the same unit price, so the line
   // amounts still add up to the subtotal shown below.
   const displayItems = useMemo(() => mergeOrderItems(items), [items]);
+  // The bill as it was charged — the same figures the invoice PDF prints.
+  const selectedBill = readOrderBill(selected);
 
   // Single refresh used by the first load, the poll and the realtime handler,
   // so all three paths behave identically.
@@ -358,12 +361,21 @@ function StatusPage() {
                 {/* Pinned: the amount due and the two actions stay visible. */}
                 <div className="shrink-0 border-t bg-background px-5 py-4 space-y-3">
                   <div className="space-y-1 text-sm">
-                    <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="tabular-nums">{money(Number(selected.subtotal))}</span></div>
-                    <div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="tabular-nums">{money(Number(selected.tax))}</span></div>
-                    {Number(selected.delivery_fee) > 0 && (
-                      <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span className="tabular-nums">{money(Number(selected.delivery_fee))}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span className="tabular-nums">{money(selectedBill.itemsSubtotal)}</span></div>
+                    {selectedBill.discountAmount > 0 && (
+                      <>
+                        <div className="flex justify-between text-muted-foreground"><span>{discountLabel(selectedBill, money)}</span><span className="tabular-nums">− {money(selectedBill.discountAmount)}</span></div>
+                        <div className="flex justify-between text-muted-foreground"><span>After discount</span><span className="tabular-nums">{money(selectedBill.subtotalAfterDiscount)}</span></div>
+                      </>
                     )}
-                    <div className="flex justify-between font-semibold"><span>Total</span><span className="tabular-nums">{money(Number(selected.total))}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span>Tax</span><span className="tabular-nums">{money(selectedBill.tax)}</span></div>
+                    {selectedBill.serviceCharge > 0 && (
+                      <div className="flex justify-between text-muted-foreground"><span>Service charges</span><span className="tabular-nums">+ {money(selectedBill.serviceCharge)}</span></div>
+                    )}
+                    {selectedBill.deliveryFee > 0 && (
+                      <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span className="tabular-nums">{money(selectedBill.deliveryFee)}</span></div>
+                    )}
+                    <div className="flex justify-between font-semibold"><span>Total</span><span className="tabular-nums">{money(selectedBill.total)}</span></div>
                   </div>
                   <div className="flex justify-center">
                     <Button size="sm" className="h-9 rounded-full px-5 text-xs font-semibold shadow-lg shadow-primary/25" onClick={() => downloadInvoice()}>
