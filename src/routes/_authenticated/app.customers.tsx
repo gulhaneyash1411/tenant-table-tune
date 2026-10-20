@@ -310,9 +310,9 @@ function Customers() {
     const byPhone = new Map<string, CustomerRow>();
 
     for (const o of orders) {
-      const key = phoneKey(o.customer_phone);
-      // A walk-in with no number can't be told apart from the next one, so it
-      // isn't turned into a customer — it stays in Order history only.
+      const pk = phoneKey(o.customer_phone);
+      const nameFallback = (o.customer_name || "").trim().toLowerCase();
+      const key = pk || (nameFallback ? `name:${nameFallback}` : "");
       if (!key) continue;
 
       let rec = byPhone.get(key);
@@ -494,7 +494,7 @@ function Customers() {
             {paged.map(c => (
               <TableRow key={c.key}>
                 <TableCell className="font-medium">{c.name}</TableCell>
-                <TableCell>{c.phone}</TableCell>
+                <TableCell>{c.phone || <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell>
                   {c.last_type ? (
                     <span

@@ -11,6 +11,7 @@ import { downloadInvoicePdf } from "@/lib/invoice";
 import { discountLabel, readOrderBill } from "@/lib/billing";
 import { format } from "date-fns";
 import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
+import { ChefMascot } from "@/components/ChefMascot";
 import { noindexHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/status")({ head: noindexHead, component: StatusPage });
@@ -291,6 +292,13 @@ function StatusPage() {
                 </Button>
               </div>
             </Card>
+            {(() => {
+              const statusKey = String(o.status || "").toLowerCase().trim();
+              if (CANCELLED.has(statusKey)) return null;
+              if (o.payment_status === "paid") return <ChefMascot stage="thankyou" />;
+              const mascotStage = STAGE_OF[statusKey] ?? null;
+              return mascotStage ? <ChefMascot stage={mascotStage} /> : null;
+            })()}
             {o.payment_status === "unpaid" && !CANCELLED.has(String(o.status || "").toLowerCase().trim()) && (
               <div className="flex justify-center">
                 <Button size="sm" className="h-9 rounded-full px-5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => keepOrdering(o)}>
