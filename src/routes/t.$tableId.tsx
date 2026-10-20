@@ -620,8 +620,9 @@ function TableOrder() {
                   ? "Name and phone don't match the order on this table."
                   : "Name doesn't match the order on this table.");
               }
-              window.location.href = phone
-                ? `/status?phone=${encodeURIComponent(phone)}`
+              const orderPhone = phone || access.customer_phone;
+              window.location.href = orderPhone
+                ? `/status?phone=${encodeURIComponent(orderPhone)}`
                 : `/status?order=${access.order_id}`;
             }}>Continue</Button>
           </div>

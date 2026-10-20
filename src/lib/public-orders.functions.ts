@@ -282,10 +282,10 @@ export const verifyTableOrderAccess = createServerFn({ method: "GET" })
       .eq("payment_status", "unpaid")
       .neq("status", "cancelled")
       .maybeSingle();
-    if (!order) return { ok: false, order_id: null };
+    if (!order) return { ok: false, order_id: null, customer_phone: null };
     const nameMatches = (order.customer_name ?? "").trim().toLowerCase() === data.name.toLowerCase();
     const phoneMatches = data.phone === "" || data.phone === order.customer_phone;
     return nameMatches && phoneMatches
-      ? { ok: true, order_id: order.id as string }
-      : { ok: false, order_id: null };
+      ? { ok: true, order_id: order.id as string, customer_phone: order.customer_phone ?? "" }
+      : { ok: false, order_id: null, customer_phone: null };
   });
