@@ -14,7 +14,7 @@
 import {
   LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound,
   LineChart, Settings, CreditCard, Cpu, TrendingUp, History, Wallet,
-  MessageCircle, ShoppingCart,
+  MessageCircle, ShoppingCart, Timer,
 } from "lucide-react";
 
 export type NavItem = {
@@ -48,6 +48,7 @@ export const TENANT_SECTIONS: NavSection[] = [
       { key: "orders", to: "/app/orders", label: "Live orders", icon: ListOrdered, feature: "live_orders" },
       { key: "kds", to: "/app/kds", label: "Kitchen Display", icon: Cpu, feature: "kitchen_display" },
       { key: "history", to: "/app/history", label: "Order history", icon: History, feature: "order_history" },
+      { key: "sessions", to: "/app/sessions", label: "Table sessions", icon: Timer, feature: "order_history" },
     ],
   },
   {

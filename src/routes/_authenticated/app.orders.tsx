@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { sendOrderInvoice } from "@/lib/whatsapp.functions";
 import { Loader2, ChevronLeft, Bike, Flame } from "lucide-react";
 import { NewOrderDialog, AddItemsDialog } from "@/components/orders/NewOrderDialog";
-import { clearRoundMarkers } from "@/lib/public-orders.functions";
+import { clearRoundMarkers, closeSessionOnPayment } from "@/lib/public-orders.functions";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
 export const Route = createFileRoute("/_authenticated/app/orders")({ component: LiveOrders });
@@ -185,6 +185,8 @@ function LiveOrders() {
     const { error } = await supabase.from("orders").update({ payment_status: "paid" }).eq("id", o.id);
     if (error) return toast.error(error.message);
     toast.success("Marked as paid");
+    // Close the ordering session so the QR link can't place new orders.
+    try { await closeSessionOnPayment({ data: { order_id: o.id } }); } catch {}
     try {
       const res = await sendOrderInvoice({ data: { order_id: o.id } });
       if (res.ok) toast.success(`Invoice sent on WhatsApp to ${o.customer_phone}`);

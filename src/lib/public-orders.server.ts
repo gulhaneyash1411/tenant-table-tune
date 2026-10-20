@@ -10,6 +10,7 @@ type PublicOrderInput = {
   delivery_address?: string | null;
   delivery_landmark?: string | null;
   delivery_pincode?: string | null;
+  session_token?: string | null;
   items: { menu_item_id: string; quantity: number }[];
 };
 
@@ -28,6 +29,8 @@ export async function createPublicOrder(input: PublicOrderInput) {
     ? tenant.settings as Record<string, unknown>
     : {};
 
+  let sessionId: string | null = null;
+
   if (input.order_type === "dine_in") {
     if (!input.table_id) throw new Error("A table is required for dine-in orders");
     const { data: table } = await supabaseAdmin
@@ -42,6 +45,13 @@ export async function createPublicOrder(input: PublicOrderInput) {
     // already open.
     const { data: qrLive } = await (supabaseAdmin as any).rpc("table_qr_is_active", { p_table_id: table.id });
     if (qrLive === false) throw new Error("This QR code is no longer active");
+
+    // Session gate: dine-in orders require a valid, unexpired ordering session.
+    if (!input.session_token) throw new Error("Your ordering session has ended. Please scan the QR code at your table to start a new session.");
+    const { data: sessionRows } = await (supabaseAdmin as any).rpc("validate_ordering_session", { p_session_token: input.session_token });
+    const session = Array.isArray(sessionRows) ? sessionRows[0] : sessionRows;
+    if (!session) throw new Error("Your ordering session has ended. Please scan the QR code at your table to start a new session.");
+    sessionId = session.session_id;
   }
 
   // Delivery config is read from the tenant, never from the request — the
@@ -117,7 +127,8 @@ export async function createPublicOrder(input: PublicOrderInput) {
       delivery_landmark: input.order_type === "home_delivery" ? (input.delivery_landmark?.trim() || null) : null,
       delivery_pincode: input.order_type === "home_delivery" ? pincode : null,
       notes: input.notes?.trim() || null,
-    })
+      ...(sessionId ? { session_id: sessionId } : {}),
+    } as any)
     .select(
       "id,order_number,status,payment_status,total,created_at,table_id,customer_phone,order_type,delivery_fee,delivery_address,delivery_landmark,delivery_pincode",
     )
@@ -143,6 +154,7 @@ export async function createPublicOrder(input: PublicOrderInput) {
 type AppendOrderInput = {
   order_id: string;
   customer_phone: string;
+  session_token?: string | null;
   items: { menu_item_id: string; quantity: number }[];
 };
 
@@ -175,6 +187,13 @@ export async function appendPublicOrderItems(input: AppendOrderInput) {
     throw new Error("This order is already settled — please start a new one");
   }
   if (order.status === "cancelled") throw new Error("This order was cancelled — please start a new one");
+
+  // Session gate for dine-in: the session must still be active to add items.
+  if ((order as any).table_id && input.session_token) {
+    const { data: sessionRows } = await (supabaseAdmin as any).rpc("validate_ordering_session", { p_session_token: input.session_token });
+    const session = Array.isArray(sessionRows) ? sessionRows[0] : sessionRows;
+    if (!session) throw new Error("Your ordering session has ended. Please scan the QR code at your table to start a new session.");
+  }
 
   const { data: tenant } = await supabaseAdmin
     .from("tenants")
