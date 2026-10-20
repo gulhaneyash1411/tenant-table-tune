@@ -66,11 +66,17 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
+import { cloudflare } from "@cloudflare/vite-plugin";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     tsConfigPaths(),
     tailwindcss(),
+    // Build only: compiles the SSR environment as a Cloudflare Worker (entry:
+    // wrangler.jsonc "main") and writes the config `wrangler deploy` reads into
+    // dist/. `vite dev` stays on Node — the plugin would run dev inside workerd,
+    // which doesn't start on every Windows machine.
+    command === "build" && cloudflare({ viteEnvironment: { name: "ssr" } }),
     tanstackStart({
       server: {
         entry: "server",
@@ -78,4 +84,4 @@ export default defineConfig({
     }),
     viteReact(),
   ],
-});
+}));

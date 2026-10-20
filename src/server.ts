@@ -46,10 +46,13 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 let envPopulated = false;
 
-function populateProcessEnv() {
+// Worker vars and secrets arrive as the fetch handler's `env`. Server code reads
+// process.env, so copy the string values across once. (`__env__` is where the
+// old Nitro build put them; kept as a fallback.)
+function populateProcessEnv(env: unknown) {
   if (envPopulated) return;
   envPopulated = true;
-  const cfEnv = (globalThis as any).__env__;
+  const cfEnv = env && typeof env === "object" ? env : (globalThis as any).__env__;
   if (!cfEnv || typeof cfEnv !== "object") return;
   for (const [key, value] of Object.entries(cfEnv as Record<string, unknown>)) {
     if (typeof value === "string" && process.env[key] === undefined) {
@@ -61,7 +64,7 @@ function populateProcessEnv() {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
-      populateProcessEnv();
+      populateProcessEnv(env);
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
