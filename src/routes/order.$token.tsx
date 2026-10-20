@@ -1,18 +1,23 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { scanQrAndCreateSession } from "@/lib/public-orders.functions";
 
-// The URL printed on table QR codes: /order/{secure token}. The token (not the
-// table's database id) is the only thing in the QR; the table page resolves it
-// server-side and refuses revoked codes and unpaid/suspended outlets.
-//
-// `scan=1` tells the table page this is a fresh QR scan, so it should create a
-// new ordering session. Without it the page only reuses an existing session,
-// which prevents saved/bookmarked links from generating false orders.
+// The URL printed on table QR codes: /order/{secure token}. Every fresh scan
+// creates a new ordering session and redirects with the session token in the
+// URL (?s=…). The token is what grants menu access — without it, or with an
+// expired one, the table page shows "Session ended".
 export const Route = createFileRoute("/order/$token")({
-  beforeLoad: ({ params }) => {
+  beforeLoad: async ({ params }) => {
+    let sessionToken: string | null = null;
+    try {
+      const result = await scanQrAndCreateSession({ data: { qr_key: params.token } });
+      sessionToken = result.session_token;
+    } catch {
+      // Fall through — redirect without token shows "session ended"
+    }
     throw redirect({
       to: "/t/$tableId",
       params: { tableId: params.token },
-      search: { scan: "1" },
+      search: sessionToken ? { s: sessionToken } : {},
     });
   },
 });
