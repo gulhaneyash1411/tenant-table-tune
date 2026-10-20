@@ -188,6 +188,70 @@ export const closeSessionOnPayment = createServerFn({ method: "POST" })
     await (supabaseAdmin as any).rpc("close_session_on_payment", { p_order_id: data.order_id });
   });
 
+// Create a session for takeaway ordering. Unlike dine-in, this doesn't expire
+// other sessions — multiple customers can order takeaway simultaneously.
+export const createTakeawaySession = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    tenant_id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin as any).rpc("create_takeaway_session", {
+      p_tenant_id: data.tenant_id,
+    });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row) throw new Error("Failed to create session");
+    return row as { session_id: string; session_token: string; expires_at: string };
+  });
+
+// Resolve QR → create a fresh ordering session → return the session token.
+// Called from /order/{token} before redirecting to /t/{token}?s={sessionToken}.
+export const scanQrAndCreateSession = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    qr_key: z.string().min(1),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: resolved } = await (supabaseAdmin as any)
+      .rpc("resolve_table_qr", { p_key: data.qr_key }).maybeSingle();
+    if (!resolved?.table_id) return { session_token: null as string | null };
+    const { data: table } = await supabaseAdmin
+      .from("restaurant_tables")
+      .select("id,tenant_id")
+      .eq("id", resolved.table_id)
+      .single();
+    if (!table) return { session_token: null as string | null };
+    const { data: rows, error } = await (supabaseAdmin as any).rpc("create_ordering_session", {
+      p_table_id: table.id,
+      p_tenant_id: table.tenant_id,
+    });
+    if (error) return { session_token: null as string | null };
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row) return { session_token: null as string | null };
+    return { session_token: row.session_token as string };
+  });
+
+// Validate a session token from the URL. Returns the session if active and
+// unexpired, null otherwise (lazy-expires past-deadline sessions on the spot).
+export const validateSessionToken = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => z.object({
+    session_token: z.string().min(1),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await (supabaseAdmin as any).rpc("validate_ordering_session", {
+      p_session_token: data.session_token,
+    });
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row) return null;
+    return {
+      session_id: row.session_id as string,
+      session_token: data.session_token,
+      expires_at: String(row.expires_at),
+    };
+  });
+
 export const getReviewTarget = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ tenant_id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
@@ -235,10 +299,10 @@ export const verifyTableOrderAccess = createServerFn({ method: "GET" })
       .eq("payment_status", "unpaid")
       .neq("status", "cancelled")
       .maybeSingle();
-    if (!order) return { ok: false, order_id: null };
+    if (!order) return { ok: false, order_id: null, customer_phone: null };
     const nameMatches = (order.customer_name ?? "").trim().toLowerCase() === data.name.toLowerCase();
     const phoneMatches = data.phone === "" || data.phone === order.customer_phone;
     return nameMatches && phoneMatches
-      ? { ok: true, order_id: order.id as string }
-      : { ok: false, order_id: null };
+      ? { ok: true, order_id: order.id as string, customer_phone: order.customer_phone ?? "" }
+      : { ok: false, order_id: null, customer_phone: null };
   });

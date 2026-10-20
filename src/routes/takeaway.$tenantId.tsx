@@ -9,20 +9,35 @@ import { computeBill, discountLabel, readBillCharges, readTaxRate } from "@/lib/
 import { toast } from "sonner";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, ShoppingBag, UtensilsCrossed, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
-import { placePublicOrder } from "@/lib/public-orders.functions";
+import { placePublicOrder, createTakeawaySession, validateSessionToken } from "@/lib/public-orders.functions";
 import { noindexHead } from "@/lib/seo";
 
 // Everything the page needs, resolved before the component ever mounts —
 // same reasoning as /t/$tableId: TanStack Router won't render `component`
 // until this settles, for both SSR and client-side navigation, so the
 // route's own `pendingComponent` is the only loading UI in the lifecycle.
-async function loadTakeawayData(tenantId: string): Promise<{ tenant: any; cats: any[]; items: any[] }> {
+async function loadTakeawayData(tenantId: string, sessionTokenParam?: string) {
   const [{ data: t }, { data: c }, { data: i }] = await Promise.all([
     supabase.from("tenants").select("*").eq("id", tenantId).maybeSingle(),
     supabase.from("menu_categories").select("*").eq("tenant_id", tenantId).order("sort_order"),
     supabase.from("menu_items").select("*").eq("tenant_id", tenantId).eq("is_available", true).order("sort_order"),
   ]);
-  return { tenant: t ?? null, cats: c ?? [], items: i ?? [] };
+  // Session management: if a token is in the URL, validate it. Otherwise
+  // create a fresh session on every new visit. The token is added to the URL
+  // client-side so bookmarked links carry (and can expire with) it.
+  let session: { session_id: string; session_token: string; expires_at: string } | null = null;
+  if (t) {
+    try {
+      if (sessionTokenParam) {
+        session = await validateSessionToken({ data: { session_token: sessionTokenParam } });
+      } else {
+        session = await createTakeawaySession({ data: { tenant_id: tenantId } });
+      }
+    } catch {
+      session = null;
+    }
+  }
+  return { tenant: t ?? null, cats: c ?? [], items: i ?? [], session };
 }
 
 // The ONE loading screen for this route. Deliberately generic/unbranded —
@@ -46,7 +61,13 @@ function TakeawayError() {
 
 export const Route = createFileRoute("/takeaway/$tenantId")({
   head: noindexHead,
-  loader: ({ params }) => loadTakeawayData(params.tenantId),
+  loader: ({ params, location }) => {
+    const search = location.search as any;
+    return loadTakeawayData(params.tenantId, search?.s);
+  },
+  validateSearch: (search: Record<string, unknown>): { s?: string } => ({
+    s: search.s != null ? String(search.s) : undefined,
+  }),
   pendingComponent: TakeawayPending,
   // No artificial delay in either direction: show the pending state the
   // instant loading takes any time at all, and don't hold it a minimum
@@ -227,7 +248,8 @@ function ItemDetail({ item, qty, onAdd, onDec, onClose }: { item: any; qty: numb
 }
 
 function TakeawayOrder() {
-  const { tenant, cats, items } = Route.useLoaderData();
+  const loaderData = Route.useLoaderData();
+  const { tenant, cats, items } = loaderData;
   const [cart, setCart] = useState<Record<string, number>>({});
   const [showCart, setShowCart] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -238,6 +260,35 @@ function TakeawayOrder() {
   const [activeCat, setActiveCat] = useState<string>(cats[0]?.id ?? "");
   const railRef = useRef<HTMLDivElement>(null);
   useTenantBrand(tenant);
+
+  // Ordering session: gates takeaway orders the same way dine-in is gated.
+  const [sessionToken, setSessionToken] = useState<string | null>(loaderData.session?.session_token ?? null);
+  const [sessionExpired, setSessionExpired] = useState<boolean>(() => {
+    if (!loaderData.session) return true;
+    return new Date(loaderData.session.expires_at).getTime() <= Date.now();
+  });
+
+  // Put the session token in the URL so bookmarks carry (and expire with) it.
+  useEffect(() => {
+    if (loaderData.session?.session_token && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has("s")) {
+        url.searchParams.set("s", loaderData.session.session_token);
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }
+    }
+  }, [loaderData.session]);
+
+  useEffect(() => {
+    if (!loaderData.session) { setSessionExpired(true); return; }
+    const expiresAt = new Date(loaderData.session.expires_at).getTime();
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) { setSessionExpired(true); setSessionToken(null); return; }
+    setSessionExpired(false);
+    setSessionToken(loaderData.session.session_token);
+    const timer = setTimeout(() => { setSessionExpired(true); setSessionToken(null); }, remaining);
+    return () => clearTimeout(timer);
+  }, [loaderData.session]);
 
   const cartItems = items.filter((i: any) => cart[i.id]);
   const subtotal = cartItems.reduce((a: number, b: any) => a + Number(b.price) * cart[b.id], 0);
@@ -279,10 +330,11 @@ function TakeawayOrder() {
     setPlacing(true);
     try {
       await placePublicOrder({ data: {
-        tenant_id: tenant.id,
+        tenant_id: tenant!.id,
         customer_name: name.trim(),
         customer_phone: phone,
         order_type: "takeaway",
+        session_token: sessionToken,
         items: cartItems.map((i: any) => ({ menu_item_id: i.id, quantity: cart[i.id] })),
       } });
       toast.success("Order placed!");
@@ -301,6 +353,21 @@ function TakeawayOrder() {
       <div>
         <h1 className="text-xl font-semibold">Restaurant not found</h1>
         <p className="text-muted-foreground mt-1">This link doesn't point to a menu we can open.</p>
+      </div>
+    </div>
+  );
+
+  if (sessionExpired) return (
+    <div className="min-h-screen grid place-items-center p-6 text-center">
+      <div className="w-full max-w-sm">
+        <div className="h-12 w-12 rounded-full bg-muted grid place-items-center mx-auto text-muted-foreground">
+          <Clock className="h-5 w-5" />
+        </div>
+        <h1 className="text-xl font-semibold mt-4">Session ended</h1>
+        <p className="text-muted-foreground mt-2 text-sm">Your ordering session has expired. Start a new one to place an order.</p>
+        <Button className="mt-5 rounded-full h-11 px-6" onClick={() => { window.location.href = `/takeaway/${tenant.id}`; }}>
+          Start new session
+        </Button>
       </div>
     </div>
   );

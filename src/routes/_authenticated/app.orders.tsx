@@ -99,8 +99,12 @@ function LiveOrders() {
     const start = new Date(`${date}T00:00:00`);
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
-    const { data } = await supabase.from("orders").select("*").eq("tenant_id", tenant.id).gte("created_at", start.toISOString()).lt("created_at", end.toISOString()).order("created_at", { ascending: false });
-    setOrders(data || []);
+    const { data } = await supabase.from("orders").select("*, restaurant_tables(label)").eq("tenant_id", tenant.id).gte("created_at", start.toISOString()).lt("created_at", end.toISOString()).order("created_at", { ascending: false });
+    const enriched = (data || []).map((o: any) => ({
+      ...o,
+      _table_label: o.restaurant_tables?.label ?? null,
+    }));
+    setOrders(enriched);
     const ids = (data || []).map(o => o.id);
     if (ids.length) {
       const { data: oi } = await supabase.from("order_items").select("*").in("order_id", ids);
@@ -141,7 +145,7 @@ function LiveOrders() {
 
   // Never renders a raw uuid — falls back to "Dine-in" if no label is known.
   function tableLabel(o: any): string | null {
-    const direct = o.table_number ?? o.table_no ?? o.table_label;
+    const direct = o._table_label ?? o.table_number ?? o.table_no ?? o.table_label;
     const raw = direct ?? (o.table_id ? tableLabels[o.table_id] : null);
     if (raw === null || raw === undefined || raw === "") return null;
     const s = String(raw);
