@@ -38,6 +38,7 @@ type Plan = { id: string; name: string; description: string | null; monthly_pric
 type OutletRecord = {
   id: string;
   name: string;
+  address: string | null;
   city: string | null;
   state: string | null;
   status: OutletStatus;
@@ -300,9 +301,10 @@ const DATE_PRESETS = [
 ] as const;
 
 function exportToExcel(records: OutletRecord[], totals: ReturnType<typeof sumRecords>, dateLabel: string, uniqueMenu?: number) {
-  const headers = ["Outlet", "City", "State", "Status", "Orders", "Customers", "Tables", "Revenue"];
+  const headers = ["Outlet", "Address", "City", "State", "Status", "Orders", "Customers", "Tables", "Revenue"];
   const rows = records.map((r) => [
     r.name,
+    r.address || "",
     r.city || "",
     r.state || "",
     STATUS_LABEL[r.status],
@@ -314,6 +316,7 @@ function exportToExcel(records: OutletRecord[], totals: ReturnType<typeof sumRec
   if (records.length > 1) {
     rows.push([
       "ALL OUTLETS",
+      "",
       "",
       "",
       "",
@@ -422,6 +425,7 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
       return {
         id: o.id,
         name: o.name,
+        address: (o as any).address ?? null,
         city: o.city,
         state: o.state,
         status,
@@ -557,7 +561,7 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
       </div>
 
       {/* Table with search */}
-      <Card>
+      <Card className="overflow-hidden">
         <div className="p-4 border-b flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-medium">Per-outlet breakdown</h3>
@@ -575,22 +579,23 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
             />
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[420px]">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
-                <TableHead>Outlet</TableHead>
+                <TableHead className="pl-4">Outlet</TableHead>
+                <TableHead>Address</TableHead>
                 <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Orders</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Customers</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Tables</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Revenue</TableHead>
+                <TableHead className="text-right whitespace-nowrap pr-4">Revenue</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     {search ? "No outlets match your search." : "No outlet data available."}
                   </TableCell>
                 </TableRow>
@@ -601,7 +606,7 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => r.status === "ACTIVE" && onSwitch(r.id)}
                 >
-                  <TableCell>
+                  <TableCell className="pl-4">
                     <div className="flex items-center gap-2 min-w-[140px]">
                       <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <div>
@@ -615,6 +620,9 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
                       </div>
                     </div>
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                    {r.address || "—"}
+                  </TableCell>
                   <TableCell className="text-center">
                     <Badge variant={r.status === "ACTIVE" ? "default" : "secondary"} className="text-xs">
                       {STATUS_LABEL[r.status]}
@@ -623,17 +631,18 @@ function AllOutletsRecords({ outlets, currentId, onSwitch }: {
                   <TableCell className="text-right font-medium">{r.ordersInRange}</TableCell>
                   <TableCell className="text-right">{r.customers}</TableCell>
                   <TableCell className="text-right">{r.tables}</TableCell>
-                  <TableCell className="text-right font-medium">{money(r.revenueInRange)}</TableCell>
+                  <TableCell className="text-right font-medium pr-4">{money(r.revenueInRange)}</TableCell>
                 </TableRow>
               ))}
               {filtered.length > 1 && (
                 <TableRow className="bg-muted/30 font-semibold">
-                  <TableCell>All outlets</TableCell>
+                  <TableCell className="pl-4">All outlets</TableCell>
+                  <TableCell />
                   <TableCell />
                   <TableCell className="text-right">{totals.ordersInRange}</TableCell>
                   <TableCell className="text-right">{totals.customers}</TableCell>
                   <TableCell className="text-right">{totals.tables}</TableCell>
-                  <TableCell className="text-right">{money(totals.revenueInRange)}</TableCell>
+                  <TableCell className="text-right pr-4">{money(totals.revenueInRange)}</TableCell>
                 </TableRow>
               )}
             </TableBody>

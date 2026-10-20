@@ -119,33 +119,43 @@ function ItemRow({ item, onToggle, onEdit, onDelete }: {
   const style = { transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
     <li ref={setNodeRef} style={style}
-      className="flex items-center gap-3 px-5 py-3 text-sm">
-      <span {...attributes} {...listeners}
-        className="cursor-grab touch-none text-slate-300 hover:text-slate-500 active:cursor-grabbing">
-        <GripVertical className="h-4 w-4" />
-      </span>
-      <Thumb url={item.image_url} />
-      <span className={`inline-block h-4 w-4 shrink-0 rounded-sm border-2 ${item.is_veg ? "border-green-600" : "border-red-600"}`}>
-        <span className={`block h-full w-full rounded-full ${item.is_veg ? "bg-green-600" : "bg-red-600"}`} style={{ transform: "scale(0.5)" }} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate font-medium">{item.name}</span>
-          {item.is_must_try && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />}
+      className="px-4 py-3 text-sm sm:px-5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <span {...attributes} {...listeners}
+          className="cursor-grab touch-none text-slate-300 hover:text-slate-500 active:cursor-grabbing">
+          <GripVertical className="h-4 w-4" />
+        </span>
+        <Thumb url={item.image_url} />
+        <span className={`inline-block h-4 w-4 shrink-0 rounded-sm border-2 ${item.is_veg ? "border-green-600" : "border-red-600"}`}>
+          <span className={`block h-full w-full rounded-full ${item.is_veg ? "bg-green-600" : "bg-red-600"}`} style={{ transform: "scale(0.5)" }} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate font-medium">{item.name}</span>
+            {item.is_must_try && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />}
+          </div>
+          {item.description && <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{item.description}</p>}
         </div>
-        {item.description && <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{item.description}</p>}
+        <span className="shrink-0 font-semibold tabular-nums">{money(item.price)}</span>
+        <div className="hidden items-center gap-1.5 sm:flex">
+          <StatePill on={!!item.is_must_try} label="Must try" color="amber"
+            onToggle={() => onToggle({ is_must_try: !item.is_must_try })} />
+          <StatePill on={!!item.is_available} label={item.is_available ? "Visible" : "Hidden"}
+            onToggle={() => onToggle({ is_available: !item.is_available })} />
+        </div>
+        <button onClick={onEdit} aria-label="Edit" className="rounded-md p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600">
+          <Pencil className="h-4 w-4" />
+        </button>
+        <button onClick={onDelete} aria-label="Delete" className="hidden rounded-md p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 sm:block">
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
-      <span className="shrink-0 font-semibold tabular-nums">{money(item.price)}</span>
-      <StatePill on={!!item.is_must_try} label="Must try" color="amber"
-        onToggle={() => onToggle({ is_must_try: !item.is_must_try })} />
-      <StatePill on={!!item.is_available} label={item.is_available ? "Visible" : "Hidden"}
-        onToggle={() => onToggle({ is_available: !item.is_available })} />
-      <button onClick={onEdit} aria-label="Edit" className="rounded-md p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600">
-        <Pencil className="h-4 w-4" />
-      </button>
-      <button onClick={onDelete} aria-label="Delete" className="rounded-md p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600">
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <div className="mt-1.5 flex items-center gap-1.5 pl-7 sm:hidden">
+        <StatePill on={!!item.is_must_try} label="Must try" color="amber"
+          onToggle={() => onToggle({ is_must_try: !item.is_must_try })} />
+        <StatePill on={!!item.is_available} label={item.is_available ? "Visible" : "Hidden"}
+          onToggle={() => onToggle({ is_available: !item.is_available })} />
+      </div>
     </li>
   );
 }
@@ -519,8 +529,8 @@ function OutletPanel({ menuId, outlets, assignments, lastChanged, onLoad }: {
           const isSyncing = syncing === o.id;
           const needsSync = assigned && lastChanged && assigned.last_synced_at && new Date(lastChanged) > new Date(assigned.last_synced_at);
           return (
-            <div key={o.id} className="flex items-center justify-between gap-3 px-5 py-3">
-              <div className="flex items-center gap-3 min-w-0">
+            <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-5">
+              <div className="flex items-center gap-2 min-w-0 sm:gap-3">
                 <Building2 className="h-4 w-4 shrink-0 text-slate-400" />
                 <div className="min-w-0">
                   <div className="font-medium text-sm truncate">{o.name}</div>
@@ -807,7 +817,7 @@ export function GlobalMenuManager({ outlets, organization }: {
               {activeMenu && <> · Editing <strong>{activeMenu.name}</strong></>}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             {menus.length > 0 && (
               <select
                 value={activeMenu?.id || ""}
@@ -815,7 +825,7 @@ export function GlobalMenuManager({ outlets, organization }: {
                   const m = menus.find((x) => x.id === e.target.value);
                   setActiveMenu(m || null);
                 }}
-                className={inputCls + " w-48"}
+                className={inputCls + " min-w-0 flex-1 sm:w-48 sm:flex-none"}
               >
                 <option value="" disabled>Select a menu</option>
                 {menus.map((m) => (
@@ -1262,9 +1272,9 @@ function MenuEditor({ menu, outlets, onUpdated }: {
     <>
       {/* Tab bar: Menu Items | Share to Outlets */}
       <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-0 px-5 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-0 px-5 sm:px-8">
           <button onClick={() => setEditorTab("items")}
-            className={`relative px-5 py-3.5 text-sm font-medium transition-colors ${editorTab === "items" ? "text-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
+            className={`relative px-3 py-3.5 text-sm font-medium transition-colors sm:px-5 ${editorTab === "items" ? "text-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
             <span className="inline-flex items-center gap-1.5">
               <UtensilsCrossed className="h-4 w-4" />
               Menu Items
@@ -1273,7 +1283,7 @@ function MenuEditor({ menu, outlets, onUpdated }: {
             {editorTab === "items" && <span className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: BLUE }} />}
           </button>
           <button onClick={() => setEditorTab("outlets")}
-            className={`relative px-5 py-3.5 text-sm font-medium transition-colors ${editorTab === "outlets" ? "text-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
+            className={`relative px-3 py-3.5 text-sm font-medium transition-colors sm:px-5 ${editorTab === "outlets" ? "text-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
             <span className="inline-flex items-center gap-1.5">
               <Building2 className="h-4 w-4" />
               Share to Outlets
@@ -1283,12 +1293,12 @@ function MenuEditor({ menu, outlets, onUpdated }: {
           </button>
 
           {editorTab === "items" && (
-            <div className="ml-auto relative">
+            <div className="relative w-full py-2 sm:ml-auto sm:w-auto sm:py-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input value={query} onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && setQuery("")}
                 placeholder="Search categories and items"
-                className="w-64 rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20" />
+                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 sm:w-64" />
               {query && (
                 <button onClick={() => setQuery("")} aria-label="Clear search"
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
@@ -1353,7 +1363,7 @@ function MenuEditor({ menu, outlets, onUpdated }: {
 
         {q ? (
           <main className="mt-3 rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
-            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 sm:gap-3 sm:px-5 sm:py-4">
               <h2 className="text-base font-semibold">Results for "{query.trim()}"</h2>
               <span className="text-sm text-slate-400">
                 {resultCount} item{resultCount === 1 ? "" : "s"} in {results.length} categor{results.length === 1 ? "y" : "ies"}
@@ -1473,7 +1483,7 @@ function MenuEditor({ menu, outlets, onUpdated }: {
                   </DndContext>
                 )}
 
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">
                   <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                     onKeyDown={(e) => e.key === "Enter" && addItem()}
                     placeholder={`Add an item to ${active.name}`}

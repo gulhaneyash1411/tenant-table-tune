@@ -12,6 +12,7 @@ const placeOrderSchema = z.object({
   delivery_address: z.string().trim().max(500).optional().nullable(),
   delivery_landmark: z.string().trim().max(200).optional().nullable(),
   delivery_pincode: z.string().trim().max(10).optional().nullable(),
+  session_token: z.string().max(100).optional().nullable(),
   items: z.array(z.object({
     menu_item_id: z.string().uuid(),
     quantity: z.number().int().min(1).max(50),
@@ -37,6 +38,7 @@ const appendOrderSchema = z.object({
   order_id: z.string().uuid(),
   // Phone is optional: an empty string means the guest didn't give one.
   customer_phone: z.string().trim().max(30).refine((v) => v === "" || v.length >= 4, "Phone number is too short"),
+  session_token: z.string().max(100).optional().nullable(),
   items: z.array(z.object({
     menu_item_id: z.string().uuid(),
     quantity: z.number().int().min(1).max(50),
@@ -145,6 +147,45 @@ export const getOrderDetail = createServerFn({ method: "GET" })
         .maybeSingle(),
     ]);
     return { order, items: items ?? [], tenant };
+  });
+
+export const createOrderingSession = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    table_id: z.string().uuid(),
+    tenant_id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin as any).rpc("create_ordering_session", {
+      p_table_id: data.table_id,
+      p_tenant_id: data.tenant_id,
+    });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row) throw new Error("Failed to create ordering session");
+    return row as { session_id: string; session_token: string; expires_at: string };
+  });
+
+export const getActiveSession = createServerFn({ method: "GET" })
+  .inputValidator((d: unknown) => z.object({
+    table_id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows } = await (supabaseAdmin as any).rpc("get_active_table_session", {
+      p_table_id: data.table_id,
+    });
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    return row as { session_id: string; session_token: string; expires_at: string } | null;
+  });
+
+export const closeSessionOnPayment = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    order_id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).rpc("close_session_on_payment", { p_order_id: data.order_id });
   });
 
 export const getReviewTarget = createServerFn({ method: "GET" })
