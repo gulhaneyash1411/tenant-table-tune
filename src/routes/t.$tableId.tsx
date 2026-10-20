@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Minus, Plus, ShoppingCart, Loader2, Sparkles, Search, Clock, MapPin, UtensilsCrossed, X, ChevronLeft, ChevronRight, CalendarClock, Ban } from "lucide-react";
 import { useTenantBrand } from "@/hooks/use-tenant-brand";
-import { appendPublicOrderItems, getActiveTableOrder, placePublicOrder, verifyTableOrderAccess } from "@/lib/public-orders.functions";
+import { appendPublicOrderItems, createOrderingSession, getActiveSession, getActiveTableOrder, placePublicOrder, verifyTableOrderAccess } from "@/lib/public-orders.functions";
 import { noindexHead } from "@/lib/seo";
 
 /**
@@ -43,7 +43,7 @@ async function loadReservationHold(tableId: string) {
 // UI: the route's own `pendingComponent` below. The component itself never
 // renders a "loading" state of its own, because by the time it renders it
 // always already has real data.
-async function loadTableData(qrKey: string) {
+async function loadTableData(qrKey: string, isFreshScan = false) {
   // `qrKey` is the secure QR token (/order/{token}) or, for QRs printed before
   // tokens existed, the table id. resolve_table_qr only answers while the QR is
   // active, the table is active and the outlet's subscription is live.
@@ -55,7 +55,7 @@ async function loadTableData(qrKey: string) {
   if (!t) {
     return {
       table: null as any, tenant: null as any, cats: [] as any[], items: [] as any[],
-      activeOrder: null as any, hold: null as any,
+      activeOrder: null as any, hold: null as any, session: null as any,
     };
   }
   // Everything below only depends on t.tenant_id/t.id, so fetch it all in
@@ -71,9 +71,24 @@ async function loadTableData(qrKey: string) {
     // its mere presence is the answer.
     loadReservationHold(t.id).catch(() => null),
   ]);
+  // Session management: only a fresh QR scan (via /order/{token}) creates a
+  // session. Direct visits to /t/{token} (saved links, browser history) only
+  // reuse an existing active session — this is the core mechanism that blocks
+  // false orders from stale links.
+  let session: { session_id: string; session_token: string; expires_at: string } | null = null;
+  try {
+    session = await getActiveSession({ data: { table_id: t.id } });
+    if (!session && isFreshScan) {
+      session = await createOrderingSession({ data: { table_id: t.id, tenant_id: t.tenant_id } });
+    }
+  } catch {
+    session = null;
+  }
+
   return {
     table: t, tenant: ten ?? null, cats: c ?? [], items: i ?? [],
     activeOrder: ao ?? null, hold: hold ?? null,
+    session,
   };
 }
 
@@ -98,7 +113,7 @@ function TableError() {
 
 export const Route = createFileRoute("/t/$tableId")({
   head: noindexHead,
-  loader: ({ params }) => loadTableData(params.tableId),
+  loader: ({ params, location }) => loadTableData(params.tableId, (location.search as any)?.scan === "1"),
   // A guest coming back from their status screen to order another round
   // carries the order they're adding to and the phone it was placed with.
   // Both are checked against the order actually open on this table below —
@@ -108,9 +123,10 @@ export const Route = createFileRoute("/t/$tableId")({
   // params to string so the comparison in the component works regardless of
   // whether the URL was built with TanStack's navigate (JSON-quoted) or a raw
   // window.location.href assignment.
-  validateSearch: (search: Record<string, unknown>): { order?: string; phone?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { order?: string; phone?: string; scan?: string } => ({
     order: search.order != null ? String(search.order) : undefined,
     phone: search.phone != null ? String(search.phone) : undefined,
+    scan: search.scan != null ? String(search.scan) : undefined,
   }),
   pendingComponent: TablePending,
   // No artificial delay in either direction: show the pending state the
@@ -370,6 +386,19 @@ function TableOrder() {
   const resumeParams = Route.useSearch();
   useTenantBrand(tenant);
 
+  // Ordering session: gates order placement to prevent stale-link abuse.
+  const [sessionToken, setSessionToken] = useState<string | null>(loaderData.session?.session_token ?? null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    if (!loaderData.session) { setSessionExpired(true); return; }
+    const expiresAt = new Date(loaderData.session.expires_at).getTime();
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) { setSessionExpired(true); setSessionToken(null); return; }
+    const timer = setTimeout(() => { setSessionExpired(true); setSessionToken(null); }, remaining);
+    return () => clearTimeout(timer);
+  }, [loaderData.session]);
+
   // "Keep ordering" on the status screen sends the guest back here with the
   // order id and the phone it was placed with. When both match the order that
   // is actually open on this table, this is the party already sitting here —
@@ -425,6 +454,7 @@ function TableOrder() {
         await appendPublicOrderItems({ data: {
           order_id: resumeOrder.id,
           customer_phone: resumeOrder.customer_phone,
+          session_token: sessionToken,
           items: cartItems.map((i: any) => ({ menu_item_id: i.id, quantity: cart[i.id] })),
         } });
         setCart({}); setShowCart(false);
@@ -441,6 +471,7 @@ function TableOrder() {
         customer_name: name.trim(),
         customer_phone: phone,
         order_type: "dine_in",
+        session_token: sessionToken,
         items: cartItems.map((i: any) => ({ menu_item_id: i.id, quantity: cart[i.id] })),
       } });
       setActiveOrder(order);
@@ -556,6 +587,22 @@ function TableOrder() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // 4. Session expired — the link was reused from browser history / home.
+  //    This blocks both fresh orders and resume-ordering ("Keep ordering" from
+  //    the status page). A customer still at the table will have a live session;
+  //    a customer at home with a saved link will not.
+  if (sessionExpired) {
+    return (
+      <TableNotice
+        tenant={tenant}
+        table={table}
+        icon={<Clock className="h-5 w-5" />}
+        title="Session ended"
+        body="Your ordering session has ended. Please scan the QR code at your table to start a new session."
+      />
     );
   }
 

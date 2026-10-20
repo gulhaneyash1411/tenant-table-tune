@@ -11,8 +11,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { money } from "@/lib/format";
 import { mergeOrderItems } from "@/lib/order-items";
 import { format } from "date-fns";
-import { History, Download, Search, Loader2, Bike, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { History, Download, Search, Loader2, Bike, ChevronLeft, ChevronRight, Receipt, Timer, Eye } from "lucide-react";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
+
+const SESSION_BADGE: Record<string, string> = {
+  active: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  closed: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
+  expired: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
+};
+const sessionBadge = (s?: string | null) => SESSION_BADGE[s ?? ""] ?? "bg-muted text-muted-foreground";
+const SESSION_REASON: Record<string, string> = { bill_paid: "Bill paid", expired: "120-min expiry" };
+const sessionReason = (r?: string | null) => SESSION_REASON[r ?? ""] ?? "";
 
 export const Route = createFileRoute("/_authenticated/app/history")({ component: OrderHistory });
 
@@ -149,6 +158,7 @@ function OrderHistory() {
   const [rows, setRows] = useState<any[]>([]);
   const [items, setItems] = useState<Record<string, any[]>>({});
   const [tableNames, setTableNames] = useState<TableNames>({});
+  const [sessions, setSessions] = useState<Record<string, any>>({});
   const [selected, setSelected] = useState<any>(null);
   // The bill as it was charged — the same figures the invoice PDF prints.
   const selectedBill = readOrderBill(selected);
@@ -158,6 +168,7 @@ function OrderHistory() {
   // tenant header, so the button that was pressed shows a spinner rather than
   // looking dead for a second.
   const [invoicingId, setInvoicingId] = useState<string | null>(null);
+  const [sessionDetail, setSessionDetail] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -212,6 +223,19 @@ function OrderHistory() {
       (oi || []).forEach(i => (by[i.order_id] ||= []).push(i));
       setItems(by);
     } else setItems({});
+
+    const sessionIds = (data || []).map((o: any) => o.session_id).filter(Boolean);
+    if (sessionIds.length) {
+      const { data: sess } = await (supabase as any)
+        .from("ordering_sessions")
+        .select("id,status,closure_reason,created_at,expires_at,closed_at")
+        .in("id", [...new Set(sessionIds)]);
+      const byId: Record<string, any> = {};
+      for (const s of (sess ?? []) as any[]) byId[s.id] = s;
+      setSessions(byId);
+    } else {
+      setSessions({});
+    }
     setLoading(false);
   }
   useEffect(() => { setLoading(true); load(); }, [from, to, tenant?.id]);
@@ -489,6 +513,14 @@ function OrderHistory() {
                         <span className={`text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap ${paymentBadge(o.payment_status)}`}>
                           {o.payment_status}
                         </span>
+                        {o.session_id && sessions[o.session_id] && (
+                          <button
+                            className={`text-[10px] px-1.5 py-0.5 rounded capitalize whitespace-nowrap inline-flex items-center gap-1 ${sessionBadge(sessions[o.session_id].status)}`}
+                            onClick={(e) => { e.stopPropagation(); setSessionDetail(sessions[o.session_id]); }}
+                          >
+                            <Eye className="h-2.5 w-2.5" />Session
+                          </button>
+                        )}
                       </div>
                     </button>
 
@@ -522,6 +554,7 @@ function OrderHistory() {
                     <th className="p-3">Type</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">Payment</th>
+                    <th className="p-3">Session</th>
                     <th className="p-3 text-right">Total</th>
                     <th className="p-3 text-right">Invoice</th>
                   </tr>
@@ -566,6 +599,21 @@ function OrderHistory() {
                           <span className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${paymentBadge(o.payment_status)}`}>
                             {o.payment_status}
                           </span>
+                        </td>
+                        <td className="p-3 align-top" onClick={e => e.stopPropagation()}>
+                          {o.session_id && sessions[o.session_id] ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              aria-label="View session details"
+                              onClick={() => setSessionDetail(sessions[o.session_id])}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="p-3 text-right font-medium whitespace-nowrap align-top">
                           {money(Number(o.total || 0))}
@@ -658,6 +706,14 @@ function OrderHistory() {
                 {tableTag(selected, tableNames) && (
                   <span className="text-xs font-medium">{tableTag(selected, tableNames)}</span>
                 )}
+                {selected.session_id && sessions[selected.session_id] && (
+                  <button
+                    className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded capitalize ${sessionBadge(sessions[selected.session_id].status)}`}
+                    onClick={() => setSessionDetail(sessions[selected.session_id])}
+                  >
+                    <Eye className="h-2.5 w-2.5" />Session
+                  </button>
+                )}
               </div>
 
               {selected.order_type === "home_delivery" && selected.delivery_address && (
@@ -725,6 +781,55 @@ function OrderHistory() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Session detail dialog */}
+      <Dialog open={!!sessionDetail} onOpenChange={o => !o && setSessionDetail(null)}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-sm p-4 sm:p-6">
+          <DialogHeader className="text-left">
+            <DialogTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Timer className="h-5 w-5" />Session Details
+            </DialogTitle>
+          </DialogHeader>
+          {sessionDetail && (() => {
+            const startTime = new Date(sessionDetail.created_at).getTime();
+            const endTime = sessionDetail.closed_at ? new Date(sessionDetail.closed_at).getTime() : Date.now();
+            const durationMin = Math.round((endTime - startTime) / 60000);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Started</div>
+                    <div className="font-medium mt-0.5">{format(new Date(sessionDetail.created_at), "dd MMM yyyy, p")}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Ended</div>
+                    <div className="font-medium mt-0.5">
+                      {sessionDetail.closed_at
+                        ? format(new Date(sessionDetail.closed_at), "dd MMM yyyy, p")
+                        : (() => {
+                            const remaining = Math.max(0, Math.round((new Date(sessionDetail.expires_at).getTime() - Date.now()) / 60000));
+                            return remaining > 0 ? `Ending in ${remaining} min` : "Expired";
+                          })()}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Duration</div>
+                    <div className="font-medium mt-0.5">{durationMin} min</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Reason</div>
+                    <div className="font-medium mt-0.5">{sessionReason(sessionDetail.closure_reason) || "—"}</div>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Status</div>
+                  <span className={`text-[11px] px-2 py-0.5 rounded capitalize ${sessionBadge(sessionDetail.status)}`}>{sessionDetail.status}</span>
+                </div>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
