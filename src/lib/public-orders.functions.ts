@@ -188,6 +188,23 @@ export const closeSessionOnPayment = createServerFn({ method: "POST" })
     await (supabaseAdmin as any).rpc("close_session_on_payment", { p_order_id: data.order_id });
   });
 
+// Create a session for takeaway ordering. Unlike dine-in, this doesn't expire
+// other sessions — multiple customers can order takeaway simultaneously.
+export const createTakeawaySession = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({
+    tenant_id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin as any).rpc("create_takeaway_session", {
+      p_tenant_id: data.tenant_id,
+    });
+    if (error) throw new Error(error.message);
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row) throw new Error("Failed to create session");
+    return row as { session_id: string; session_token: string; expires_at: string };
+  });
+
 // Resolve QR → create a fresh ordering session → return the session token.
 // Called from /order/{token} before redirecting to /t/{token}?s={sessionToken}.
 export const scanQrAndCreateSession = createServerFn({ method: "POST" })

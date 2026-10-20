@@ -54,6 +54,15 @@ export async function createPublicOrder(input: PublicOrderInput) {
     sessionId = session.session_id;
   }
 
+  // Session gate: takeaway orders also require a valid session.
+  if (input.order_type === "takeaway") {
+    if (!input.session_token) throw new Error("Your ordering session has ended. Please reload the page to start a new session.");
+    const { data: sessionRows } = await (supabaseAdmin as any).rpc("validate_ordering_session", { p_session_token: input.session_token });
+    const session = Array.isArray(sessionRows) ? sessionRows[0] : sessionRows;
+    if (!session) throw new Error("Your ordering session has ended. Please reload the page to start a new session.");
+    sessionId = session.session_id;
+  }
+
   // Delivery config is read from the tenant, never from the request — the
   // client can propose an address, not a price.
   const deliveryEnabled = settings["delivery_enabled"] !== false;
