@@ -346,6 +346,46 @@ function SubscriptionPage() {
       )}
 
       <div className="grid gap-3 md:grid-cols-2">
+        {current && (
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground">Current plan</div>
+            <div className="text-xl font-semibold flex items-center gap-2 mt-0.5">
+              {current.plan?.name}{currentCycle && <span className="text-sm font-normal text-muted-foreground">({CYCLE_NAME[currentCycle]})</span>}
+              {activeNow ? (
+                <Badge className="bg-success/15 text-success hover:bg-success/15">Active</Badge>
+              ) : completed ? (
+                <Badge className="bg-blue-500/15 text-blue-600 hover:bg-blue-500/15">Completed</Badge>
+              ) : (
+                <Badge variant="destructive">Expired</Badge>
+              )}
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {activeNow ? (
+                <>
+                  Active from {format(new Date(current.current_period_start), "PP")} to{" "}
+                  {format(currentEnd!, "PP")}
+                </>
+              ) : completedEarly ? (
+                <>
+                  Completed early · was valid from {format(new Date(current.current_period_start), "PP")} to{" "}
+                  {format(currentEnd!, "PP")}
+                </>
+              ) : completed ? (
+                <>
+                  Completed · ran from {format(new Date(current.current_period_start), "PP")} to{" "}
+                  {format(currentEnd!, "PP")}
+                </>
+              ) : (
+                <>Expired on {format(currentEnd!, "PP")}</>
+              )}
+            </div>
+            {activeNow && (
+              <div className="text-xs text-muted-foreground mt-1">
+                {daysLeft} day{daysLeft === 1 ? "" : "s"} left
+              </div>
+            )}
+          </Card>
+        )}
         {scheduledSubs.map((x, i) => {
           const inv = history.find((h) => h.subscription_id === x.id);
           const cycleName = inv?.billing_cycle ? CYCLE_NAME[inv.billing_cycle as Cycle] ?? inv.billing_cycle : null;
@@ -395,46 +435,6 @@ function SubscriptionPage() {
             <div className="text-xs text-muted-foreground mt-1">
               Payment of {money(Number(latestRequest.amount))} (UTR <span className="font-mono">{latestRequest.utr}</span>) is being verified.
             </div>
-          </Card>
-        )}
-        {current && (
-          <Card className="p-4">
-            <div className="text-xs text-muted-foreground">Current plan</div>
-            <div className="text-xl font-semibold flex items-center gap-2 mt-0.5">
-              {current.plan?.name}{currentCycle && <span className="text-sm font-normal text-muted-foreground">({CYCLE_NAME[currentCycle]})</span>}
-              {activeNow ? (
-                <Badge className="bg-success/15 text-success hover:bg-success/15">Active</Badge>
-              ) : completed ? (
-                <Badge className="bg-blue-500/15 text-blue-600 hover:bg-blue-500/15">Completed</Badge>
-              ) : (
-                <Badge variant="destructive">Expired</Badge>
-              )}
-            </div>
-            <div className="text-sm text-muted-foreground mt-1">
-              {activeNow ? (
-                <>
-                  Active from {format(new Date(current.current_period_start), "PP")} to{" "}
-                  {format(currentEnd!, "PP")}
-                </>
-              ) : completedEarly ? (
-                <>
-                  Completed early · was valid from {format(new Date(current.current_period_start), "PP")} to{" "}
-                  {format(currentEnd!, "PP")}
-                </>
-              ) : completed ? (
-                <>
-                  Completed · ran from {format(new Date(current.current_period_start), "PP")} to{" "}
-                  {format(currentEnd!, "PP")}
-                </>
-              ) : (
-                <>Expired on {format(currentEnd!, "PP")}</>
-              )}
-            </div>
-            {activeNow && (
-              <div className="text-xs text-muted-foreground mt-1">
-                {daysLeft} day{daysLeft === 1 ? "" : "s"} left
-              </div>
-            )}
           </Card>
         )}
 
