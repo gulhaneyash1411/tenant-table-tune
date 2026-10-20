@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money } from "@/lib/format";
 import { mergeOrderItems } from "@/lib/order-items";
+import { discountLabel, readOrderBill } from "@/lib/billing";
 import { format, subDays } from "date-fns";
 import { Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 
@@ -645,6 +646,7 @@ function OrderHistoryDialog({
             // the amounts still add up to the subtotal.
             const lines = items[o.id] ? mergeOrderItems(items[o.id]) : undefined;
             const table = tableTag(o, tableNames);
+            const bill = readOrderBill(o);
             return (
               <div key={o.id}>
                 <button
@@ -702,8 +704,14 @@ function OrderHistoryDialog({
                     <dl className="border-t pt-2 space-y-1">
                       {table && <Row label="Table" value={table} />}
                       {o.subtotal != null && <Row label="Subtotal" value={money(Number(o.subtotal))} />}
-                      {Number(o.discount) > 0 && <Row label="Discount" value={`− ${money(Number(o.discount))}`} />}
+                      {bill.discountAmount > 0 ? (
+                        <>
+                          <Row label={discountLabel(bill, money)} value={`− ${money(bill.discountAmount)}`} />
+                          <Row label="After discount" value={money(bill.subtotalAfterDiscount)} />
+                        </>
+                      ) : Number(o.discount) > 0 && <Row label="Discount" value={`− ${money(Number(o.discount))}`} />}
                       {o.tax != null && <Row label="Tax" value={money(Number(o.tax))} />}
+                      {bill.serviceCharge > 0 && <Row label="Service charges" value={`+ ${money(bill.serviceCharge)}`} />}
                       {Number(o.delivery_fee) > 0 && <Row label="Delivery" value={money(Number(o.delivery_fee))} />}
                       <Row label="Total" value={money(Number(o.total))} bold />
                       {o.payment_status && <Row label="Payment status" value={o.payment_status} />}
