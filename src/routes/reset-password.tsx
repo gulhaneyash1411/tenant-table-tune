@@ -30,8 +30,25 @@ function ResetPasswordPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setReady(!!data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => { if (s) setReady(true); });
+    const hash = window.location.hash;
+    const isResetFlow = hash.includes("type=recovery");
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session && isResetFlow) {
+        toast.success("Identity verified! Please set your new password.");
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      setReady(!!data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (s) {
+        setReady(true);
+        if (isResetFlow) {
+          toast.success("Identity verified! Please set your new password.");
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      }
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -43,8 +60,9 @@ function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Password updated");
-    navigate({ to: "/app" });
+    toast.success("Password reset successfully! Please sign in with your new password.");
+    await supabase.auth.signOut();
+    navigate({ to: "/auth" });
   }
 
   return (

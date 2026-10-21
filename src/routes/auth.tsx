@@ -24,8 +24,20 @@ function AuthPage() {
   const redirectTo = safeRedirect(new URLSearchParams(window.location.search).get("redirect"));
 
   useEffect(() => {
+    const hash = window.location.hash;
+    const isEmailConfirmation = hash.includes("type=signup") || hash.includes("type=email");
+
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.href = redirectTo;
+      if (data.session) {
+        if (isEmailConfirmation) {
+          toast.success("Email confirmed successfully! You are now signed in.");
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        }
+        window.location.href = redirectTo;
+      } else if (isEmailConfirmation) {
+        toast.success("Email confirmed successfully! Please sign in.");
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
     });
   }, [redirectTo]);
 
@@ -154,7 +166,10 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: f.email, password: f.password,
-      options: { data: { full_name: f.full_name, phone: f.phone } },
+      options: {
+        data: { full_name: f.full_name, phone: f.phone },
+        emailRedirectTo: `${window.location.origin}/auth`,
+      },
     });
     if (error || !data.user) { setLoading(false); return toast.error(error?.message || "Sign up failed"); }
     // If email confirmation is off, signUp already returns a session — get it
