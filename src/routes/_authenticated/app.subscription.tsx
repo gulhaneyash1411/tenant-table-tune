@@ -105,6 +105,7 @@ function SubscriptionPage() {
   const [paying, setPaying] = useState(false);
   // Outcome of a Cashfree payment, shown after Cashfree redirects back here.
   const [payResult, setPayResult] = useState<"checking" | "paid" | "pending" | "failed" | null>(null);  const [historyOpen, setHistoryOpen] = useState(false);
+  const [extendedDays, setExtendedDays] = useState<Record<string, number>>({});
 
   async function load() {
     const { data: u } = await supabase.auth.getUser();
@@ -134,6 +135,19 @@ function SubscriptionPage() {
     setSubs(sb || []);
     // An online order that was never paid (abandoned or failed) isn't a real invoice for the owner.
     setHistory((inv || []).filter((r: any) => r.payment_method !== PAYMENT_METHOD_CASHFREE || r.status === "paid"));
+
+    // Sum up admin-granted extension days per subscription from audit logs.
+    const { data: extLogs } = await supabase
+      .from("audit_logs")
+      .select("entity_id, new_value")
+      .eq("tenant_id", t.id)
+      .eq("action", "subscription.extended");
+    const bySubId: Record<string, number> = {};
+    for (const log of extLogs || []) {
+      const days = Number((log.new_value as any)?.days) || 0;
+      if (days > 0 && log.entity_id) bySubId[log.entity_id] = (bySubId[log.entity_id] || 0) + days;
+    }
+    setExtendedDays(bySubId);
   }
   useEffect(() => { load(); }, []);
 
@@ -382,6 +396,11 @@ function SubscriptionPage() {
             {activeNow && (
               <div className="text-xs text-muted-foreground mt-1">
                 {daysLeft} day{daysLeft === 1 ? "" : "s"} left
+              </div>
+            )}
+            {current && extendedDays[current.id] > 0 && (
+              <div className="text-xs text-green-600 mt-1">
+                +{extendedDays[current.id]} day{extendedDays[current.id] === 1 ? "" : "s"} extended
               </div>
             )}
           </Card>
