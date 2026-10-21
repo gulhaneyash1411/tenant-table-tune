@@ -36,7 +36,7 @@ function AuthPage() {
           <img src="/brand/dineeatz-logo.png?v=3" alt="DineEatz" className="h-20 w-auto object-contain" />
         </Link>
         <div className="mt-auto mb-auto">
-          <h2 className="text-3xl font-semibold tracking-tight">Restaurant portal</h2>
+          <h2 className="text-3xl font-semibold tracking-tight">Restaurant portal test</h2>
           <p className="text-muted-foreground mt-2 max-w-sm">
             Sign in to manage orders, tables, menus and staff. New restaurants are activated after super-admin approval.
           </p>
