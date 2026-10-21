@@ -44,8 +44,18 @@ export const ALL_FEATURE_KEYS = Object.keys(FEATURE_LABEL);
 // Included in every plan, whatever the plan's switches say.
 export const ALWAYS_ON_FEATURES = ["dashboards"];
 
+/** Anything carrying a plan's feature switches — the context's `plan`, or a plan row. */
+export type PlanLike = { features?: Record<string, boolean> | null } | null | undefined;
+
 /**
- * Whether a plan includes a feature.
+ * Whether a *plan's feature map* includes a feature.
+ *
+ * This takes the raw `features` object, so it cannot tell "no plan at all" from
+ * "plan whose features are `{}`" — both arrive here as an empty object and both
+ * return true. Use it only where a plan is known to exist (e.g. the admin plan
+ * form previewing a plan's switches). Everywhere the tenant's current plan may
+ * be null, use `planIncludes` below.
+ *
  * - No feature key given: always allowed (the page isn't plan-gated).
  * - Plan with no feature config at all (`{}`, e.g. older plans or a free trial):
  *   everything stays open, as before plan features existed.
@@ -57,4 +67,19 @@ export function planAllows(features: Record<string, boolean> | null | undefined,
   const f = features ?? {};
   if (Object.keys(f).length === 0) return true;
   return f[key] === true;
+}
+
+/**
+ * Whether the tenant's current plan includes a feature.
+ *
+ * - No feature key given: always allowed (the page isn't plan-gated).
+ * - No plan at all — paid plan expired and the free plan is deactivated: nothing
+ *   plan-gated is allowed. This is the case `planAllows` alone gets wrong.
+ * - Otherwise defers to the plan's own feature switches.
+ */
+export function planIncludes(plan: PlanLike, key?: string | null): boolean {
+  if (!key) return true;
+  if (ALWAYS_ON_FEATURES.includes(key)) return true;
+  if (!plan) return false;
+  return planAllows(plan.features, key);
 }

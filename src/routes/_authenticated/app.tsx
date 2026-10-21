@@ -272,7 +272,8 @@ function AppLayout() {
   const outletStatus = (tenant as (Tenant & { outlet_status?: string }) | null)?.outlet_status ?? "ACTIVE";
   const outletInactive = outletStatus !== "ACTIVE";
   const onPaymentPage = pathname === "/app/subscription" || pathname === "/app/franchise";
-  const outletBlocked = (outletInactive || trialEnded || noActivePlan) && !onPaymentPage;
+  const onAllowedWithoutPlan = onPaymentPage || onSettings;
+  const outletBlocked = (outletInactive || trialEnded || noActivePlan) && !onAllowedWithoutPlan;
   const blockedTitle = noActivePlan && !outletInactive
     ? "No active plan"
     : trialEnded && !outletInactive
@@ -507,7 +508,7 @@ function AppLayout() {
             {!locked && <MobileNav tabs={mobileTabs} />}
 
             <Dialog
-              open={noActivePlan && !onPaymentPage && planModalClosedOn !== pathname}
+              open={noActivePlan && !onAllowedWithoutPlan && planModalClosedOn !== pathname}
               onOpenChange={(o) => { if (!o) setPlanModalClosedOn(pathname); }}
             >
               <DialogContent className="w-[calc(100%-2rem)] rounded-2xl sm:max-w-sm text-center">

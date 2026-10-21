@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { useOutletContext, useTenantContext } from "@/hooks/use-session";
-import { planAllows } from "@/config/plan-features";
+import { planIncludes } from "@/config/plan-features";
 import { OutletManagers } from "@/components/outlet-managers";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +112,7 @@ function SettingsPage() {
     { value: "restaurant", label: "Restaurant", feature: undefined },
     { value: "pin", label: "Lock PIN", feature: "settings_lock_pin" },
     { value: "kitchen", label: "Kitchen account", feature: "settings_kitchen_account" },
-  ].filter((tab) => (!readOnly || tab.value === "kitchen") && planAllows(plan?.features, tab.feature));
+  ].filter((tab) => (!readOnly || tab.value === "kitchen") && planIncludes(plan, tab.feature));
   return (
     <div className="space-y-6 max-w-3xl">
       {readOnly && (
@@ -141,7 +141,7 @@ function SettingsPage() {
         </TabsList>
 
         <TabsContent value="restaurant" className="space-y-6">
-          {!readOnly && (planAllows(plan?.features, "settings_outlets") ? (
+          {!readOnly && (planIncludes(plan, "settings_outlets") ? (
             <Card className="p-5 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="font-medium">Outlets</div>
@@ -235,7 +235,7 @@ function SettingsPage() {
             </div>
           )}
           {/* Last section: managers, whether or not the plan includes outlets. */}
-          {!readOnly && planAllows(plan?.features, "manager_profile") && (
+          {!readOnly && planIncludes(plan, "manager_profile") && (
             <OutletManagers outlets={outlets} />
           )}
         </TabsContent>
