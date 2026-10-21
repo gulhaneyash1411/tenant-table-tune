@@ -10,5 +10,6 @@
   "main": "src/server.ts",
   "observability": {
     "enabled": true
-  }
+  },
+  "previews": {}
 }
