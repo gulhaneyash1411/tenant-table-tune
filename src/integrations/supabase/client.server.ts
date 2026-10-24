@@ -4,6 +4,8 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { requireSupabaseConfig } from '@/config/env';
+import { checkServiceRoleKey } from '@/config/supabase-env';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -30,17 +32,24 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
+  // Same project as the browser client (the build-time URL), so a staging build
+  // given the production service-role secret by mistake is rejected by the
+  // staging project instead of quietly writing to production.
+  const { url: SUPABASE_URL, projectRef } = requireSupabaseConfig();
+  // Runtime secret only (a Worker secret / .env) — never a VITE_ variable.
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
-    ];
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    const missing = ['SUPABASE_SERVICE_ROLE_KEY'];
     const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Check your environment configuration.`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
+  }
+  try {
+    checkServiceRoleKey(SUPABASE_SERVICE_ROLE_KEY, projectRef);
+  } catch (error) {
+    console.error(`[Supabase] ${(error as Error).message}`);
+    throw error;
   }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {

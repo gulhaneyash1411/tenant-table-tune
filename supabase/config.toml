@@ -1,1 +1,3 @@
-project_id = "khvvukyedvuqvbemjcxb"
+# Local identifier only (names the local Docker stack). The remote project is
+# chosen by `npm run db:link:staging` / `db:link:prod`, never hardcoded here.
+project_id = "tenant-table-tune"

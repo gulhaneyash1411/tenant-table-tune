@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { OfflineBanner } from "@/components/offline-banner";
+import { EnvironmentBadge } from "@/components/environment-badge";
 import { supabase } from "@/integrations/supabase/client";
 import { absoluteUrl, DEFAULT_DESCRIPTION, DEFAULT_IMAGE, DEFAULT_TITLE, SITE_NAME } from "@/lib/seo";
 
@@ -142,6 +143,7 @@ function RootComponent() {
       <OfflineBanner />
       <Outlet />
       <Toaster richColors position="top-right" />
+      <EnvironmentBadge />
     </QueryClientProvider>
   );
 }

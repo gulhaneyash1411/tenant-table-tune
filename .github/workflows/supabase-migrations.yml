@@ -1,0 +1,59 @@
+# Applies supabase/migrations to the database that matches the branch:
+#   release → staging      main → production
+# See docs/supabase-environments.md: production records only 12 of the repo migrations,
+# so the migration history must be reset before this is enabled.
+#
+# Off until the repository variable SUPABASE_MIGRATIONS_ENABLED is "true"
+# (Settings → Secrets and variables → Actions → Variables). Turn it on only
+# after the baseline, or the first run replays old migrations.
+name: Supabase migrations
+
+on:
+  push:
+    branches: [main, release]
+    paths:
+      - "supabase/migrations/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    if: >-
+      vars.SUPABASE_MIGRATIONS_ENABLED == 'true' &&
+      contains(fromJSON('["main", "release"]'), github.ref_name)
+    runs-on: ubuntu-latest
+    # GitHub Environments: give "production" required reviewers so a main
+    # push waits for approval before touching the production database.
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    # Never migrate the same database twice at once, and never cancel a
+    # migration halfway.
+    concurrency:
+      group: supabase-migrations-${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      cancel-in-progress: false
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ github.ref_name == 'main' && secrets.SUPABASE_PROD_DB_PASSWORD || secrets.SUPABASE_STAGING_DB_PASSWORD }}
+      PROJECT_REF: ${{ github.ref_name == 'main' && secrets.SUPABASE_PROD_REF || secrets.SUPABASE_STAGING_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          # Keep in step with the "supabase" devDependency in package.json.
+          version: 2.121.0
+
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Migration status (before)
+        run: supabase migration list
+
+      - name: Show what will be applied
+        run: supabase db push --dry-run
+
+      - name: Apply migrations
+        run: supabase db push
+
+# No Edge Functions job: the repo has no supabase/functions directory.

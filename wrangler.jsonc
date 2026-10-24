@@ -10,5 +10,12 @@
   "main": "src/server.ts",
   "observability": {
     "enabled": true
-  }
+  },
+  // No Supabase values here. One Worker, two environments (Workers Builds):
+  //   main    → live deployment, "Production" build variables / runtime settings
+  //   release → preview version,  "Previews" build variables / runtime settings
+  // Both are set in the Cloudflare dashboard (docs/supabase-environments.md).
+  // keep_vars stops `wrangler deploy` from deleting those dashboard variables,
+  // since this file declares none.
+  "keep_vars": true
 }
