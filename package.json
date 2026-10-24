@@ -11,7 +11,12 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "node --experimental-strip-types --test \"src/**/*.test.ts\"",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:new": "supabase migration new",
+    "db:diff": "supabase db diff",
+    "db:link:staging": "node scripts/supabase.mjs link:staging",
+    "db:link:prod": "node scripts/supabase.mjs link:prod",
+    "db:push": "node scripts/supabase.mjs push"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -93,6 +98,7 @@
     "globals": "^15.15.0",
     "nitro": "3.0.260603-beta",
     "prettier": "^3.7.3",
+    "supabase": "^2.121.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.0.16",

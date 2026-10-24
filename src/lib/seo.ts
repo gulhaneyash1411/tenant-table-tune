@@ -2,8 +2,11 @@
 // directive for pages that must stay out of search, and JSON-LD encoding.
 // Routes build their head() from these so tags stay consistent.
 
-// Keep in step with public/robots.txt and public/sitemap.xml.
-export const SITE_URL = "https://dineeatz.in";
+import { SITE_URL as CONFIGURED_SITE_URL } from "@/config/env";
+
+// VITE_SITE_URL, defaulting to the production domain. Keep the production value
+// in step with public/robots.txt and public/sitemap.xml.
+export const SITE_URL = CONFIGURED_SITE_URL;
 export const SITE_NAME = "DineEatz";
 
 export const DEFAULT_TITLE = "DineEatz: QR Ordering & Restaurant Management Software";
