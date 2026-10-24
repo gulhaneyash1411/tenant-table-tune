@@ -16,6 +16,15 @@ dist-ssr
 .nitro
 *.local
 
+# Environment files hold real keys. Only the template is committed.
+.env
+.env.*
+!.env.example
+
+# Supabase CLI link state (project ref, pooler URL) — per machine.
+supabase/.temp/
+
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
@@ -30,3 +39,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Config rows exported from production for staging (docs/supabase-environments.md).
+config_rows.sql
