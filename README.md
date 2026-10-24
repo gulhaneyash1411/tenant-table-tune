@@ -237,4 +237,4 @@ The build targets Cloudflare Workers (edge). After `bun run build`, deploy the o
 Proprietary — all rights reserved unless a `LICENSE` file states otherwise.
 
 ## Ignore
-test1
+test2
