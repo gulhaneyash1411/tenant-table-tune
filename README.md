@@ -110,22 +110,18 @@ Open Supabase Dashboard → **SQL Editor**, and paste/run each file in `supabase
 
 ### 5. Configure environment variables
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env.local` and fill in the **DineEatz Staging** project's values:
 
 ```dotenv
-# Client-visible (must be prefixed with VITE_)
-VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<your-anon-or-publishable-key>
-VITE_SUPABASE_PROJECT_ID=<your-project-ref>
-
-# Server-only (used by createServerFn / SSR)
-SUPABASE_URL=https://<your-project-ref>.supabase.co
-SUPABASE_PUBLISHABLE_KEY=<your-anon-or-publishable-key>
-SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
-SUPABASE_PROJECT_ID=<your-project-ref>
+VITE_APP_ENV=development
+VITE_SUPABASE_URL=https://<staging-project-ref>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<staging-publishable-key>
+SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>   # server only
 ```
 
-> ⚠️ Never commit `.env` and never expose the `SUPABASE_SERVICE_ROLE_KEY` in browser code.
+Local development refuses the production project. Staging (`release`) and production (`main`) deployments, Cloudflare variables and migrations are covered in [docs/supabase-environments.md](docs/supabase-environments.md).
+
+> ⚠️ Never commit `.env*` files and never expose the `SUPABASE_SERVICE_ROLE_KEY` in browser code.
 
 ### 6. Enable Auth providers in Supabase
 
@@ -239,3 +235,6 @@ The build targets Cloudflare Workers (edge). After `bun run build`, deploy the o
 ## License
 
 Proprietary — all rights reserved unless a `LICENSE` file states otherwise.
+
+## Ignore
+test2

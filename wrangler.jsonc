@@ -11,5 +11,20 @@
   "observability": {
     "enabled": true
   },
-  "previews": {}
+  // No Supabase values here. One Worker, two environments (Workers Builds):
+  //   main    → live deployment, "Production" build variables / runtime settings
+  //   release → preview version,  "Previews" build variables / runtime settings
+  // Both are set in the Cloudflare dashboard (docs/supabase-environments.md).
+  // keep_vars stops `wrangler deploy` from deleting those dashboard variables,
+  // since this file declares none.
+  "keep_vars": true,
+  // Required by `wrangler preview` (Workers Builds preview command): it refuses
+  // to deploy unless this block matches the "Previews Base" runtime variables
+  // in the dashboard. Non-secret values only — secrets stay in the dashboard.
+  "previews": {
+    "vars": {
+      "SUPABASE_URL": "https://mjominccvkwyintjsxja.supabase.co",
+      "TWILIO_WHATSAPP_FROM": "whatsapp:+14155238886"
+    }
+  }
 }
