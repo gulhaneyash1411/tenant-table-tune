@@ -14,7 +14,7 @@
 import {
   LayoutDashboard, ListOrdered, Utensils, QrCode, Users, Star, UsersRound,
   LineChart, Settings, CreditCard, Cpu, TrendingUp, History, Wallet,
-  MessageCircle, ShoppingCart,
+  MessageCircle, ShoppingCart, Store,
 } from "lucide-react";
 
 export type NavItem = {
