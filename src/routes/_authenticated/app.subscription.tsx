@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { useTenantContext } from "@/hooks/use-session";
@@ -49,6 +49,8 @@ const FREE_TRIAL_STATUS = INVOICE_STATUS.FREE_TRIAL;
 const PENDING_APPROVAL = INVOICE_STATUS.PENDING_APPROVAL;
 const REJECTED = INVOICE_STATUS.REJECTED;
 const PLATFORM_NAME = "DineEatz";
+// sessionStorage key: set just before the post-payment reload, read (and cleared) after it.
+const PAID_RELOAD_FLAG = "cf_paid_reload";
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 const STATUS_META: Record<string, { label: string; className: string; printClass: string }> = {
@@ -151,14 +153,31 @@ function SubscriptionPage() {
   }
   useEffect(() => { load(); }, []);
 
+  // A verified payment hard-reloads the page so every part of the app picks up the
+  // new plan. The flag re-shows the success dialog after the reload, once.
+  const reloadingRef = useRef(false);
+  function reloadAfterPaid() {
+    if (reloadingRef.current) return;
+    reloadingRef.current = true;
+    try { sessionStorage.setItem(PAID_RELOAD_FLAG, "1"); } catch {}
+    window.location.reload();
+  }
+
   // Back from Cashfree: confirm the order on the server (it activates the plan if paid).
   useEffect(() => {
+    let reloadedAfterPaid = false;
+    try {
+      reloadedAfterPaid = sessionStorage.getItem(PAID_RELOAD_FLAG) === "1";
+      sessionStorage.removeItem(PAID_RELOAD_FLAG);
+    } catch {}
+    if (reloadedAfterPaid) setPayResult("paid");
+
     const orderId = new URLSearchParams(window.location.search).get("cf_order");
     if (!orderId) return;
     window.history.replaceState(null, "", window.location.pathname);
     setPayResult("checking");
     verifyCashfreeOrder(orderId)
-      .then(setPayResult)
+      .then((status) => (status === "paid" ? reloadAfterPaid() : setPayResult(status)))
       .catch((e) => { setPayResult(null); toast.error(e.message); })
       .finally(load);
   }, []);
@@ -297,6 +316,8 @@ function SubscriptionPage() {
       if (status === "pending") {
         setPayResult(null);
         toast.info("Payment not completed. If money was debited, your plan will start automatically once the bank confirms it.");
+      } else if (status === "paid") {
+        return reloadAfterPaid();
       } else {
         setPayResult(status);
       }
