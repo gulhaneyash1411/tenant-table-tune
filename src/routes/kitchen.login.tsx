@@ -108,7 +108,7 @@ function KitchenLogin() {
           </Link>
           .
         </p>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-4" autoComplete="off">
           <div>
             <Label>Login ID</Label>
             <Input
@@ -117,6 +117,7 @@ function KitchenLogin() {
               placeholder="Given to you by your hotel owner"
               required
               autoFocus
+              autoComplete="off"
             />
           </div>
           <div>
@@ -125,6 +126,7 @@ function KitchenLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="off"
             />
           </div>
           <Button className="w-full" disabled={loading}>

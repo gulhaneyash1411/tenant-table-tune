@@ -67,7 +67,7 @@ function SalesLogin() {
           </Link>
           .
         </p>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-4" autoComplete="off">
           <div>
             <Label>Email</Label>
             <Input
@@ -76,6 +76,7 @@ function SalesLogin() {
               type="email"
               required
               autoFocus
+              autoComplete="off"
             />
           </div>
           <div>
@@ -84,6 +85,7 @@ function SalesLogin() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="off"
             />
           </div>
           <Button className="w-full" disabled={loading}>
