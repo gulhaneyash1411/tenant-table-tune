@@ -49,9 +49,9 @@ function AdminAuth() {
           </Link>
           .
         </p>
-        <form onSubmit={submit} className="space-y-4">
-          <div><Label>Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} type="email" required /></div>
-          <div><Label>Password</Label><PasswordInput value={password} onChange={e=>setPassword(e.target.value)} required /></div>
+        <form onSubmit={submit} className="space-y-4" autoComplete="off">
+          <div><Label>Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} type="email" required autoComplete="off" /></div>
+          <div><Label>Password</Label><PasswordInput value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="off" /></div>
           <Button className="w-full" disabled={loading}>{loading?"Signing in…":"Sign in"}</Button>
         </form>
       </Card>

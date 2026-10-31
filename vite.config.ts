@@ -85,6 +85,13 @@ function checkSupabaseEnv(mode: string) {
 
 export default defineConfig(({ command, mode }) => {
   if (command === "build") checkSupabaseEnv(mode);
+  // `vite dev` only exposes VITE_* to import.meta.env; server routes read secrets
+  // (SUPABASE_SERVICE_ROLE_KEY, CASHFREE_*) from process.env, so copy .env files there.
+  // Deployed Workers get them from src/server.ts instead.
+  if (command === "serve") {
+    const env = loadEnv(mode, process.cwd(), "");
+    for (const key in env) process.env[key] ??= env[key];
+  }
   return {
     plugins: [
       tsConfigPaths(),
