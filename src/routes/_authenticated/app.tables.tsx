@@ -880,7 +880,7 @@ function TablesPage() {
   const tableTabs = [
     { value: "qr", label: "QR codes", feature: "tables_qr" },
     { value: "floor", label: "Floor plan", feature: "floor_plan" },
-    { value: "bookings", label: "Bookings", feature: "bookings" },
+    { value: "bookings", label: "Event Booking", feature: "bookings" },
   ].filter((t) => planAllows(ownerPlan?.features, t.feature));
 
   return (
