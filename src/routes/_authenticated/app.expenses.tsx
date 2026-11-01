@@ -104,7 +104,7 @@ function ExpensesPage() {
           <Label className="text-xs">Category</Label>
           <Select value={catFilter} onValueChange={setCatFilter}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" className="max-h-[280px] overflow-y-auto">
               <SelectItem value="all">All categories</SelectItem>
               {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
             </SelectContent>
@@ -176,7 +176,7 @@ function ExpensesPage() {
                 <Label>Category</Label>
                 <Select value={f.category} onValueChange={(v) => setF({ ...f, category: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" className="max-h-[280px] overflow-y-auto">
                     {CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
