@@ -3,7 +3,7 @@ import { ShoppingCart, QrCode, CalendarDays, LineChart, FileText, Percent } from
 import { BRAND, useT, Pill, Reveal } from "@/components/landing/shared";
 
 const FEATURES = [
-  { icon: ShoppingCart, title: "Online Ordering", body: "Let customers order from anywhere.", tag: "Delivery & takeaway" },
+  { icon: ShoppingCart, title: "Online Ordering", body: "Let customers order from anywhere.", tag: "Takeaway orders" },
   { icon: QrCode, title: "QR Table Ordering", body: "Unique QR codes for every table.", tag: "Scan · Order · Pay" },
   { icon: CalendarDays, title: "Table & Booking Management", body: "Manage reservations and table allocation.", tag: "Live floor plan" },
   { icon: LineChart, title: "Restaurant Dashboard", body: "Track orders, sales, and performance in real-time.", tag: "Real-time" },

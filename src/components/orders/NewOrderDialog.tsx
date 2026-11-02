@@ -50,7 +50,7 @@ const TAX_INCLUSIVE = false;
 // generated types narrow `status` to a literal union, and .in() rejects string[].
 const OPEN_STATUSES = ["new", "preparing", "ready"] as const;
 
-type OrderType = "dine_in" | "takeaway" | "home_delivery";
+type OrderType = "dine_in" | "takeaway";
 
 type MenuItem = {
   id: string;
@@ -64,7 +64,6 @@ type Line = { item: MenuItem; qty: number; amount: number };
 const ORDER_TYPES: { key: OrderType; label: string }[] = [
   { key: "dine_in", label: "Dine-in" },
   { key: "takeaway", label: "Takeaway" },
-  { key: "home_delivery", label: "Home delivery" },
 ];
 
 const selectClass =
@@ -538,8 +537,6 @@ export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSav
   const [tableId, setTableId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [pincode, setPincode] = useState("");
 
   // An order already running on the chosen table, if any.
   const [openOrder, setOpenOrder] = useState<any>(null);
@@ -550,8 +547,6 @@ export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSav
     setTableId("");
     setCustomerName("");
     setPhone("");
-    setAddress("");
-    setPincode("");
     setOpenOrder(null);
     setAppendMode(true);
     clear();
@@ -593,9 +588,6 @@ export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSav
           : "No tables found — add one under Tables & QR, or place this as takeaway",
       );
     }
-    if (orderType === "home_delivery" && !address.trim())
-      return toast.error("Delivery address is required");
-
     setSaving(true);
 
     if (appending) {
@@ -632,11 +624,6 @@ export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSav
       total,
     };
     if (orderType === "dine_in" && tableId) payload.table_id = tableId;
-    if (orderType === "home_delivery") {
-      payload.delivery_address = address.trim();
-      payload.delivery_pincode = pincode.trim() || null;
-    }
-
     const { data: order, error } = await supabase.from("orders").insert(payload).select().single();
 
     if (error || !order) {
@@ -787,21 +774,6 @@ export function NewOrderDialog({ tenantId, onSaved }: { tenantId?: string; onSav
                     value={phone}
                     onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                   />
-                  {orderType === "home_delivery" && (
-                    <>
-                      <Input
-                        placeholder="Delivery address"
-                        value={address}
-                        onChange={e => setAddress(e.target.value)}
-                      />
-                      <Input
-                        inputMode="numeric"
-                        placeholder="Pincode"
-                        value={pincode}
-                        onChange={e => setPincode(e.target.value)}
-                      />
-                    </>
-                  )}
                 </>
               )}
 

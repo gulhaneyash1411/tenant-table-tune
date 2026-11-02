@@ -124,19 +124,6 @@ export async function downloadInvoicePdf(order: any, rawItems: any[], tenant?: I
     .text(String(order.payment_status ?? "").toUpperCase(), 547, y + 14, { align: "right" });
   y += 40;
 
-  // Delivery address is part of the record of what was bought, so it belongs
-  // on the invoice rather than only on the screen.
-  if (order.order_type === "home_delivery" && order.delivery_address) {
-    doc.setTextColor(0).setFont("helvetica", "bold").setFontSize(10).text("Delivered to", 48, y); y += 14;
-    doc.setFont("helvetica", "normal").setTextColor(120);
-    const lines = doc.splitTextToSize(
-      [order.delivery_address, order.delivery_landmark ? `Near ${order.delivery_landmark}` : null, order.delivery_pincode]
-        .filter(Boolean).join(", "),
-      400,
-    );
-    doc.text(lines, 48, y); y += lines.length * 12 + 12;
-  }
-
   doc.setTextColor(0).setFont("helvetica", "bold").setFontSize(10);
   doc.text("Item", 48, y); doc.text("Qty", 340, y, { align: "right" }); doc.text("Price", 430, y, { align: "right" }); doc.text("Amount", 547, y, { align: "right" });
   y += 6; doc.setDrawColor(230).line(48, y, 547, y); y += 14;
@@ -169,7 +156,7 @@ export async function downloadInvoicePdf(order: any, rawItems: any[], tenant?: I
   }
   total("Tax", rs(bill.tax));
   if (bill.serviceCharge > 0) total("Service charges", `+ ${rs(bill.serviceCharge)}`);
-  if (bill.deliveryFee > 0) total("Delivery", rs(bill.deliveryFee));
+  if (bill.deliveryFee > 0) total("Additional charges", rs(bill.deliveryFee));
   y += 2;
   doc.setFont("helvetica", "bold").text("Total", 430, y, { align: "right" }); doc.text(rs(bill.total), 547, y, { align: "right" });
   y += 40; doc.setFont("helvetica", "italic").setFontSize(10).setTextColor(120).text("Thank you for dining with us.", 48, y);

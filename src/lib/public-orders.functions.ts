@@ -4,27 +4,16 @@ import { z } from "zod";
 const placeOrderSchema = z.object({
   tenant_id: z.string().uuid(),
   table_id: z.string().uuid().optional().nullable(),
-  order_type: z.enum(["dine_in", "takeaway", "home_delivery"]),
+  order_type: z.enum(["dine_in", "takeaway"]),
   customer_name: z.string().trim().min(1).max(120),
   // Phone is optional: an empty string means the guest didn't give one.
   customer_phone: z.string().trim().max(30).refine((v) => v === "" || v.length >= 4, "Phone number is too short"),
   notes: z.string().trim().max(1000).optional().nullable(),
-  delivery_address: z.string().trim().max(500).optional().nullable(),
-  delivery_landmark: z.string().trim().max(200).optional().nullable(),
-  delivery_pincode: z.string().trim().max(10).optional().nullable(),
   session_token: z.string().max(100).optional().nullable(),
   items: z.array(z.object({
     menu_item_id: z.string().uuid(),
     quantity: z.number().int().min(1).max(50),
   })).min(1).max(100),
-}).superRefine((v, ctx) => {
-  if (v.order_type !== "home_delivery") return;
-  if (!v.delivery_address?.trim()) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["delivery_address"], message: "A delivery address is required" });
-  }
-  if (!/^\d{6}$/.test(v.delivery_pincode?.trim() ?? "")) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["delivery_pincode"], message: "Enter a valid 6-digit pincode" });
-  }
 });
 
 export const placePublicOrder = createServerFn({ method: "POST" })
@@ -78,7 +67,7 @@ export const getOrdersByPhone = createServerFn({ method: "GET" })
     // order I just placed" instead of exposing someone's full order history.
     const recentCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const columns =
-      "id,order_number,status,payment_status,total,subtotal,discount_type,discount_value,discount_amount,service_charge,tax,delivery_fee,delivery_address,delivery_landmark,delivery_pincode,created_at,tenant_id,table_id,order_type,customer_name,customer_phone";
+      "id,order_number,status,payment_status,total,subtotal,discount_type,discount_value,discount_amount,service_charge,tax,delivery_fee,created_at,tenant_id,table_id,order_type,customer_name,customer_phone";
     // An order placed without a phone is only reachable by its ID. The empty-phone
     // filter means a phone-based order can never be returned this way.
     const { data: orders } = data.order_id
