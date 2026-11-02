@@ -989,13 +989,13 @@ function ManagersTab({ orgId, outlets }: { orgId: string; outlets: Outlet[] }) {
             <DialogTitle>Create manager login</DialogTitle>
             <DialogDescription>Set the login email and an initial password, then share them with the manager.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={invite} className="space-y-3">
+          <form onSubmit={invite} className="space-y-3" autoComplete="off">
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Full name</Label><Input required value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} /></div>
               <div><Label>Mobile</Label><Input type="tel" inputMode="numeric" maxLength={10} value={f.mobile} onChange={(e) => setF({ ...f, mobile: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10 digit phone number" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Login email</Label><Input required type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
+              <div><Label>Login email</Label><Input required type="email" autoComplete="off" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
               <div><Label>Password</Label><PasswordInput required minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} placeholder="At least 6 characters" /></div>
             </div>
             <div>

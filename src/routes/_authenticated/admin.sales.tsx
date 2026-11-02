@@ -243,7 +243,7 @@ function SalesTeam() {
           <DialogHeader>
             <DialogTitle>Create Sales User</DialogTitle>
           </DialogHeader>
-          <form onSubmit={create} className="space-y-3">
+          <form onSubmit={create} className="space-y-3" autoComplete="off">
             <div className="space-y-1.5">
               <Label htmlFor="sales-name">Name</Label>
               <Input
@@ -258,6 +258,7 @@ function SalesTeam() {
               <Input
                 id="sales-email"
                 type="email"
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
