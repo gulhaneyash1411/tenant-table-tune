@@ -24,7 +24,6 @@ import { Route as TTableIdRouteImport } from './routes/t.$tableId'
 import { Route as SalesLoginRouteImport } from './routes/sales.login'
 import { Route as OrderTokenRouteImport } from './routes/order.$token'
 import { Route as KitchenLoginRouteImport } from './routes/kitchen.login'
-import { Route as DeliveryTenantIdRouteImport } from './routes/delivery.$tenantId'
 import { Route as ApiSalesAccountRouteImport } from './routes/api/sales-account'
 import { Route as ApiOwnerOutletsRouteImport } from './routes/api/owner-outlets'
 import { Route as ApiOutletUsersRouteImport } from './routes/api/outlet-users'
@@ -160,11 +159,6 @@ const OrderTokenRoute = OrderTokenRouteImport.update({
 const KitchenLoginRoute = KitchenLoginRouteImport.update({
   id: '/kitchen/login',
   path: '/kitchen/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DeliveryTenantIdRoute = DeliveryTenantIdRouteImport.update({
-  id: '/delivery/$tenantId',
-  path: '/delivery/$tenantId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSalesAccountRoute = ApiSalesAccountRouteImport.update({
@@ -529,7 +523,6 @@ export interface FileRoutesByFullPath {
   '/api/outlet-users': typeof ApiOutletUsersRoute
   '/api/owner-outlets': typeof ApiOwnerOutletsRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
-  '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
   '/order/$token': typeof OrderTokenRoute
   '/sales/login': typeof SalesLoginRoute
@@ -606,7 +599,6 @@ export interface FileRoutesByTo {
   '/api/outlet-users': typeof ApiOutletUsersRoute
   '/api/owner-outlets': typeof ApiOwnerOutletsRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
-  '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
   '/order/$token': typeof OrderTokenRoute
   '/sales/login': typeof SalesLoginRoute
@@ -687,7 +679,6 @@ export interface FileRoutesById {
   '/api/outlet-users': typeof ApiOutletUsersRoute
   '/api/owner-outlets': typeof ApiOwnerOutletsRoute
   '/api/sales-account': typeof ApiSalesAccountRoute
-  '/delivery/$tenantId': typeof DeliveryTenantIdRoute
   '/kitchen/login': typeof KitchenLoginRoute
   '/order/$token': typeof OrderTokenRoute
   '/sales/login': typeof SalesLoginRoute
@@ -768,7 +759,6 @@ export interface FileRouteTypes {
     | '/api/outlet-users'
     | '/api/owner-outlets'
     | '/api/sales-account'
-    | '/delivery/$tenantId'
     | '/kitchen/login'
     | '/order/$token'
     | '/sales/login'
@@ -845,7 +835,6 @@ export interface FileRouteTypes {
     | '/api/outlet-users'
     | '/api/owner-outlets'
     | '/api/sales-account'
-    | '/delivery/$tenantId'
     | '/kitchen/login'
     | '/order/$token'
     | '/sales/login'
@@ -925,7 +914,6 @@ export interface FileRouteTypes {
     | '/api/outlet-users'
     | '/api/owner-outlets'
     | '/api/sales-account'
-    | '/delivery/$tenantId'
     | '/kitchen/login'
     | '/order/$token'
     | '/sales/login'
@@ -1002,7 +990,6 @@ export interface RootRouteChildren {
   ApiOutletUsersRoute: typeof ApiOutletUsersRoute
   ApiOwnerOutletsRoute: typeof ApiOwnerOutletsRoute
   ApiSalesAccountRoute: typeof ApiSalesAccountRoute
-  DeliveryTenantIdRoute: typeof DeliveryTenantIdRoute
   KitchenLoginRoute: typeof KitchenLoginRoute
   OrderTokenRoute: typeof OrderTokenRoute
   SalesLoginRoute: typeof SalesLoginRoute
@@ -1120,13 +1107,6 @@ declare module '@tanstack/react-router' {
       path: '/kitchen/login'
       fullPath: '/kitchen/login'
       preLoaderRoute: typeof KitchenLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/delivery/$tenantId': {
-      id: '/delivery/$tenantId'
-      path: '/delivery/$tenantId'
-      fullPath: '/delivery/$tenantId'
-      preLoaderRoute: typeof DeliveryTenantIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sales-account': {
@@ -1709,7 +1689,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiOutletUsersRoute: ApiOutletUsersRoute,
   ApiOwnerOutletsRoute: ApiOwnerOutletsRoute,
   ApiSalesAccountRoute: ApiSalesAccountRoute,
-  DeliveryTenantIdRoute: DeliveryTenantIdRoute,
   KitchenLoginRoute: KitchenLoginRoute,
   OrderTokenRoute: OrderTokenRoute,
   SalesLoginRoute: SalesLoginRoute,

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { mergeOrderItemsMap, splitByRound, NEW_ROUND_MARKER } from "@/lib/order-items";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ChefHat, Clock, Bike, Flame } from "lucide-react";
+import { ChefHat, Clock, Flame } from "lucide-react";
 import { clearRoundMarkers } from "@/lib/public-orders.functions";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
@@ -13,8 +13,6 @@ import { fetchCurrentOutlet } from "@/lib/outlet-context";
 // User portal (/kitchen) — one component, one set of orders/RLS behavior,
 // so there's nothing kitchen-specific to keep in sync between the two.
 
-// "Served" means handed to the rider on a delivery ticket, so the last column
-// and its button are relabelled when the ticket is a delivery.
 const STAGES = [
   { key: "new", label: "Incoming", next: "preparing", nextLabel: "Start cooking" },
   { key: "preparing", label: "In kitchen", next: "ready", nextLabel: "Mark ready" },
@@ -24,7 +22,6 @@ const STAGES = [
 const TYPE_LABELS: Record<string, string> = {
   dine_in: "Table",
   takeaway: "Takeaway",
-  home_delivery: "Home delivery",
 };
 
 export function KitchenDisplay() {
@@ -117,8 +114,7 @@ export function KitchenDisplay() {
               {list.map(o => {
                 const mins = Math.round((Date.now() - new Date(o.created_at).getTime()) / 60000);
                 const hot = mins > 15;
-                const isDelivery = o.order_type === "home_delivery";
-                const nextLabel = isDelivery && s.next === "served" ? "Handed to rider" : s.nextLabel;
+                const nextLabel = s.nextLabel;
                 return (
                   <Card key={o.id} className={`p-4 ${hot ? "border-destructive" : ""}`}>
                     <div className="flex items-center justify-between">
@@ -126,14 +122,8 @@ export function KitchenDisplay() {
                       <div className={`text-xs flex items-center gap-1 ${hot ? "text-destructive" : "text-muted-foreground"}`}><Clock className="h-3 w-3"/>{mins}m</div>
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      {isDelivery && <Bike className="h-3 w-3 shrink-0" />}
-                      {TYPE_LABELS[o.order_type] ?? o.order_type} · {format(new Date(o.created_at), "p")}
+                      {TYPE_LABELS[o.order_type] ?? "Other"} · {format(new Date(o.created_at), "p")}
                     </div>
-                    {isDelivery && o.delivery_address && (
-                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
-                        {o.delivery_address}{o.delivery_pincode ? ` — ${o.delivery_pincode}` : ""}
-                      </div>
-                    )}
                     {kitchenItems[o.id]?.isAddedRound && (
                       <div className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-orange-600">
                         <Flame className="h-3.5 w-3.5 shrink-0" />New round — cook only these:

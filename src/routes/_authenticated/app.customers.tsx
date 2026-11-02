@@ -30,10 +30,9 @@ const FETCH_CHUNK = 1000;
 const TYPE_LABELS: Record<string, string> = {
   dine_in: "Dine-in",
   takeaway: "Takeaway",
-  home_delivery: "Home Delivery",
 };
 const typeLabel = (t?: string | null) =>
-  TYPE_LABELS[t ?? ""] ?? (t ? t.replace(/_/g, " ") : "—");
+  TYPE_LABELS[t ?? ""] ?? (t ? "Other" : "—");
 
 // Tailwind's own palette at 15% rather than the app's semantic tokens: the set
 // needed here is wider than the four the theme defines (primary/success/
@@ -42,7 +41,6 @@ const typeLabel = (t?: string | null) =>
 const TYPE_BADGE: Record<string, string> = {
   dine_in: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
   takeaway: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  home_delivery: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
 };
 const typeBadge = (t?: string | null) => TYPE_BADGE[t ?? ""] ?? "bg-muted text-muted-foreground";
 
@@ -56,12 +54,12 @@ const STATUS_BADGE: Record<string, string> = {
   preparing: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   ready: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
   served: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
-  out_for_delivery: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
   completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   cancelled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
 const statusBadge = (s?: string | null) => STATUS_BADGE[s ?? ""] ?? "bg-muted text-muted-foreground";
-const statusLabel = (s?: string | null) => (s ? s.replace(/_/g, " ") : "—");
+const statusLabel = (s?: string | null) =>
+  !s ? "—" : s === "out_for_delivery" ? "Ready" : s.replace(/_/g, " ");
 
 // ---------------------------------------------------------------------------
 // Working out which table an order was served at
@@ -179,7 +177,7 @@ function Customers() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [visitFilter, setVisitFilter] = useState("all"); // all | new | returning
-  const [typeFilter, setTypeFilter] = useState("all");   // all | dine_in | takeaway | home_delivery
+  const [typeFilter, setTypeFilter] = useState("all");   // all | dine_in | takeaway
   const [period, setPeriod] = useState("all");           // all | 7 | 30 | 90
   const [page, setPage] = useState(1);
 
@@ -461,7 +459,6 @@ function Customers() {
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="dine_in">Dine-in</SelectItem>
             <SelectItem value="takeaway">Takeaway</SelectItem>
-            <SelectItem value="home_delivery">Home Delivery</SelectItem>
           </SelectContent>
         </Select>
         <Select value={period} onValueChange={v => { setPeriod(v); setPage(1); }}>
@@ -712,7 +709,7 @@ function OrderHistoryDialog({
                       ) : Number(o.discount) > 0 && <Row label="Discount" value={`− ${money(Number(o.discount))}`} />}
                       {o.tax != null && <Row label="Tax" value={money(Number(o.tax))} />}
                       {bill.serviceCharge > 0 && <Row label="Service charges" value={`+ ${money(bill.serviceCharge)}`} />}
-                      {Number(o.delivery_fee) > 0 && <Row label="Delivery" value={money(Number(o.delivery_fee))} />}
+                      {Number(o.delivery_fee) > 0 && <Row label="Additional charges" value={money(Number(o.delivery_fee))} />}
                       <Row label="Total" value={money(Number(o.total))} bold />
                       {o.payment_status && <Row label="Payment status" value={o.payment_status} />}
                       {o.payment_method && <Row label="Payment" value={o.payment_method} />}

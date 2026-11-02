@@ -3,13 +3,10 @@ import { computeBill, itemsSubtotal, orderBillColumns, readBillCharges, readTaxR
 type PublicOrderInput = {
   tenant_id: string;
   table_id?: string | null;
-  order_type: "dine_in" | "takeaway" | "home_delivery";
+  order_type: "dine_in" | "takeaway";
   customer_name: string;
   customer_phone: string;
   notes?: string | null;
-  delivery_address?: string | null;
-  delivery_landmark?: string | null;
-  delivery_pincode?: string | null;
   session_token?: string | null;
   items: { menu_item_id: string; quantity: number }[];
 };
@@ -63,30 +60,6 @@ export async function createPublicOrder(input: PublicOrderInput) {
     sessionId = session.session_id;
   }
 
-  // Delivery config is read from the tenant, never from the request — the
-  // client can propose an address, not a price.
-  const deliveryEnabled = settings["delivery_enabled"] !== false;
-  const configuredFee = Number(settings["delivery_fee"] ?? 0);
-  const deliveryFee = input.order_type === "home_delivery" && Number.isFinite(configuredFee)
-    ? Math.max(0, Math.round(configuredFee * 100) / 100)
-    : 0;
-  const minOrder = Number(settings["delivery_min_order"] ?? 0);
-  const servicePincodes = Array.isArray(settings["delivery_pincodes"])
-    ? (settings["delivery_pincodes"] as unknown[]).map(p => String(p).trim()).filter(Boolean)
-    : [];
-
-  const address = input.delivery_address?.trim() ?? "";
-  const pincode = input.delivery_pincode?.trim() ?? "";
-
-  if (input.order_type === "home_delivery") {
-    if (!deliveryEnabled) throw new Error("This restaurant is not taking home delivery orders right now");
-    if (!address) throw new Error("A delivery address is required");
-    if (!/^\d{6}$/.test(pincode)) throw new Error("Enter a valid 6-digit pincode");
-    if (servicePincodes.length && !servicePincodes.includes(pincode)) {
-      throw new Error("Sorry, we don't deliver to this pincode yet");
-    }
-  }
-
   const requestedIds = [...new Set(input.items.map((item) => item.menu_item_id))];
   const { data: menuItems, error: menuError } = await supabaseAdmin
     .from("menu_items")
@@ -107,17 +80,12 @@ export async function createPublicOrder(input: PublicOrderInput) {
   });
   const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  if (input.order_type === "home_delivery" && Number.isFinite(minOrder) && subtotal < minOrder) {
-    throw new Error(`Minimum order for delivery is ${minOrder}`);
-  }
-
   // Tax, discount and service charges all come from the tenant's settings,
   // never the request, and go through the same calculator as the staff bill.
   const bill = computeBill({
     itemsSubtotal: subtotal,
     taxRate: readTaxRate(settings),
     ...readBillCharges(settings),
-    deliveryFee,
   });
 
   const { data: order, error: orderError } = await supabaseAdmin
@@ -131,15 +99,11 @@ export async function createPublicOrder(input: PublicOrderInput) {
       status: "new",
       payment_status: "unpaid",
       ...orderBillColumns(bill),
-      delivery_fee: deliveryFee,
-      delivery_address: input.order_type === "home_delivery" ? address : null,
-      delivery_landmark: input.order_type === "home_delivery" ? (input.delivery_landmark?.trim() || null) : null,
-      delivery_pincode: input.order_type === "home_delivery" ? pincode : null,
       notes: input.notes?.trim() || null,
       ...(sessionId ? { session_id: sessionId } : {}),
     } as any)
     .select(
-      "id,order_number,status,payment_status,total,created_at,table_id,customer_phone,order_type,delivery_fee,delivery_address,delivery_landmark,delivery_pincode",
+      "id,order_number,status,payment_status,total,created_at,table_id,customer_phone,order_type",
     )
     .single();
   if (orderError || !order) throw new Error(orderError?.message ?? "Failed to place order");

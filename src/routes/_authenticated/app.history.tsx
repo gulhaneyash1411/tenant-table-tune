@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { money } from "@/lib/format";
 import { mergeOrderItems } from "@/lib/order-items";
 import { format } from "date-fns";
-import { History, Download, Search, Loader2, Bike, ChevronLeft, ChevronRight, Receipt, Timer, Eye } from "lucide-react";
+import { History, Download, Search, Loader2, ChevronLeft, ChevronRight, Receipt, Timer, Eye } from "lucide-react";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
 
 const SESSION_BADGE: Record<string, string> = {
@@ -25,7 +25,7 @@ const sessionReason = (r?: string | null) => SESSION_REASON[r ?? ""] ?? "";
 
 export const Route = createFileRoute("/_authenticated/app/history")({ component: OrderHistory });
 
-const TYPE_FILTERS = ["all", "dine_in", "takeaway", "home_delivery"] as const;
+const TYPE_FILTERS = ["all", "dine_in", "takeaway"] as const;
 
 // ---- Order type / status tags ---------------------------------------------
 // Kept in step with the same block on the Customers screen: if a label or a
@@ -34,10 +34,9 @@ const TYPE_FILTERS = ["all", "dine_in", "takeaway", "home_delivery"] as const;
 const TYPE_LABELS: Record<string, string> = {
   dine_in: "Dine-in",
   takeaway: "Takeaway",
-  home_delivery: "Home Delivery",
 };
 const typeLabel = (t?: string | null) =>
-  TYPE_LABELS[t ?? ""] ?? (t ? t.replace(/_/g, " ") : "—");
+  TYPE_LABELS[t ?? ""] ?? (t ? "Other" : "—");
 
 // Tailwind's own palette at 15% rather than the app's semantic tokens: the set
 // needed here is wider than the four the theme defines (primary/success/
@@ -46,7 +45,6 @@ const typeLabel = (t?: string | null) =>
 const TYPE_BADGE: Record<string, string> = {
   dine_in: "bg-sky-500/15 text-sky-700 dark:text-sky-300",
   takeaway: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  home_delivery: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
 };
 const typeBadge = (t?: string | null) => TYPE_BADGE[t ?? ""] ?? "bg-muted text-muted-foreground";
 
@@ -60,12 +58,12 @@ const STATUS_BADGE: Record<string, string> = {
   preparing: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   ready: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
   served: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
-  out_for_delivery: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
   completed: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   cancelled: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
 };
 const statusBadge = (s?: string | null) => STATUS_BADGE[s ?? ""] ?? "bg-muted text-muted-foreground";
-const statusLabel = (s?: string | null) => (s ? s.replace(/_/g, " ") : "—");
+const statusLabel = (s?: string | null) =>
+  !s ? "—" : s === "out_for_delivery" ? "Ready" : s.replace(/_/g, " ");
 
 // ---------------------------------------------------------------------------
 // Working out which table an order was served at
@@ -254,9 +252,7 @@ function OrderHistory() {
         o.order_number?.toString().includes(s) ||
         (o.customer_name || "").toLowerCase().includes(s) ||
         (o.customer_phone || "").includes(s) ||
-        (!!sTable && !!tn && tn.includes(sTable)) ||
-        (o.delivery_address || "").toLowerCase().includes(s) ||
-        (o.delivery_pincode || "").includes(s)
+        (!!sTable && !!tn && tn.includes(sTable))
       );
     });
   }, [rows, q, type, tableNames]);
@@ -283,14 +279,9 @@ function OrderHistory() {
     [selected, items]
   );
 
-  // Totals now include the delivery charge, so the headline figure is split:
-  // what was collected overall, and how much of it was the delivery fee rather
-  // than food. Without the split, delivery inflates revenue silently.
   // These stay on the full filtered set, not the current page.
   const paid = filtered.filter(o => o.payment_status === "paid");
   const totalRevenue = paid.reduce((a, b) => a + Number(b.total || 0), 0);
-  const deliveryCollected = paid.reduce((a, b) => a + Number(b.delivery_fee || 0), 0);
-  const deliveryCount = filtered.filter(o => o.order_type === "home_delivery").length;
   // Counted positively: "not paid" would sweep refunded orders in with the
   // ones still owing money, which they are not.
   const unpaidCount = filtered.filter(o => o.payment_status === "unpaid").length;
@@ -331,8 +322,8 @@ function OrderHistory() {
 
   function exportCsv() {
     const header = [
-      "Order #", "Date", "Customer", "Phone", "Type", "Table", "Address", "Landmark", "Pincode",
-      "Status", "Payment", "Subtotal", "Tax", "Delivery", "Total", "Discount", "Service charges",
+      "Order #", "Date", "Customer", "Phone", "Type", "Table",
+      "Status", "Payment", "Subtotal", "Tax", "Additional charges", "Total", "Discount", "Service charges",
     ];
     const csv = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = [header.join(",")];
@@ -347,9 +338,6 @@ function OrderHistory() {
         // rather than repeating whatever the row happens to carry. The bare
         // number goes out, not "Table 4" — a spreadsheet wants to sort it.
         o.order_type === "dine_in" ? (tableNo(o, tableNames) ?? "") : "",
-        csv(o.delivery_address),
-        csv(o.delivery_landmark),
-        o.delivery_pincode || "",
         o.status,
         o.payment_status,
         o.subtotal,
@@ -400,7 +388,7 @@ function OrderHistory() {
         </div>
       </div>
 
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
         <Card className="p-3 sm:p-4">
           <div className="text-xs text-muted-foreground">Total orders</div>
           <div className="text-xl sm:text-2xl font-semibold">{filtered.length}</div>
@@ -408,11 +396,6 @@ function OrderHistory() {
         <Card className="p-3 sm:p-4">
           <div className="text-xs text-muted-foreground">Paid revenue</div>
           <div className="text-xl sm:text-2xl font-semibold break-all">{money(totalRevenue)}</div>
-          {deliveryCollected > 0 && (
-            <div className="text-xs text-muted-foreground mt-0.5">
-              incl. {money(deliveryCollected)} delivery
-            </div>
-          )}
         </Card>
         <Card className="p-3 sm:p-4">
           <div className="text-xs text-muted-foreground">Unpaid</div>
@@ -423,19 +406,13 @@ function OrderHistory() {
             </div>
           )}
         </Card>
-        <Card className="p-3 sm:p-4">
-          <div className="text-xs text-muted-foreground flex items-center gap-1">
-            <Bike className="h-3 w-3 shrink-0" />Home delivery
-          </div>
-          <div className="text-xl sm:text-2xl font-semibold">{deliveryCount}</div>
-        </Card>
       </div>
 
       <Card className="p-3 space-y-3">
         <div className="relative">
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search #, customer, phone, table, address"
+            placeholder="Search #, customer, phone or table"
             className="pl-9"
             value={q}
             onChange={e => setQ(e.target.value)}
@@ -492,11 +469,6 @@ function OrderHistory() {
                       </div>
                       <div className="mt-0.5 text-sm break-words">{o.customer_name}</div>
                       <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
-                      {o.order_type === "home_delivery" && o.delivery_address && (
-                        <div className="text-xs text-muted-foreground break-words">
-                          {o.delivery_address}
-                        </div>
-                      )}
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(o.created_at), "dd MMM, p")}
@@ -575,11 +547,6 @@ function OrderHistory() {
                         <td className="p-3 align-top">
                           <div className="break-words">{o.customer_name}</div>
                           <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
-                          {o.order_type === "home_delivery" && o.delivery_address && (
-                            <div className="text-xs text-muted-foreground truncate max-w-[220px]">
-                              {o.delivery_address}
-                            </div>
-                          )}
                         </td>
                         <td className="p-3 align-top">
                           <span className={`text-[10px] px-2 py-0.5 rounded whitespace-nowrap ${typeBadge(o.order_type)}`}>
@@ -716,17 +683,6 @@ function OrderHistory() {
                 )}
               </div>
 
-              {selected.order_type === "home_delivery" && selected.delivery_address && (
-                <div className="text-sm border rounded p-2 bg-muted/30 break-words">
-                  <div className="font-medium">Deliver to</div>
-                  <div>{selected.delivery_address}</div>
-                  {selected.delivery_landmark && (
-                    <div className="text-muted-foreground">Near {selected.delivery_landmark}</div>
-                  )}
-                  <div className="text-muted-foreground">{selected.delivery_pincode}</div>
-                </div>
-              )}
-
               <div className="border rounded divide-y">
                 {selectedItems.map(i => (
                   <div key={i.id} className="p-2 flex justify-between gap-3 text-sm">
@@ -760,7 +716,7 @@ function OrderHistory() {
                 )}
                 {selectedBill.deliveryFee > 0 && (
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Delivery</span><span>{money(selectedBill.deliveryFee)}</span>
+                    <span>Additional charges</span><span>{money(selectedBill.deliveryFee)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-semibold">

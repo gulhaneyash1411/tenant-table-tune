@@ -870,12 +870,6 @@ function TablesPage() {
   // handed fresh props — it's opened with a table, not a snapshot.
   const dialogRow = dialogTable ? floor.find(t => t.id === dialogTable.id) : null;
 
-  // Delivery config lives in tenants.settings; the QR is only useful once the
-  // owner has turned delivery on, so the card says so rather than printing a
-  // code that lands on a "delivery is paused" screen.
-  const settings = (tenant?.settings && typeof tenant.settings === "object" ? tenant.settings : {}) as Record<string, any>;
-  const deliveryEnabled = settings.delivery_enabled !== false;
-
   // Tabs the owner's plan includes (QR codes / Floor plan / Bookings)
   const tableTabs = [
     { value: "qr", label: "QR codes", feature: "tables_qr" },
@@ -919,15 +913,6 @@ function TablesPage() {
                   url={`${origin}/takeaway/${tenant.id}`}
                   title="Takeaway QR"
                   subtitle="Walk-in guests scan to place a parcel order."
-                />
-                <QRCard
-                  url={`${origin}/delivery/${tenant.id}`}
-                  title="Home Delivery QR"
-                  subtitle={
-                    deliveryEnabled
-                      ? "Print on flyers and packaging — guests order from home."
-                      : "Turn delivery on in Settings before printing this code."
-                  }
                 />
               </div>
             </section>
