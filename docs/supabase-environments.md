@@ -40,9 +40,10 @@ Worker**, not a Pages site.
   values are Worker variables/secrets. Cloudflare keeps a separate set for
   previews, so `release` can have the staging service-role key while `main`
   keeps production's.
-- **`wrangler.jsonc`** holds no Supabase values. It sets `keep_vars: true` so that
-  `wrangler deploy` doesn't delete the plain variables set in the dashboard.
-  Secrets are never touched by a deploy.
+- **`wrangler.jsonc`** defines staging-only `previews.vars` because
+  `wrangler preview` requires an explicit preview environment. It contains no
+  secrets or production values. `keep_vars: true` preserves other plain
+  variables set in the dashboard; secrets remain managed separately.
 - **There is one source of Supabase config.** `src/config/env.ts` →
   `requireSupabaseConfig()` is used by all three clients:
   - `src/integrations/supabase/client.ts`: browser and SSR, publishable key.
@@ -85,9 +86,10 @@ site sees them. If either project is ever replaced, change it there.
 ## Cloudflare setup (`tenant-table-tune`)
 
 **Settings → Build:** Git repository `gulhaneyash1411/tenant-table-tune`,
-production branch `main`, build command `bun run build`, deploy command
-`npx wrangler deploy`, non-production deploy command `npx wrangler versions upload`
-(the default). The build configuration needs a working **API token**. If the
+production branch `main`, build command `bun run build`, production deploy
+command `npx wrangler deploy`, and preview deploy command `npx wrangler preview`.
+The preview command requires the staging-only `previews` block in
+`wrangler.jsonc`. The build configuration needs a working **API token**. If the
 dashboard says "Configured API token unavailable", choose **Create new token**
 before saving.
 
