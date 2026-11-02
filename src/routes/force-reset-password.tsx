@@ -62,7 +62,7 @@ function ForceResetPassword() {
   return (
     <div className="min-h-screen grid place-items-center bg-background p-6">
       <Card className="w-full max-w-md p-8">
-        <form onSubmit={submit} className="space-y-5">
+        <form onSubmit={submit} className="space-y-5" autoComplete="off">
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-warning/10">
               <LockKeyhole className="h-7 w-7 text-warning" />
@@ -81,7 +81,7 @@ function ForceResetPassword() {
                 type={showCurrent ? "text" : "password"}
                 value={currentPw}
                 onChange={(e) => setCurrentPw(e.target.value)}
-                autoComplete="current-password"
+                autoComplete="new-password"
                 disabled={loading}
                 className="pr-10"
               />

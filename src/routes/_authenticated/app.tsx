@@ -855,7 +855,7 @@ function PasswordGate({ tenantId, email, onUnlock, title = "This section is lock
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-4">
       <Card className="w-full max-w-sm p-6">
-        <form onSubmit={submit} className="space-y-4" aria-labelledby="lock-title">
+        <form onSubmit={submit} className="space-y-4" aria-labelledby="lock-title" autoComplete="off">
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <LockIcon className="h-6 w-6 text-primary" aria-hidden="true" />
@@ -865,13 +865,13 @@ function PasswordGate({ tenantId, email, onUnlock, title = "This section is lock
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="lock-password">{accountMode ? "Account password" : "Section PIN"}</Label>
+            <Label htmlFor="lock-credential">{accountMode ? "Account password" : "Section PIN"}</Label>
             <div className="relative">
               <Input
-                id="lock-password"
+                id="lock-credential"
                 ref={inputRef}
-                type={show ? "text" : "password"}
-                autoComplete={accountMode ? "current-password" : "off"}
+                type={accountMode && !show ? "password" : "text"}
+                autoComplete={accountMode ? "new-password" : "off"}
                 inputMode={accountMode ? undefined : "numeric"}
                 pattern={accountMode ? undefined : "[0-9]*"}
                 maxLength={accountMode ? undefined : 4}
@@ -884,7 +884,7 @@ function PasswordGate({ tenantId, email, onUnlock, title = "This section is lock
                 disabled={coolingDown || loading}
                 aria-invalid={!!error}
                 aria-describedby="lock-error"
-                className={accountMode ? "pr-10" : "pr-10 text-center text-lg tracking-[0.5em]"}
+                className={`${accountMode ? "pr-10" : "pr-10 text-center text-lg tracking-[0.5em]"} ${!accountMode && !show ? "[-webkit-text-security:disc]" : ""}`}
               />
               <button
                 type="button"

@@ -52,7 +52,7 @@ export function ResetPasswordDialog({
             Set a new password for {name}. Share it with them — it replaces their current one straight away.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-3">
+        <form onSubmit={submit} className="space-y-3" autoComplete="off">
           <div>
             <Label htmlFor="rp-new">New password</Label>
             <PasswordInput id="rp-new" required minLength={6} autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 6 characters" />

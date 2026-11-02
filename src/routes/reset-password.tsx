@@ -74,7 +74,7 @@ function ResetPasswordPage() {
             Open this page from the reset link in your email. <Link to="/auth" className="text-primary cursor-pointer">Back to sign in</Link>
           </p>
         ) : (
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4" autoComplete="off">
             <div><Label>New password</Label><PasswordInput value={password} onChange={(e)=>setPassword(e.target.value)} required /></div>
             <div><Label>Confirm password</Label><PasswordInput value={confirm} onChange={(e)=>setConfirm(e.target.value)} required /></div>
             <Button className="w-full" disabled={loading}>{loading ? "Updating…" : "Update password"}</Button>
