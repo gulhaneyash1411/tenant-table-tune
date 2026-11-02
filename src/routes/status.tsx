@@ -10,7 +10,7 @@ import { mergeOrderItems } from "@/lib/order-items";
 import { downloadInvoicePdf } from "@/lib/invoice";
 import { discountLabel, readOrderBill } from "@/lib/billing";
 import { format } from "date-fns";
-import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle, Bike } from "lucide-react";
+import { Download, Loader2, Plus, Receipt, ChefHat, BellRing, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { ChefMascot } from "@/components/ChefMascot";
 import { noindexHead } from "@/lib/seo";
 
@@ -39,32 +39,16 @@ const STAGE_COPY: Record<Stage, { label: string; Icon: typeof Receipt }> = {
   served: { label: "Served — enjoy your meal", Icon: CheckCircle2 },
 };
 
-// A delivery order's last two stages mean something different to the guest:
-// nothing is "served" to them, it leaves the kitchen and arrives at a door.
-const DELIVERY_STAGE_COPY: Partial<Record<Stage, { label: string; Icon: typeof Receipt }>> = {
-  ready: { label: "Out for delivery", Icon: Bike },
-  served: { label: "Delivered — enjoy your meal", Icon: CheckCircle2 },
-};
-
-function stageCopy(stage: Stage, orderType?: string) {
-  if (orderType === "home_delivery" && DELIVERY_STAGE_COPY[stage]) return DELIVERY_STAGE_COPY[stage]!;
-  return STAGE_COPY[stage];
-}
-
 const CANCELLED = new Set(["cancelled", "canceled", "rejected", "refunded"]);
 
-const TYPE_LABELS: Record<string, string> = {
-  dine_in: "Dine-in",
-  takeaway: "Takeaway",
-  home_delivery: "Home delivery",
-};
+const TYPE_LABELS: Record<string, string> = { dine_in: "Dine-in", takeaway: "Takeaway" };
 
 /**
  * Four-segment bar plus a plain-language line. The list refreshes on every
  * realtime order event (and on a 5s poll as a fallback), so a kitchen status
  * change shows up here as the bar filling one more segment.
  */
-function OrderProgress({ status, orderType }: { status: string; orderType?: string }) {
+function OrderProgress({ status }: { status: string }) {
   const key = String(status || "").toLowerCase().trim();
 
   if (CANCELLED.has(key)) {
@@ -85,7 +69,7 @@ function OrderProgress({ status, orderType }: { status: string; orderType?: stri
   }
 
   const reached = STAGES.indexOf(stage);
-  const { label, Icon } = stageCopy(stage, orderType);
+  const { label, Icon } = STAGE_COPY[stage];
 
   return (
     <div className="mt-3">
@@ -226,8 +210,7 @@ function StatusPage() {
   function keepOrdering(order?: any) {
     const o = order || selected;
     if (!o) return;
-    if (o.order_type === "home_delivery") window.location.href = `/delivery/${o.tenant_id}`;
-    else if (o.order_type === "takeaway") window.location.href = `/takeaway/${o.tenant_id}`;
+    if (o.order_type === "takeaway") window.location.href = `/takeaway/${o.tenant_id}`;
     else if (o.table_id) {
       navigate({
         to: "/t/$tableId",
@@ -279,10 +262,10 @@ function StatusPage() {
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
                   {format(new Date(o.created_at), "PPp")}
-                  {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? o.order_type}</>}
+                  {o.order_type && <> · {TYPE_LABELS[o.order_type] ?? "Other"}</>}
                   {o.table_label && <> · {o.table_label}</>}
                 </div>
-                <OrderProgress status={o.status} orderType={o.order_type} />
+                <OrderProgress status={o.status} />
               </button>
 
               <div className="mt-4 pt-3 border-t flex items-center justify-between">
@@ -339,22 +322,11 @@ function StatusPage() {
                     column — without it the list forces the sheet taller than
                     the cap instead of scrolling. */}
                 <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-4 space-y-3">
-                  <OrderProgress status={selected.status} orderType={selected.order_type} />
+                  <OrderProgress status={selected.status} />
                   <div className="flex justify-between items-center gap-2 text-xs">
                     <span className="text-muted-foreground">{format(new Date(selected.created_at), "PPpp")}</span>
                     <span className={`shrink-0 px-2.5 py-1 rounded-full font-medium ${selected.payment_status === "paid" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{selected.payment_status}</span>
                   </div>
-
-                  {selected.order_type === "home_delivery" && selected.delivery_address && (
-                    <div className="rounded-2xl bg-muted/40 p-3 text-sm">
-                      <div className="flex items-center gap-1.5 font-medium">
-                        <Bike className="h-3.5 w-3.5" />Delivering to
-                      </div>
-                      <div className="mt-1 break-words">{selected.delivery_address}</div>
-                      {selected.delivery_landmark && <div className="text-muted-foreground break-words">Near {selected.delivery_landmark}</div>}
-                      <div className="text-muted-foreground">{selected.delivery_pincode}</div>
-                    </div>
-                  )}
 
                   <div className="divide-y rounded-2xl bg-muted/40">
                     {displayItems.map(i => (
@@ -381,7 +353,7 @@ function StatusPage() {
                       <div className="flex justify-between text-muted-foreground"><span>Service charges</span><span className="tabular-nums">+ {money(selectedBill.serviceCharge)}</span></div>
                     )}
                     {selectedBill.deliveryFee > 0 && (
-                      <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span className="tabular-nums">{money(selectedBill.deliveryFee)}</span></div>
+                      <div className="flex justify-between text-muted-foreground"><span>Additional charges</span><span className="tabular-nums">{money(selectedBill.deliveryFee)}</span></div>
                     )}
                     <div className="flex justify-between font-semibold"><span>Total</span><span className="tabular-nums">{money(selectedBill.total)}</span></div>
                   </div>

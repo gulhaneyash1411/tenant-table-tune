@@ -302,7 +302,7 @@ export const OnlineSlide = () => (
   <Tablet>
     <div className="flex-1 flex flex-col">
       <div className="h-16 bg-gradient-to-r from-blue-600 to-sky-400 text-white p-3">
-        <div className="font-bold text-sm">Spice Garden</div><div>Order online · Delivery in 30 min</div>
+        <div className="font-bold text-sm">Spice Garden</div><div>Order online · Takeaway</div>
       </div>
       <div className="p-3 grid grid-cols-3 gap-2 flex-1">
         {[["🍛", "Butter Chicken", "₹360"], ["🥗", "Greek Salad", "₹240"], ["🍝", "Alfredo Pasta", "₹310"], ["🍰", "Cheesecake", "₹190"], ["🥤", "Mojito", "₹140"], ["🌯", "Paneer Wrap", "₹200"]].map(([e, n, p]) => (

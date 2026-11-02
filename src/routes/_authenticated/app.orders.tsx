@@ -9,7 +9,7 @@ import { mergeOrderItemsMap, splitByRound, NEW_ROUND_MARKER } from "@/lib/order-
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { sendOrderInvoice } from "@/lib/whatsapp.functions";
-import { Loader2, ChevronLeft, Bike, Flame } from "lucide-react";
+import { Loader2, ChevronLeft, Flame } from "lucide-react";
 import { NewOrderDialog, AddItemsDialog } from "@/components/orders/NewOrderDialog";
 import { clearRoundMarkers, closeSessionOnPayment } from "@/lib/public-orders.functions";
 import { fetchCurrentOutlet } from "@/lib/outlet-context";
@@ -48,14 +48,6 @@ const NEXT_LABEL: Record<string, string> = {
   preparing: "Start preparing",
   ready: "Mark ready",
   served: "Mark served",
-};
-
-// Delivery tickets advance through the same statuses but the words on the last
-// button are wrong for them — nothing is served to a guest who isn't here.
-const DELIVERY_NEXT_LABEL: Record<string, string> = {
-  ...NEXT_LABEL,
-  ready: "Ready to dispatch",
-  served: "Mark delivered",
 };
 
 function nextStatus(status: string) {
@@ -154,8 +146,7 @@ function LiveOrders() {
 
   function orderTypeLabel(o: any): string {
     if (o.order_type === "dine_in") return tableLabel(o) ?? "Dine-in";
-    if (o.order_type === "home_delivery") return "Home delivery";
-    return "Takeaway";
+    return o.order_type === "takeaway" ? "Takeaway" : "Other";
   }
 
   const grouped = useMemo(() => {
@@ -240,8 +231,7 @@ function LiveOrders() {
               {grouped[col.key].map((o) => {
                 const next = nextStatus(o.status);
                 const back = prevStatus(o.status);
-                const isDelivery = o.order_type === "home_delivery";
-                const labels = isDelivery ? DELIVERY_NEXT_LABEL : NEXT_LABEL;
+                const labels = NEXT_LABEL;
                 const isBusy = busy === o.id;
                 // Only an unpaid order is still open for money. Paid and
                 // refunded orders both have an invoice out against them.
@@ -260,14 +250,8 @@ function LiveOrders() {
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${badgeClass}`}>{o.payment_status}</span>
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    {isDelivery && <Bike className="h-3 w-3 shrink-0" />}
                     {orderTypeLabel(o)} · {format(new Date(o.created_at), "p")}
                   </div>
-                  {isDelivery && o.delivery_address && (
-                    <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
-                      {o.delivery_address}{o.delivery_pincode ? ` — ${o.delivery_pincode}` : ""}
-                    </div>
-                  )}
                   {(() => {
                     const raw = items[o.id] || [];
                     const { original, newRound } = splitByRound(raw, o);

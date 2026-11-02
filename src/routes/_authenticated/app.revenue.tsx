@@ -21,7 +21,6 @@ const EARNING_EVENT_STATUSES = ["confirmed", "completed"];
 const CHANNELS = [
   { key: "dine_in", label: "Dine-in", bar: "bg-sky-500", swatch: "bg-sky-500" },
   { key: "takeaway", label: "Takeaway", bar: "bg-amber-500", swatch: "bg-amber-500" },
-  { key: "delivery", label: "Home delivery", bar: "bg-violet-500", swatch: "bg-violet-500" },
   { key: "booking", label: "Table bookings", bar: "bg-rose-500", swatch: "bg-rose-500" },
   { key: "event", label: "Events", bar: "bg-emerald-500", swatch: "bg-emerald-500" },
   { key: "other", label: "Other", bar: "bg-slate-400", swatch: "bg-slate-400" },
@@ -41,14 +40,12 @@ const PRESETS = [
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
 const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 
-// order_type is written differently in different parts of the app ("dine-in",
-// "DINE_IN", "Home Delivery"), so match on the stem instead of an exact value.
-// Anything unrecognised lands in "other" rather than silently disappearing.
+// Order types are written differently in different parts of the app, so match
+// on the stem instead of an exact value. Anything unrecognised lands in "other".
 function channelOf(orderType?: string | null): ChannelKey {
   const t = (orderType || "").toLowerCase();
   if (t.includes("dine")) return "dine_in";
   if (t.includes("take") || t.includes("pick") || t.includes("counter")) return "takeaway";
-  if (t.includes("deliver")) return "delivery";
   if (t.includes("book") || t.includes("reserv")) return "booking";
   return "other";
 }

@@ -51,8 +51,8 @@ const FAQS: Faq[] = [
   },
   {
     c: "Features",
-    q: "Does DineEatz handle delivery and takeaway orders?",
-    a: "Yes. Your online ordering page accepts delivery and takeaway orders directly, with no commission taken on any of them.",
+    q: "Does DineEatz handle takeaway orders?",
+    a: "Yes. Your online ordering page accepts takeaway orders directly, with no commission taken on them.",
   },
   {
     c: "Features",

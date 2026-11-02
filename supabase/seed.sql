@@ -52,11 +52,9 @@ INSERT INTO public.tenants (
      'Spice Garden (Demo)', 'demo-spice-garden', 'Riya Demo', 'owner@staging.dineeatz.test', '9000000100',
      'SINGLE_OUTLET', '12 Test Street, Sector 1', 'Pune', 'Maharashtra', '411001', 'India', 4,
      '#0ea5e9', 'INR', 'Asia/Kolkata', 'approved', 'ACTIVE', 'Staging sample restaurant', '09:00', '23:00',
-     -- Settings → Invoice & tax / delivery. Discount and service charge are 0 so
-     -- new staging orders behave like an untouched outlet.
-     '{"tax_rate": "5", "discount_type": "rupees", "discount_value": 0, "service_charge": 0,
-       "delivery_enabled": true, "delivery_fee": 40, "delivery_min_order": 200,
-       "delivery_pincodes": ["411001", "411002"]}'::jsonb),
+     -- Discount and service charge are 0 so new staging orders behave like an
+     -- untouched outlet.
+     '{"tax_rate": "5", "discount_type": "rupees", "discount_value": 0, "service_charge": 0}'::jsonb),
   ('00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000002', NULL,
      'Chai Corner (Demo)', 'demo-chai-corner', 'Kabir Demo', 'chai@staging.dineeatz.test', '9000000200',
      'SINGLE_OUTLET', '7 Sample Road', 'Bengaluru', 'Karnataka', '560001', 'India', 2,
@@ -110,38 +108,38 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
 -- Orders. Totals follow src/lib/billing.ts: subtotal − discount, tax on that,
--- then service charge and delivery added after tax. order_number is assigned
+-- then service charge added after tax. order_number is assigned
 -- by the orders_set_order_number trigger.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.orders (
   id, tenant_id, table_id, customer_name, customer_phone, order_type, status, payment_status,
-  subtotal, discount_type, discount_value, discount_amount, tax, service_charge, delivery_fee, total,
-  delivery_address, delivery_landmark, delivery_pincode, notes, created_at, served_at
+  subtotal, discount_type, discount_value, discount_amount, tax, service_charge, total,
+  notes, created_at, served_at
 ) VALUES
   -- 2 Paneer Tikka + 2 Butter Naan = 680; tax 5% = 34
   ('00000000-0000-4000-8000-000000000501', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000201',
      'Aarav Test', '9000000001', 'dine_in', 'served', 'paid',
-     680, 'rupees', 0, 0, 34, 0, 0, 714, NULL, NULL, NULL, NULL, now() - interval '2 days', now() - interval '2 days' + interval '40 minutes'),
+     680, 'rupees', 0, 0, 34, 0, 714, NULL, now() - interval '2 days', now() - interval '2 days' + interval '40 minutes'),
   -- 1 Butter Chicken + 2 Tandoori Roti = 420; 10% off = 42 → 378; tax 18.90
   ('00000000-0000-4000-8000-000000000502', '00000000-0000-4000-8000-000000000101', NULL,
      'Meera Sample', '9000000002', 'takeaway', 'served', 'paid',
-     420, 'percentage', 10, 42, 18.90, 0, 0, 396.90, NULL, NULL, NULL, 'Less spicy', now() - interval '1 day', now() - interval '1 day' + interval '25 minutes'),
+     420, 'percentage', 10, 42, 18.90, 0, 396.90, 'Less spicy', now() - interval '1 day', now() - interval '1 day' + interval '25 minutes'),
   -- 1 Dal Makhani + 1 Sweet Lassi + 2 Masala Chai = 410; ₹50 off → 360; tax 18; service 20
   ('00000000-0000-4000-8000-000000000503', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000202',
      'Kabir Placeholder', '9000000003', 'dine_in', 'preparing', 'unpaid',
-     410, 'rupees', 50, 50, 18, 20, 0, 398, NULL, NULL, NULL, NULL, now() - interval '20 minutes', NULL),
-  -- 1 Chicken 65 + 1 Butter Naan = 380; tax 19; delivery 40
+     410, 'rupees', 50, 50, 18, 20, 398, NULL, now() - interval '20 minutes', NULL),
+  -- 1 Chicken 65 + 1 Butter Naan = 380; tax 19
   ('00000000-0000-4000-8000-000000000504', '00000000-0000-4000-8000-000000000101', NULL,
-     'Isha Example', '9000000004', 'home_delivery', 'new', 'unpaid',
-     380, 'rupees', 0, 0, 19, 0, 40, 439, 'Flat 101, Test Residency, Sector 2', 'Near Demo Park', '411002', NULL, now() - interval '5 minutes', NULL),
+     'Isha Example', '9000000004', 'takeaway', 'new', 'unpaid',
+     380, 'rupees', 0, 0, 19, 0, 399, NULL, now() - interval '5 minutes', NULL),
   -- 1 Masala Chai = 40; tax 2
   ('00000000-0000-4000-8000-000000000505', '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000203',
      'Walk-in', '9000000005', 'dine_in', 'cancelled', 'unpaid',
-     40, 'rupees', 0, 0, 2, 0, 0, 42, NULL, NULL, NULL, 'Customer left', now() - interval '3 hours', NULL),
+     40, 'rupees', 0, 0, 2, 0, 42, 'Customer left', now() - interval '3 hours', NULL),
   -- 2 Cutting Chai + 1 Bun Maska = 85; no tax at this outlet
   ('00000000-0000-4000-8000-000000000506', '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000205',
      'Aarav Test', '9000000001', 'dine_in', 'served', 'paid',
-     85, 'rupees', 0, 0, 0, 0, 0, 85, NULL, NULL, NULL, NULL, now() - interval '6 hours', now() - interval '6 hours' + interval '10 minutes')
+     85, 'rupees', 0, 0, 0, 0, 85, NULL, now() - interval '6 hours', now() - interval '6 hours' + interval '10 minutes')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.order_items (id, order_id, tenant_id, menu_item_id, name, price, quantity) VALUES

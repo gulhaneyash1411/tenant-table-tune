@@ -46,7 +46,7 @@ const TrackPhone = () => (
   <PhoneCenter>
     <PhoneBadge icon={ShoppingCart} /><div className="mt-2 font-medium">Order #1042</div>
     <div className="mt-2 space-y-1 text-left">
-      {[["Order placed", true], ["Preparing", true], ["Out for delivery", false]].map(([t, d]) => (
+      {[["Order placed", true], ["Preparing", true], ["Ready for pickup", false]].map(([t, d]) => (
         <div key={t as string} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: d ? BRAND.primary : "#cbd5e1" }} /><span className={d ? "" : "text-slate-400"}>{t}</span></div>
       ))}
     </div>
@@ -68,7 +68,7 @@ const InvoicePhone = () => (
 const WHY_SCENES = [
   { Screen: KitchenSlide, Phone: PaymentPhone, icon: Bell, title: "New Order", sub: "Table 3 · ₹520 · 3 items" },
   { Screen: TablesSlide, Phone: BookingPhone, icon: CalendarDays, title: "New Booking", sub: "4 guests · Sat 8:00 PM" },
-  { Screen: OnlineSlide, Phone: TrackPhone, icon: ShoppingCart, title: "Online Order", sub: "#1042 · ₹640 · Delivery" },
+  { Screen: OnlineSlide, Phone: TrackPhone, icon: ShoppingCart, title: "Online Order", sub: "#1042 · ₹640 · Takeaway" },
   { Screen: AnalyticsSlide, Phone: InvoicePhone, icon: LineChart, title: "Daily Report Ready", sub: "Revenue up 12% today" },
 ];
 
