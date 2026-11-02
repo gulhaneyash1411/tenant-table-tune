@@ -9,7 +9,13 @@ const PasswordInput = React.forwardRef<HTMLInputElement, Omit<React.ComponentPro
     const [visible, setVisible] = React.useState(false);
     return (
       <div className="relative">
-        <Input type={visible ? "text" : "password"} className={cn("pr-10", className)} ref={ref} {...props} />
+        <Input
+          type={visible ? "text" : "password"}
+          className={cn("pr-10", className)}
+          ref={ref}
+          {...props}
+          autoComplete="new-password"
+        />
         <button
           type="button"
           tabIndex={-1}

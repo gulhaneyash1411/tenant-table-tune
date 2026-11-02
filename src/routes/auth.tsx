@@ -118,10 +118,10 @@ function ForgotForm({ onBack }: { onBack: () => void }) {
     );
   }
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4" autoComplete="off">
       <div>
         <Label>Email</Label>
-        <Input value={email} onChange={(e)=>setEmail(e.target.value)} type="email" required placeholder="you@restaurant.com" />
+        <Input value={email} onChange={(e)=>setEmail(e.target.value)} type="email" required autoComplete="off" placeholder="you@restaurant.com" />
       </div>
       <Button className="w-full" disabled={loading}>{loading?"Sending…":"Send reset link"}</Button>
       <button type="button" onClick={onBack} className="w-full cursor-pointer text-sm text-muted-foreground hover:underline">Back to sign in</button>
@@ -202,7 +202,7 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
     onDone();
   }
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <form onSubmit={submit} className="space-y-3" autoComplete="off">
       <button type="button" onClick={() => setBusinessType(null)} className="cursor-pointer text-xs text-muted-foreground hover:underline">
         ← {isMulti ? "Multiple Hotels / Restaurants / Outlets" : "Single Hotel / Restaurant"}
       </button>
@@ -213,7 +213,7 @@ function SignUpForm({ onDone }: { onDone: () => void }) {
         <div><Label>Owner name</Label><Input required value={f.full_name} onChange={e=>setF({...f,full_name:e.target.value})}/></div>
         <div><Label>Phone</Label><Input required type="tel" inputMode="numeric" maxLength={10} value={f.phone} onChange={e=>setF({...f,phone:e.target.value.replace(/\D/g,"").slice(0,10)})} placeholder="10 digit phone number"/></div>
       </div>
-      <div><Label>Email</Label><Input required type="email" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/></div>
+      <div><Label>Email</Label><Input required type="email" autoComplete="off" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/></div>
       <div><Label>Password</Label><PasswordInput required value={f.password} onChange={e=>setF({...f,password:e.target.value})}/></div>
       <div><Label>{isMulti ? "First outlet name" : "Restaurant name"}</Label><Input required value={f.restaurant} onChange={e=>setF({...f,restaurant:e.target.value})}/></div>
       <div className="grid grid-cols-3 gap-3">

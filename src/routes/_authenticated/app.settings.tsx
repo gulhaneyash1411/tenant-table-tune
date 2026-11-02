@@ -255,20 +255,20 @@ function SettingsPage() {
 const PIN_RE = /^\d{4}$/;
 
 /** Masked input that accepts digits only, max 4. */
-function PinInput({ id, value, onChange, autoComplete }: {
-  id: string; value: string; onChange: (v: string) => void; autoComplete: string;
+function PinInput({ id, value, onChange }: {
+  id: string; value: string; onChange: (v: string) => void;
 }) {
   return (
     <Input
       id={id}
-      type="password"
+      type="text"
       inputMode="numeric"
       pattern="[0-9]*"
       maxLength={4}
-      autoComplete={autoComplete}
+      autoComplete="off"
       value={value}
       onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 4))}
-      className="text-center text-lg tracking-[0.5em]"
+      className="text-center text-lg tracking-[0.5em] [-webkit-text-security:disc]"
     />
   );
 }
@@ -337,21 +337,21 @@ function SectionPasswordCard({ tenantId, readOnly = false }: { tenantId: string;
             : "No PIN has been set yet. The owner creates the 4-digit PIN — ask them to set it here."}
         </p>
       ) : (
-        <form onSubmit={save} className="space-y-3">
+        <form onSubmit={save} className="space-y-3" autoComplete="off">
           {hasPassword && (
             <div className="space-y-1.5">
               <Label htmlFor="sp-current">Current PIN</Label>
-              <PinInput id="sp-current" value={current} onChange={setCurrent} autoComplete="off" />
+              <PinInput id="sp-current" value={current} onChange={setCurrent} />
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="sp-new">New PIN</Label>
-              <PinInput id="sp-new" value={next} onChange={setNext} autoComplete="new-password" />
+              <PinInput id="sp-new" value={next} onChange={setNext} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sp-confirm">Confirm new PIN</Label>
-              <PinInput id="sp-confirm" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+              <PinInput id="sp-confirm" value={confirm} onChange={setConfirm} />
             </div>
           </div>
           <Button type="submit" variant="outline" disabled={saving || next.length !== 4 || confirm.length !== 4}>
@@ -519,7 +519,7 @@ function KitchenAccountCard({ tenantId, readOnly = false }: { tenantId: string; 
               : "Disabled — this login can't sign in until you turn it back on."}
           </p>
           {!readOnly && (
-            <form onSubmit={rotate} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <form onSubmit={rotate} className="flex flex-col gap-3 sm:flex-row sm:items-end" autoComplete="off">
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="kitchen-new-password">New password</Label>
                 <PasswordInput
@@ -560,13 +560,14 @@ function KitchenAccountCard({ tenantId, readOnly = false }: { tenantId: string; 
           )}
         </div>
       ) : (
-        <form onSubmit={create} className="space-y-3">
+        <form onSubmit={create} className="space-y-3" autoComplete="off">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="kitchen-email">Login email</Label>
               <Input
                 id="kitchen-email"
                 type="email"
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="e.g. kitchen@restaurant.com"
