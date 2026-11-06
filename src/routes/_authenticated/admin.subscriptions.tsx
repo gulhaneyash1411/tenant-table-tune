@@ -27,7 +27,7 @@ import {
 import {
   ADMIN_PAGE_SIZE, Pager, StatusBadge, adminRpc, fmtDate, fmtMoney, likeTerm, useDebounced,
 } from "@/components/admin/admin-ui";
-import { downloadSubscriptionInvoicePdf } from "@/lib/invoice-pdf";
+import { downloadInvoiceById } from "@/lib/invoice-download";
 
 export const Route = createFileRoute("/_authenticated/admin/subscriptions")({ component: AdminSubscriptions });
 
@@ -65,64 +65,6 @@ const SORTS: Record<string, { label: string; col: string; asc: boolean; tenant?:
   outlet_asc: { label: "Outlet A–Z", col: "name", asc: true, tenant: true },
 };
 const UNPAID_INVOICE = ["issued", "pending", "pending_approval", "partially_paid", "overdue"];
-
-// Invoice amount helper functions
-const n = (v: unknown) => Number(v) || 0;
-const r2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
-
-function invoiceFigures(r: any) {
-  const total = n(r.amount);
-
-  // For subscription invoices: ALWAYS use total as subtotal (no tax breakdowns)
-  // Ignore any tax or old subtotal values in the database
-  const subtotal = total;
-
-  const paid = r.status === "paid" && !n(r.amount_paid) ? total : n(r.amount_paid);
-  const balance = Math.max(0, r2(total - paid));
-
-  return {
-    total,
-    subtotal,
-    discount: 0,  // No discounts for subscription invoices
-    cgst: 0,      // No tax for subscription invoices
-    sgst: 0,      // No tax for subscription invoices
-    igst: 0,      // No tax for subscription invoices
-    paid,
-    balance
-  };
-}
-
-function formatInvoiceForPdf(invoiceData: any): any {
-  const f = invoiceFigures(invoiceData);
-  const addr = invoiceData.billing_address ||
-    [invoiceData.tenants?.address, invoiceData.tenants?.city, invoiceData.tenants?.state]
-      .filter(Boolean).join(", ");
-  return {
-    invoice_number: invoiceData.invoice_number,
-    status: invoiceData.status,
-    issued_at: invoiceData.issued_at,
-    due_date: invoiceData.due_date,
-    organization_name: invoiceData.tenants?.organizations?.name ?? null,
-    outlet_name: invoiceData.tenants?.name ?? null,
-    billing_address: addr || null,
-    gst_number: invoiceData.gst_number || invoiceData.tenants?.gst_number || null,
-    description: invoiceData.description,
-    notes: invoiceData.notes,
-    plan: invoiceData.plan,
-    billing_cycle: invoiceData.billing_cycle,
-    period_start: invoiceData.period_start,
-    period_end: invoiceData.period_end,
-    line_items: Array.isArray(invoiceData.line_items) ? invoiceData.line_items : [],
-    subtotal: f.subtotal,
-    discount: f.discount,
-    cgst: f.cgst,
-    sgst: f.sgst,
-    igst: f.igst,
-    total: f.total,
-    amount_paid: f.paid,
-    balance: f.balance,
-  };
-}
 
 const periodDays = (s: SubRow) =>
   s.current_period_start && s.current_period_end
@@ -643,7 +585,9 @@ function PlanDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{outlet?.label} — a running subscription is extended by one cycle of the chosen plan.</DialogDescription>
+          <DialogDescription>
+            {outlet?.label} — renewing the same plan extends it; a different plan is scheduled after the current plan ends.
+          </DialogDescription>
         </DialogHeader>
         <PlanFields plans={plans} planId={planId} setPlanId={setPlanId} cycle={cycle} setCycle={setCycle} />
         <DialogFooter>
@@ -709,7 +653,7 @@ function AddSubscriptionDialog({ open, plans, onClose, onDone }: { open: boolean
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add subscription</DialogTitle>
-          <DialogDescription>Create a subscription for an outlet.</DialogDescription>
+          <DialogDescription>Create a subscription now, or schedule it after the outlet's current plan ends.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
@@ -788,10 +732,7 @@ function HistorySheet({ action, onClose }: { action: Action | null; onClose: () 
                   onClick={async () => {
                     try {
                       toast.loading("Generating PDF...");
-                      const { data } = await sb.from("invoices").select("*,tenants(name,address,city,state,gst_number,organizations(name))").eq("id", it.id).single();
-                      if (!data) throw new Error("Invoice not found");
-                      const formattedData = formatInvoiceForPdf(data);
-                      await downloadSubscriptionInvoicePdf(formattedData);
+                      await downloadInvoiceById(it.id);
                       toast.dismiss();
                       toast.success("Invoice downloaded");
                     } catch (e) {

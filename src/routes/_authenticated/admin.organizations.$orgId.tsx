@@ -728,7 +728,9 @@ function SubscribeDialog({ outlet, plans, onClose, onDone }: { outlet: Outlet | 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create / renew subscription</DialogTitle>
-          <DialogDescription>{outlet?.name}. A running subscription is extended; the outlet is activated.</DialogDescription>
+          <DialogDescription>
+            {outlet?.name}. Renewing the same plan extends it; choosing a different plan schedules it after the current plan ends.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div>
