@@ -1,11 +1,7 @@
-# Applies supabase/migrations to the database that matches the branch:
+# Applies only migration files newly added by a push:
 #   release → staging      main → production
-# See docs/supabase-environments.md: production records only 12 of the repo migrations,
-# so the migration history must be reset before this is enabled.
-#
-# Off until the repository variable SUPABASE_MIGRATIONS_ENABLED is "true"
-# (Settings → Secrets and variables → Actions → Variables). Turn it on only
-# after the baseline, or the first run replays old migrations.
+# Execute only newly added files and record their versions. This intentionally
+# avoids db push over the repository's incomplete legacy migration history.
 name: Supabase migrations
 
 on:
@@ -13,19 +9,14 @@ on:
     branches: [main, release]
     paths:
       - "supabase/migrations/**"
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   migrate:
-    if: >-
-      vars.SUPABASE_MIGRATIONS_ENABLED == 'true' &&
-      contains(fromJSON('["main", "release"]'), github.ref_name)
     runs-on: ubuntu-latest
-    # GitHub Environments: give "production" required reviewers so a main
-    # push waits for approval before touching the production database.
+    # Keep environment-specific secrets scoped to their target project.
     environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
     # Never migrate the same database twice at once, and never cancel a
     # migration halfway.
@@ -38,22 +29,86 @@ jobs:
       PROJECT_REF: ${{ github.ref_name == 'main' && secrets.SUPABASE_PROD_REF || secrets.SUPABASE_STAGING_REF }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: supabase/setup-cli@v1
         with:
           # Keep in step with the "supabase" devDependency in package.json.
           version: 2.121.0
 
+      - name: Collect new migration files
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            echo "::error::Cannot determine the previous commit for this migration push."
+            exit 1
+          fi
+
+          mapfile -t changes < <(git diff --name-status "$BEFORE_SHA" "$AFTER_SHA" -- supabase/migrations/)
+          if (( ${#changes[@]} == 0 )); then
+            echo "::error::The migration workflow was triggered without a migration file change."
+            exit 1
+          fi
+
+          migration_files_file="$RUNNER_TEMP/new-migrations.txt"
+          : > "$migration_files_file"
+
+          for change in "${changes[@]}"; do
+            IFS=$'\t' read -r status file <<< "$change"
+            if [[ "$status" != "A" ]]; then
+              echo "::error file=$file::Migration files are immutable. Add a new migration instead of editing or deleting an existing one."
+              exit 1
+            fi
+            if [[ ! "$file" =~ ^supabase/migrations/[0-9]{14}_[A-Za-z0-9_-]+\.sql$ ]]; then
+              echo "::error file=$file::Migration filename must start with a 14-digit timestamp."
+              exit 1
+            fi
+            printf '%s\n' "$file" >> "$migration_files_file"
+            echo "Queued migration: $file"
+          done
+
+      - name: Verify branch-specific credentials
+        shell: bash
+        env:
+          PROD_DB_PASSWORD: ${{ secrets.SUPABASE_PROD_DB_PASSWORD }}
+          STAGING_DB_PASSWORD: ${{ secrets.SUPABASE_STAGING_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+            expected_ref="khvvukyedvuqvbemjcxb"
+            [[ -n "$PROD_DB_PASSWORD" ]] || { echo "::error::Production DB password secret is missing."; exit 1; }
+          else
+            expected_ref="mjominccvkwyintjsxja"
+            [[ -n "$STAGING_DB_PASSWORD" ]] || { echo "::error::Staging DB password secret is missing."; exit 1; }
+          fi
+
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "::error::Supabase access token secret is missing."; exit 1; }
+          [[ "$PROJECT_REF" == "$expected_ref" ]] || {
+            echo "::error::Configured project ref does not match the target branch."
+            exit 1
+          }
+
       - name: Link project
         run: supabase link --project-ref "$PROJECT_REF"
 
-      - name: Migration status (before)
-        run: supabase migration list
+      - name: Apply new migrations and record versions
+        shell: bash
+        run: |
+          set -euo pipefail
 
-      - name: Show what will be applied
-        run: supabase db push --dry-run
-
-      - name: Apply migrations
-        run: supabase db push
+          while IFS= read -r file; do
+            filename="${file##*/}"
+            version="${filename%%_*}"
+            echo "Applying $file to $PROJECT_REF"
+            supabase db query --linked --file "$file"
+            supabase migration repair --linked --status applied "$version"
+          done < "$RUNNER_TEMP/new-migrations.txt"
 
 # No Edge Functions job: the repo has no supabase/functions directory.

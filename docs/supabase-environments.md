@@ -196,11 +196,13 @@ no migration at all. Two consequences:
 
 - Running `supabase/migrations` against empty staging fails. **Staging is built
   from a schema dump of production instead** (below).
-- **Never run `supabase db push` against production** (nor enable the migrations
-  workflow) until the history is fixed (see "Migration history" below).
-  `db push` would try to re-run the 47 unrecorded migrations on live data.
+- **Never run `supabase db push` from the repository root against production**
+  until the history is fixed (see "Migration history" below).
+  It would try to re-run the 47 unrecorded migrations on live data.
   `npm run db:push` refuses production without `CONFIRM_PRODUCTION=yes` for this
-  reason.
+  reason. The GitHub workflow is different: it executes only migration files
+  newly added by that push, then records their versions. It does not run
+  `db push` against the full repository.
 
 ## Build the staging schema
 
@@ -276,7 +278,7 @@ select tablename from pg_publication_tables where pubname='supabase_realtime' or
 Expected, intentional differences: no cron jobs and no Vault secrets on staging
 (see below), and no data except config rows and fake seed data.
 
-### Migration history (optional, a production change: your call)
+### Migration history for full local `db push` (optional, a production change)
 
 To keep the two projects in step from now on:
 
@@ -293,8 +295,11 @@ To keep the two projects in step from now on:
    ```
    This writes only to `supabase_migrations.schema_migrations`. It touches no
    tables or data, but it is still a production change.
-4. Only then set up the GitHub workflow (below) and turn on
-   `SUPABASE_MIGRATIONS_ENABLED`. Until this is done, leave it off.
+
+These steps are still required before running `db push` from the full repository.
+They are not required by the GitHub workflow below, which only executes newly
+added migrations and records each version after it succeeds. It never replays
+the repository's older files.
 
 ## Staging setup the schema dump doesn't carry
 
@@ -327,36 +332,39 @@ production customer data into staging.**
 
 ## Everyday flow
 
-This flow starts once the migration history has been reset (above). Until
-then, write schema changes as SQL files and apply them by hand: staging first,
-then production.
-
 1. `npm run db:new -- add_something`, then write **backward-compatible** SQL.
-2. Merge to `release`. The *Supabase migrations* workflow applies it to staging,
-   and Cloudflare rebuilds the `release` preview.
+2. Merge to `release`. The *Supabase migrations* workflow applies only newly
+   added migration files to staging, and Cloudflare rebuilds the `release` preview.
 3. Test on staging.
-4. Merge to `main`. The workflow waits for approval on the `production` GitHub
-   environment, then applies it. Approve it **before or together with** the
-   frontend deploy, so new code never reaches a database that lacks its columns.
+4. Merge to `main`. The workflow applies only newly added migration files to
+   production after approval in the `production` GitHub environment. Approve it
+   before or together with the frontend deploy, so new code never reaches a
+   database that lacks its columns.
 
 **No more schema changes in the production dashboard.** Otherwise the repo and
-production drift apart again.
+production drift apart again. Migration files are immutable: make a new
+timestamped file for each follow-up change. The workflow executes each new SQL
+file with the Supabase CLI, then marks its timestamp applied in that project's
+migration history. If a migration is run manually in the dashboard, mark its
+version as applied before merging it, or automation will execute it again.
 
 `npm run db:push` refuses to push to production unless `CONFIRM_PRODUCTION=yes`
 is set (`--dry-run` is always allowed).
 
 ### GitHub setup for the workflow
 
-- **Environments** (Settings → Environments): `staging`, and `production` with
-  **required reviewers**.
+- **Environments** (Settings → Environments): `staging` and `production`.
+  Do not configure required reviewers if production migrations must run
+  immediately after merging to `main`.
 - **Secrets**: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_STAGING_REF`,
   `SUPABASE_STAGING_DB_PASSWORD`, `SUPABASE_PROD_REF`, `SUPABASE_PROD_DB_PASSWORD`.
 - **Secret values**: `SUPABASE_STAGING_REF=mjominccvkwyintjsxja`,
   `SUPABASE_PROD_REF=khvvukyedvuqvbemjcxb`. Database passwords come from each
   project's settings.
-- **Variable**: `SUPABASE_MIGRATIONS_ENABLED=true`, only after the migration
-  history reset above. Turned on earlier, the first `main` run would re-apply 47
-  migrations to production. Until then the workflow does nothing.
+- No `SUPABASE_MIGRATIONS_ENABLED` variable is needed. The workflow runs
+  automatically when a new SQL migration file is merged to `release` or `main`.
+  It fails rather than silently running if an existing migration file is edited
+  or deleted.
 
 ## Checking which project a deployment uses
 
