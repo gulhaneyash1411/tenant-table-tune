@@ -156,7 +156,7 @@ function AppLayout() {
       const [{ data: subs }, { data: invoices }, { data: free }] = await Promise.all([
         supabase
           .from("subscriptions")
-          .select("*")
+          .select("*, plan:subscription_plans(name)")
           .eq("tenant_id", tenantId)
           .neq("status", "canceled")
           .order("created_at", { ascending: false }),
@@ -176,9 +176,11 @@ function AppLayout() {
       if (cancelled) return;
       setFreePlan(free ?? null);
 
-      // Most recent subscription (any non-canceled status)
-      // The active subscription if there is one, otherwise the newest non-canceled one.
-      const activeSub = (subs || []).find((s) => s.status === "active") || (subs || [])[0];
+      const activeSub = (subs || []).find((s) => s.status === "active")
+        || (subs || []).find((s) => s.status !== "scheduled");
+      const scheduledSub = (subs || [])
+        .filter((s) => s.status === "scheduled")
+        .sort((a, b) => +new Date(a.current_period_start) - +new Date(b.current_period_start))[0];
       // Most recent paid or pending invoice
       const latestInvoice = (invoices || []).find((inv) =>
         inv.status === "paid" || inv.status === "pending_approval"
@@ -196,9 +198,28 @@ function AppLayout() {
         // Billing cycle: saved on the subscription, else from its period length.
         const days = (new Date(activeSub.current_period_end).getTime() - new Date(activeSub.current_period_start).getTime()) / 86400000;
         const cycle = (activeSub as any).billing_cycle ??(days > 320 ? "yearly" : days > 120 ? "half_yearly" : "monthly");
-        setSub({ plan: plan ?? { name: "Plan" }, paid, cycle, current_period_end: activeSub.current_period_end });
+        setSub({
+          plan: plan ?? { name: "Plan" },
+          paid,
+          cycle,
+          current_period_end: activeSub.current_period_end,
+          next_plan: scheduledSub?.plan?.name ?? null,
+          next_period_start: scheduledSub?.current_period_start ?? null,
+        });
       } else if (latestInvoice?.status === "pending_approval") {
-        setSub({ plan: { name: `${latestInvoice.plan} (pending approval)` }, paid: false });
+        setSub({
+          plan: { name: `${latestInvoice.plan} (pending approval)` },
+          paid: false,
+          next_plan: scheduledSub?.plan?.name ?? null,
+          next_period_start: scheduledSub?.current_period_start ?? null,
+        });
+      } else if (scheduledSub) {
+        setSub({
+          plan: null,
+          paid: false,
+          next_plan: scheduledSub.plan?.name ?? null,
+          next_period_start: scheduledSub.current_period_start,
+        });
       } else {
         setSub(null);
       }
@@ -425,6 +446,14 @@ function AppLayout() {
                   {sub?.paid && sub?.cycle && (
                     <span className="hidden rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary sm:inline">
                       {CYCLE_LABEL[sub.cycle as string] ?? sub.cycle}
+                    </span>
+                  )}
+                  {sub?.next_plan && (
+                    <span
+                      className="hidden max-w-32 truncate rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground lg:inline"
+                      title={`Next plan: ${sub.next_plan}${sub.next_period_start ? `, starts ${format(new Date(sub.next_period_start), "MMM d, yyyy")}` : ""}`}
+                    >
+                      Next: {sub.next_plan}
                     </span>
                   )}
                   {/* Phones show only the days left; the date appears from sm up. */}
