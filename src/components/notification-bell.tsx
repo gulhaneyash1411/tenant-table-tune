@@ -42,7 +42,13 @@ const KIND_STYLES: Record<string, { icon: LucideIcon; className: string }> = {
 
 const FALLBACK_STYLE = { icon: Bell, className: "bg-muted text-muted-foreground" };
 
-export function NotificationBell() {
+export function NotificationBell({
+  tenantId,
+  includeTenantNotifications = false,
+}: {
+  tenantId?: string | null;
+  includeTenantNotifications?: boolean;
+}) {
   const [items, setItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -129,20 +135,23 @@ export function NotificationBell() {
   async function load() {
     if (!userId) return;
     const since = new Date(Date.now() - RETENTION_DAYS * 86400_000).toISOString();
-    const { data } = await supabase
+    let query = supabase
       .from("notifications")
       .select("*")
-      .eq("recipient_id", userId)
-      .gte("created_at", since)
+      .gte("created_at", since);
+    query = includeTenantNotifications && tenantId
+      ? query.or(`recipient_id.eq.${userId},tenant_id.eq.${tenantId}`)
+      : query.eq("recipient_id", userId);
+    const { data } = await query
       .order("created_at", { ascending: false })
       .limit(30);
     setItems(data || []);
   }
-  useEffect(() => { if (userId) load(); }, [userId]);
+  useEffect(() => { if (userId) load(); }, [userId, tenantId, includeTenantNotifications]);
 
   useEffect(() => {
     if (!userId) return;
-    const ch = supabase
+    let channel = supabase
       .channel("notif-" + userId)
       .on(
         "postgres_changes",
@@ -153,10 +162,22 @@ export function NotificationBell() {
           if (title) setAnnouncement(`New notification: ${title}`);
           load();
         }
-      )
-      .subscribe();
+      );
+    if (includeTenantNotifications && tenantId) {
+      channel = channel.on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `tenant_id=eq.${tenantId}` },
+        (payload) => {
+          playChime();
+          const title = (payload.new as any)?.title;
+          if (title) setAnnouncement(`New notification: ${title}`);
+          load();
+        }
+      );
+    }
+    const ch = channel.subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [userId]);
+  }, [userId, tenantId, includeTenantNotifications]);
 
   const unread = items.filter((n) => !n.is_read).length;
   const read = items.filter((n) => n.is_read);
@@ -164,7 +185,11 @@ export function NotificationBell() {
 
   async function markAllRead() {
     if (!userId) return;
-    await supabase.from("notifications").update({ is_read: true }).eq("recipient_id", userId).eq("is_read", false);
+    let query = supabase.from("notifications").update({ is_read: true }).eq("is_read", false);
+    query = includeTenantNotifications && tenantId
+      ? query.or(`recipient_id.eq.${userId},tenant_id.eq.${tenantId}`)
+      : query.eq("recipient_id", userId);
+    await query;
     load();
   }
 
