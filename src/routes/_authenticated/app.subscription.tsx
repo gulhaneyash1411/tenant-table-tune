@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCurrentOutlet } from "@/lib/outlet-context";
 import { useTenantContext } from "@/hooks/use-session";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,9 +91,8 @@ function SubscriptionPage() {
   const trialDays = useTrialDays();
   // An Outlet Manager can see the plan, its status and the payment history, but
   // only the owner can buy or change a plan (invoice writes are owner-only in the DB too).
-  const { isOutletManager } = useTenantContext();
+  const { tenant, isOutletManager } = useTenantContext();
   const canBuy = !isOutletManager;
-  const [tenant, setTenant] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
   const [subs, setSubs] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
@@ -109,12 +107,8 @@ function SubscriptionPage() {
   const [payResult, setPayResult] = useState<"checking" | "paid" | "pending" | "failed" | null>(null);  const [historyOpen, setHistoryOpen] = useState(false);
   const [extendedDays, setExtendedDays] = useState<Record<string, number>>({});
 
-  async function load() {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    const t = await fetchCurrentOutlet(u.user.id);
-    setTenant(t);
-    if (!t) return;
+  const load = useCallback(async (currentTenant = tenant) => {
+    if (!currentTenant) return;
 
     // Switch to the next plan if its start time has passed (cron also does this)
     try { await (supabase as any).rpc("activate_scheduled_subscriptions"); } catch { /* ignore */ }
@@ -124,13 +118,13 @@ function SubscriptionPage() {
       (supabase as any)
         .from("subscriptions")
         .select("*, plan:subscription_plans(*)")
-        .eq("tenant_id", t.id)
+        .eq("tenant_id", currentTenant.id)
         .neq("status", "canceled")
         .order("created_at", { ascending: false }),
       (supabase as any)
         .from("invoices")
         .select("*")
-        .eq("tenant_id", t.id)
+        .eq("tenant_id", currentTenant.id)
         .order("issued_at", { ascending: false }),
     ]);
     setPlans(pl || []);
@@ -142,7 +136,7 @@ function SubscriptionPage() {
     const { data: extLogs } = await supabase
       .from("audit_logs")
       .select("entity_id, new_value")
-      .eq("tenant_id", t.id)
+      .eq("tenant_id", currentTenant.id)
       .eq("action", "subscription.extended");
     const bySubId: Record<string, number> = {};
     for (const log of extLogs || []) {
@@ -150,8 +144,8 @@ function SubscriptionPage() {
       if (days > 0 && log.entity_id) bySubId[log.entity_id] = (bySubId[log.entity_id] || 0) + days;
     }
     setExtendedDays(bySubId);
-  }
-  useEffect(() => { load(); }, []);
+  }, [tenant]);
+  useEffect(() => { load(); }, [load]);
 
   // A verified payment hard-reloads the page so every part of the app picks up the
   // new plan. The flag re-shows the success dialog after the reload, once.
@@ -180,7 +174,7 @@ function SubscriptionPage() {
       .then((status) => (status === "paid" ? reloadAfterPaid() : setPayResult(status)))
       .catch((e) => { setPayResult(null); toast.error(e.message); })
       .finally(load);
-  }, []);
+  }, [load]);
 
   // ---- derived plan state ----
   const now = new Date();
