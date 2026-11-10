@@ -479,7 +479,7 @@ function AppLayout() {
                     </span>
                   )}
                 </Link>
-                <NotificationBell />
+                <NotificationBell tenantId={tenant?.id} includeTenantNotifications={isOutletManager} />
                 <SignOutButton />
               </div>
             </header>
